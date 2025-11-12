@@ -15,6 +15,7 @@ export default function FacturasList() {
     nit: "",
     fecha: "",
     numero_factura: "",
+    codigo_clinica: "",
   });
   const [expandedId, setExpandedId] = useState(null); // id factura expandida
 
@@ -22,11 +23,12 @@ export default function FacturasList() {
     fetchFacturas();
   }, []);
 
+  // 🔹 Cargar todas las facturas
   async function fetchFacturas() {
     const { data, error } = await supabase
       .from("facturas")
       .select("*")
-      .order("id", { ascending: true });
+      .order("fecha", { ascending: false }); // más reciente primero
     if (error) {
       console.error("Error al cargar facturas:", error);
     } else {
@@ -38,41 +40,63 @@ export default function FacturasList() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
+  // 🔹 Agregar nueva factura (con validación de duplicados)
   async function agregarFactura() {
-  const { nombre_empresa, nit, fecha, numero_factura, codigo_clinica } = formData;
-  if (!nombre_empresa || !nit || !fecha || !numero_factura || !codigo_clinica) {
-    alert("Por favor completa todos los campos.");
-    return;
+    const { nombre_empresa, nit, fecha, numero_factura, codigo_clinica } =
+      formData;
+
+    // Validar campos obligatorios
+    if (!nombre_empresa || !nit || !fecha || !numero_factura || !codigo_clinica) {
+      alert("Por favor completa todos los campos.");
+      return;
+    }
+
+    // Verificar si ya existe una factura igual
+    const { data: existing, error: existingError } = await supabase
+      .from("facturas")
+      .select("id")
+      .eq("numero_factura", numero_factura)
+      .eq("nombre_empresa", nombre_empresa)
+      .maybeSingle(); // evita error si no existe
+
+    if (existingError) {
+      console.error("Error al verificar duplicados:", existingError);
+      alert("Error verificando si la factura ya existe.");
+      return;
+    }
+
+    if (existing) {
+      alert("⚠️ Esta factura ya existe para esa empresa.");
+      return;
+    }
+
+    // Insertar si no existe
+    const { data, error } = await supabase
+      .from("facturas")
+      .insert([{ nombre_empresa, nit, fecha, numero_factura, codigo_clinica }])
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("Error al agregar factura:", error);
+      alert("Error al agregar factura. Revisa la consola.");
+      return;
+    }
+
+    // Actualizar estado local
+    setFacturas((prev) => [data, ...prev]);
+    setFormData({
+      nombre_empresa: "",
+      nit: "",
+      fecha: "",
+      numero_factura: "",
+      codigo_clinica: "",
+    });
   }
 
-  const { data, error } = await supabase
-    .from("facturas")
-    .insert([{ nombre_empresa, nit, fecha, numero_factura, codigo_clinica }])
-    .select("*")
-    .single();
-
-  if (error) {
-    console.error("Error al agregar factura:", error);
-    alert("Error al agregar factura. Revisa la consola.");
-    return;
-  }
-
-  // data devuelve un objeto (no array) cuando usas .single()
-  setFacturas((prev) => [...prev, data]);
-  setFormData({
-    nombre_empresa: "",
-    nit: "",
-    fecha: "",
-    numero_factura: "",
-    codigo_clinica: "",
-  });
-}
-
-
-  // callback que ProductosList llamará con el total calculado
+  // 🔹 Callback que ProductosList usa para actualizar el total
   async function handleTotalUpdate(facturaId, total) {
     try {
-      // Actualizamos en la base de datos
       const { data, error } = await supabase
         .from("facturas")
         .update({ total })
@@ -80,7 +104,6 @@ export default function FacturasList() {
         .select();
       if (error) throw error;
 
-      // Actualizamos el estado local para que la tabla muestre el total actualizado
       setFacturas((prev) =>
         prev.map((f) => (f.id === facturaId ? { ...f, total } : f))
       );
@@ -89,7 +112,6 @@ export default function FacturasList() {
     }
   }
 
-  // toggle expand row on click
   function toggleExpand(id) {
     setExpandedId((prev) => (prev === id ? null : id));
   }
@@ -99,119 +121,108 @@ export default function FacturasList() {
       <h2>📄 Registro de Facturas</h2>
 
       {/* FORMULARIO */}
-<div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-  <input
-    name="nombre_empresa"
-    placeholder="Nombre empresa"
-    value={formData.nombre_empresa}
-    onChange={handleChange}
-  />
-  <input
-    name="nit"
-    placeholder="NIT"
-    value={formData.nit}
-    onChange={handleChange}
-  />
-  <input
-    type="date"
-    name="fecha"
-    value={formData.fecha}
-    onChange={handleChange}
-  />
-  <input
-    name="numero_factura"
-    placeholder="N° Factura"
-    value={formData.numero_factura}
-    onChange={handleChange}
-  />
-
-  {/* Select correcto */}
-  <select
-    name="codigo_clinica"
-    value={formData.codigo_clinica || ""}
-    onChange={handleChange}
-  >
-    <option value="">N° Operación</option>
-    {Array.from({ length: 35 }, (_, i) => {
-      const num = String(i + 1).padStart(4, "0");
-      return (
-        <option key={num} value={num}>
-          {num}
-        </option>
-      );
-    })}
-  </select>
-
-  <button onClick={agregarFactura}>➕ Agregar</button>
-</div>
-
-
-{/* TABLA PRINCIPAL */}
-<table
-  border="1"
-  cellPadding="8"
-  style={{ width: "100%", borderCollapse: "collapse" }}
->
-  <thead style={{ background: "#707070ff" }}>
-    <tr>
-      <th>Empresa</th>
-      <th>NIT</th>
-      <th>Total ($)</th>
-      <th>N° Factura</th>
-      <th>Fecha</th>
-      <th>codigo_clinica</th>
-      <th>PDF</th>
-    </tr>
-  </thead>
-  <tbody>
-    {facturas.map((f) => (
-      <React.Fragment key={f.id}>
-        {/* Fila principal (clicable para expandir) */}
-        <tr
-          style={{ cursor: "pointer" }}
-          onClick={() => toggleExpand(f.id)}
-          title="Haz clic para ver productos"
+      <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+        <input
+          name="nombre_empresa"
+          placeholder="Nombre empresa"
+          value={formData.nombre_empresa}
+          onChange={handleChange}
+        />
+        <input
+          name="nit"
+          placeholder="NIT"
+          value={formData.nit}
+          onChange={handleChange}
+        />
+        <input
+          type="date"
+          name="fecha"
+          value={formData.fecha}
+          onChange={handleChange}
+        />
+        <input
+          name="numero_factura"
+          placeholder="N° Factura"
+          value={formData.numero_factura}
+          onChange={handleChange}
+        />
+        <select
+          name="codigo_clinica"
+          value={formData.codigo_clinica || ""}
+          onChange={handleChange}
         >
-          <td>{f.nombre_empresa}</td>
-          <td>{f.nit}</td>
-          <td style={{ textAlign: "right" }}>{formatCurrency(f.total)}</td>
-          <td>{f.numero_factura}</td>
-          <td>{f.fecha}</td>
-          <td>{f.codigo_clinica}</td>
+          <option value="">N° Operación</option>
+          {Array.from({ length: 35 }, (_, i) => {
+            const num = String(i + 1).padStart(4, "0");
+            return (
+              <option key={num} value={num}>
+                {num}
+              </option>
+            );
+          })}
+        </select>
+        <button onClick={agregarFactura}>➕ Agregar</button>
+      </div>
 
-          {/* PDF */}
-          <td onClick={(e) => e.stopPropagation()}>
-            {/* stopPropagation para que al usar los controles de la celda no se active el toggle */}
-            {f.pdf_url ? (
-              <a href={f.pdf_url} target="_blank" rel="noreferrer">
-                👁️ Ver PDF
-              </a>
-            ) : (
-              // mostramos el uploader compacto dentro de la celda
-              <PdfUploader
-                facturaId={f.id}
-                onUploadSuccess={() => fetchFacturas()}
-              />
-            )}
-          </td>
-        </tr>
-
-        {/* Fila expandida: contiene ProductosList (oculta si no corresponde) */}
-        {expandedId === f.id && (
+      {/* TABLA PRINCIPAL */}
+      <table
+        border="1"
+        cellPadding="8"
+        style={{ width: "100%", borderCollapse: "collapse" }}
+      >
+        <thead style={{ background: "#807f7fff", color: "white" }}>
           <tr>
-            <td colSpan="7" style={{ background: "#656565ff" }}>
-              <ProductosList
-                facturaId={f.id}
-                onTotalChange={(total) => handleTotalUpdate(f.id, total)}
-              />
-            </td>
+            <th>Empresa</th>
+            <th>NIT</th>
+            <th>Total ($)</th>
+            <th>N° Factura</th>
+            <th>Fecha</th>
+            <th>Código operación</th>
+            <th>PDF</th>
           </tr>
-        )}
-      </React.Fragment>
-    ))}
-  </tbody>
-</table>
+        </thead>
+        <tbody>
+          {facturas.map((f) => (
+            <React.Fragment key={f.id}>
+              <tr
+                style={{ cursor: "pointer", background: expandedId === f.id ? "#848484ff" : "white" }}
+                onClick={() => toggleExpand(f.id)}
+                title="Haz clic para ver productos"
+              >
+                <td>{f.nombre_empresa}</td>
+                <td>{f.nit}</td>
+                <td style={{ textAlign: "right" }}>{formatCurrency(f.total)}</td>
+                <td>{f.numero_factura}</td>
+                <td>{f.fecha}</td>
+                <td>{f.codigo_clinica}</td>
+                <td onClick={(e) => e.stopPropagation()}>
+                  {f.pdf_url? (
+                    <a href={f.pdf_url} target="_blank" rel="noreferrer">
+                      👁️ Ver PDF
+                    </a>
+                  ) : (
+                    <PdfUploader
+                      facturaId={f.id}
+                      onUploadSuccess={() => fetchFacturas()}
+                    />
+                  )}
+                </td>
+              </tr>
 
+              {expandedId === f.id && (
+                <tr>
+                  <td colSpan="7" style={{ background: "#656565ff" }}>
+                    <ProductosList
+                      facturaId={f.id}
+                      onTotalChange={(total) => handleTotalUpdate(f.id, total)}
+                    />
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

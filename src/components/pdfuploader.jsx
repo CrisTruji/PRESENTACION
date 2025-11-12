@@ -6,14 +6,15 @@ export default function PdfUploader({ facturaId, onUploadSuccess }) {
   const [file, setFile] = useState(null);
   const [existingUrl, setExistingUrl] = useState(null);
 
-  // 🔹 Cargar URL existente (si la factura ya tiene PDF)
+  // 🔹 Cargar URL existente
   useEffect(() => {
     async function fetchExisting() {
+      if (!facturaId) return;
       const { data, error } = await supabase
         .from("facturas")
         .select("pdf_url")
         .eq("id", facturaId)
-        .single();
+        .maybeSingle();
 
       if (!error && data?.pdf_url) {
         setExistingUrl(data.pdf_url);
@@ -22,74 +23,80 @@ export default function PdfUploader({ facturaId, onUploadSuccess }) {
     fetchExisting();
   }, [facturaId]);
 
-  // 🔹 Capturar el archivo
   function handleFileChange(e) {
     setFile(e.target.files[0]);
   }
 
-  // 🔹 Subir archivo PDF
+  // 🔹 Subir PDF
   async function handleUpload(e) {
-    e.stopPropagation();
-    if (!file) return alert("Selecciona un archivo PDF primero.");
-    setUploading(true);
+  e.stopPropagation();
+  if (!file) return alert("Selecciona un archivo PDF primero.");
+  setUploading(true);
 
-    try {
-      if (existingUrl) {
-        alert("⚠️ Ya existe un PDF, elimínalo primero si deseas reemplazarlo.");
-        return;
-      }
-
-      const fileName = `${facturaId}-${Date.now()}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("facturas-pdf")
-        .upload(fileName, file, { contentType: "application/pdf" });
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from("facturas-pdf")
-        .getPublicUrl(fileName);
-
-      const publicUrl = data.publicUrl;
-
-      const { error: updateError } = await supabase
-        .from("facturas")
-        .update({ pdf_url: publicUrl })
-        .eq("id", facturaId);
-
-      if (updateError) throw updateError;
-
-      alert("✅ PDF subido correctamente.");
-      setExistingUrl(publicUrl);
-      onUploadSuccess?.();
-    } catch (error) {
-      console.error("❌ Error al subir PDF:", error);
-      alert(`Error al subir: ${error.message}`);
-    } finally {
-      setUploading(false);
-      setFile(null);
+  try {
+    if (existingUrl) {
+      alert("⚠️ Ya existe un PDF, elimínalo primero si deseas reemplazarlo.");
+      return;
     }
-  }
 
-  // 🔹 Eliminar archivo PDF
+    const fileName = `${facturaId}-${Date.now()}.pdf`;
+
+    // 1️⃣ Subir archivo al bucket
+    const { error: uploadError } = await supabase.storage
+      .from("facturas-pdf")
+      .upload(fileName, file, { contentType: "application/pdf" });
+
+    if (uploadError) throw uploadError;
+
+    // 2️⃣ Obtener URL pública correctamente
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("facturas-pdf").getPublicUrl(fileName);
+
+    console.log("URL generada:", publicUrl); // 👀 Verifica que se genere bien
+
+   // 3️⃣ Actualizar columna pdf_url en la factura
+const { data: updated, error: updateError } = await supabase
+  .from("facturas")
+  .update({ pdf_url: publicUrl })
+  .eq("id", facturaId)
+  .select(); // 👈 para ver qué devuelve
+
+console.log("Resultado update:", updated, updateError);
+
+if (updateError) {
+  console.error("Error al actualizar URL:", updateError.message);
+  throw updateError;
+}
+
+    alert("✅ PDF subido correctamente.");
+    setExistingUrl(publicUrl);
+    onUploadSuccess?.();
+  } catch (error) {
+    console.error("❌ Error al subir PDF:", error);
+    alert(`Error al subir: ${error.message}`);
+  } finally {
+    setUploading(false);
+    setFile(null);
+  }
+}
+
+
+  // 🔹 Eliminar PDF
   async function handleDelete(e) {
     e.stopPropagation();
     if (!existingUrl) return;
 
-    const confirmDelete = window.confirm("¿Eliminar este PDF definitivamente?");
-    if (!confirmDelete) return;
+    if (!window.confirm("¿Eliminar este PDF definitivamente?")) return;
 
     try {
-      // Obtener nombre del archivo desde la URL
       const path = existingUrl.split("/").pop();
 
-      // Borrar del bucket
       const { error: storageError } = await supabase.storage
         .from("facturas-pdf")
         .remove([path]);
       if (storageError) throw storageError;
 
-      // Limpiar columna en la tabla facturas
       const { error: updateError } = await supabase
         .from("facturas")
         .update({ pdf_url: null })

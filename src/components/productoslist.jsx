@@ -110,7 +110,7 @@ export default function ProductosList({ facturaId, onTotalChange }) {
       {/* 🟣 Tabla de productos */}
       <table border="1" cellPadding="6" style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ background: "#f0f0f0" }}>
+          <tr style={{ background: "#8d8d8dff" }}>
             <th>Código producto</th>
             <th>Nombre</th>
             <th>Cantidad</th>
