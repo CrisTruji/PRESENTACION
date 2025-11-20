@@ -1,59 +1,53 @@
+// src/screens/solicitudes.jsx
 import React, { useEffect, useState } from "react";
-import { listSolicitudes, updateSolicitudEstado } from "../lib/solicitudes.js";
-import { useAuth } from "../context/auth.jsx";
+import { listSolicitudes, updateSolicitudEstado } from "../lib/solicitudes";
+import { useAuth } from "../context/auth";
 
 export default function SolicitudesScreen() {
-  const { user } = useAuth();
+  const { session } = useAuth();
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchSolicitudes() {
-      try {
-        const data = await listSolicitudes();
-        setSolicitudes(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchSolicitudes();
-  }, []);
-
-  const handleUpdateEstado = async (id, estado) => {
+  async function load() {
     try {
-      await updateSolicitudEstado(id, estado, user.id);
-      // Recargar lista
       const data = await listSolicitudes();
-      setSolicitudes(data);
+      setSolicitudes(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function handleEstado(id, estado) {
+    try {
+      await updateSolicitudEstado(id, estado, session?.id);
+      load();
     } catch (err) {
       alert("Error: " + err.message);
     }
-  };
+  }
 
-  if (loading) return <p>Cargando solicitudes...</p>;
-  if (error) return <p>Error: {error}</p>;
+  if (loading) return <p style={{ padding: 20 }}>Cargando...</p>;
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: 20 }}>
       <h2>Solicitudes</h2>
-      <ul>
-        {solicitudes.map((sol) => (
-          <li key={sol.id} style={{ margin: "10px 0", border: "1px solid #ccc", padding: "10px" }}>
-            <p>Proveedor: {sol.proveedor.nombre}</p>
-            <p>Estado: {sol.estado}</p>
-            <p>Creado por: {sol.created_by_user?.nombre}</p>
-            {sol.estado === 'pendiente' && (
-              <div>
-                <button onClick={() => handleUpdateEstado(sol.id, 'aprobada')}>Aprobar</button>
-                <button onClick={() => handleUpdateEstado(sol.id, 'rechazada')}>Rechazar</button>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {solicitudes.map((s) => (
+        <div key={s.id} style={{ border: "1px solid #eee", padding: 12, marginBottom: 8 }}>
+          <p><strong>Proveedor:</strong> {s.proveedor?.nombre}</p>
+          <p><strong>Estado:</strong> {s.estado}</p>
+          <p><strong>Creado por:</strong> {s.created_by_user?.nombre || s.created_by}</p>
+          {s.estado === "pendiente" && (
+            <>
+              <button onClick={() => handleEstado(s.id, "aprobada")} style={{ marginRight: 8 }}>Aprobar</button>
+              <button onClick={() => handleEstado(s.id, "rechazada")}>Rechazar</button>
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

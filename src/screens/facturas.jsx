@@ -1,83 +1,61 @@
+// src/screens/facturas.jsx
 import React, { useEffect, useState } from "react";
 import { listFacturas, createFactura } from "../lib/solicitudes";
 import { useAuth } from "../context/auth";
 
-export default function FacturasScreen({ solicitudes }) {
-  const { user } = useAuth();
+export default function FacturasScreen() {
+  const { session } = useAuth();
   const [facturas, setFacturas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    solicitud_id: "",
-    numero_factura: "",
-    fecha_factura: "",
-    items: [],
-    pdf_url: ""
-  });
+  const [form, setForm] = useState({ solicitud_id: "", numero_factura: "", fecha_factura: "", valor_total: 0 });
 
   useEffect(() => {
-    async function fetchFacturas() {
+    async function load() {
       try {
         const data = await listFacturas();
-        setFacturas(data);
+        setFacturas(data || []);
       } catch (err) {
-        setError(err.message);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    fetchFacturas();
+    load();
   }, []);
 
-  const handleCreateFactura = async () => {
+  async function handleCreate() {
     try {
-      await createFactura(formData, user.id);
+      await createFactura(form, session.id);
+      alert("Factura creada");
       setShowForm(false);
-      // Recargar
-      const data = await listFacturas();
-      setFacturas(data);
     } catch (err) {
       alert("Error: " + err.message);
     }
-  };
+  }
 
-  if (loading) return <p>Cargando facturas...</p>;
-  if (error) return <p>Error: {error}</p>;
+  if (loading) return <p style={{ padding: 20 }}>Cargando facturas...</p>;
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div style={{ padding: 20 }}>
       <h2>Facturas</h2>
-      <button onClick={() => setShowForm(!showForm)}>Crear Nueva Factura</button>
+      <button onClick={() => setShowForm((s) => !s)}>Crear factura</button>
       {showForm && (
-        <div style={{ marginTop: "20px" }}>
-          <select onChange={(e) => setFormData({ ...formData, solicitud_id: e.target.value })}>
-            <option value="">Seleccionar Solicitud</option>
-            {solicitudes.map((sol) => (
-              <option key={sol.id} value={sol.id}>{sol.id} - {sol.proveedor.nombre}</option>
-            ))}
-          </select>
-          <input
-            type="text"
-            placeholder="Número Factura"
-            value={formData.numero_factura}
-            onChange={(e) => setFormData({ ...formData, numero_factura: e.target.value })}
-          />
-          <input
-            type="date"
-            value={formData.fecha_factura}
-            onChange={(e) => setFormData({ ...formData, fecha_factura: e.target.value })}
-          />
-          {/* Simplificado: Agrega lógica para items si es necesario */}
-          <button onClick={handleCreateFactura}>Guardar Factura</button>
+        <div style={{ marginTop: 12 }}>
+          <input placeholder="Solicitud ID" value={form.solicitud_id} onChange={(e) => setForm({ ...form, solicitud_id: e.target.value })} />
+          <input placeholder="N° factura" value={form.numero_factura} onChange={(e) => setForm({ ...form, numero_factura: e.target.value })} />
+          <input type="date" value={form.fecha_factura} onChange={(e) => setForm({ ...form, fecha_factura: e.target.value })} />
+          <input type="number" placeholder="Valor total" value={form.valor_total} onChange={(e) => setForm({ ...form, valor_total: e.target.value })} />
+          <button onClick={handleCreate}>Guardar</button>
         </div>
       )}
+
       <ul>
-        {facturas.map((fac) => (
-          <li key={fac.id} style={{ margin: "10px 0", border: "1px solid #ccc", padding: "10px" }}>
-            <p>Número: {fac.numero_factura}</p>
-            <p>Proveedor: {fac.proveedor.nombre}</p>
-            <p>Valor Total: {fac.valor_total}</p>
+        {facturas.map((f) => (
+          <li key={f.id} style={{ border: "1px solid #eee", padding: 10, marginBottom: 8 }}>
+            <p>Número: {f.numero_factura}</p>
+            <p>Proveedor: {f.proveedor?.nombre}</p>
+            <p>Valor: {f.valor_total}</p>
           </li>
         ))}
       </ul>

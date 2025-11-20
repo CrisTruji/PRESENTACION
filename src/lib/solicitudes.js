@@ -85,15 +85,48 @@ export async function updateSolicitudEstado(id, estado, approvedBy) {
   return data;
 }
 
-// Funciones para productos (filtrar por proveedor - placeholder: muestra todos)
+// Funciones para productos (actualizado para usar tabla intermedia proveedor_productos)
 export async function listProductos(proveedorId) {
-  // Asumiendo que productos son globales; filtra si hay relación
+  const { data, error } = await supabase
+    .from("proveedor_productos")
+    .select(`
+      catalogo_productos (*)
+    `)
+    .eq("proveedor_id", proveedorId);
+  if (error) throw error;
+  return data.map(item => item.catalogo_productos);  // Devuelve los productos asociados
+}
+
+// Nueva función: Asociar un producto a un proveedor
+export async function asociarProductoAProveedor(proveedorId, productoId) {
+  const { data, error } = await supabase
+    .from("proveedor_productos")
+    .insert([{ proveedor_id: proveedorId, catalogo_producto_id: productoId }])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Nueva función: Desasociar un producto de un proveedor
+export async function desasociarProductoDeProveedor(proveedorId, productoId) {
+  const { error } = await supabase
+    .from("proveedor_productos")
+    .delete()
+    .eq("proveedor_id", proveedorId)
+    .eq("catalogo_producto_id", productoId);
+  if (error) throw error;
+  return true;
+}
+
+// Nueva función: Listar todos los productos (para asociar manualmente si es necesario)
+export async function listAllProductos() {
   const { data, error } = await supabase
     .from("catalogo_productos")
     .select("*")
     .order("nombre", { ascending: true });
   if (error) throw error;
-  return data; // Placeholder: devuelve todos. Ajusta query si hay filtro real.
+  return data;
 }
 
 // Funciones para facturas
