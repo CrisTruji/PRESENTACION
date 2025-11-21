@@ -1,25 +1,22 @@
-// src/context/router.jsx
 import React, { createContext, useContext, useState } from "react";
 
 const RouterContext = createContext();
 
-export function RouterProvider({ children, initial }) {
-  const [route, setRoute] = useState(initial);
+export const RouterProvider = ({ children }) => {
+  const [currentScreen, setCurrentScreen] = useState({
+    name: "login",
+    params: {},
+  });
 
-  function navigate(name, params = {}) {
-    setRoute({ name, params });
-  }
+  const navigate = (screen, params = {}) => {
+    setCurrentScreen({ name: screen, params });
+  };
 
   return (
-    <RouterContext.Provider value={{ route, navigate }}>
+    <RouterContext.Provider value={{ currentScreen, navigate }}>
       {children}
     </RouterContext.Provider>
   );
-}
+};
 
-
-export function useRouter() {
-  const ctx = useContext(RouterContext);
-  if (!ctx) throw new Error("useRouter must be used inside RouterProvider");
-  return ctx;
-}
+export const useRouter = () => useContext(RouterContext);

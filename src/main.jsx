@@ -7,13 +7,12 @@ import { RouterProvider } from "./context/router.jsx";
 import "./style.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
+  // ❌ Quita StrictMode porque duplica efectos
+  // <React.StrictMode>
     <AuthProvider>
       <RouterProvider initial={{ name: "login", params: {} }}>
-   <AuthProvider>
-      <App />
-   </AuthProvider>
-</RouterProvider>
+        <App />
+      </RouterProvider>
     </AuthProvider>
-  </React.StrictMode>
+  // </React.StrictMode>
 );

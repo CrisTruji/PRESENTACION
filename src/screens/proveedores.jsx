@@ -1,41 +1,54 @@
-// src/screens/proveedores.jsx
 import React, { useEffect, useState } from "react";
-import { listProveedores } from "../lib/solicitudes";
+import { supabase } from "../lib/supabase";
 import { useRouter } from "../context/router";
 
 export default function ProveedoresScreen() {
-  const [proveedores, setProveedores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const { navigate } = useRouter();
+  const [proveedores, setProveedores] = useState([]);
 
   useEffect(() => {
-    async function fetch() {
-      try {
-        const data = await listProveedores();
-        setProveedores(data || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetch();
+    loadProveedores();
   }, []);
 
-  if (loading) return <p style={{ padding: 20 }}>Cargando proveedores...</p>;
-  if (error) return <p style={{ padding: 20, color: "red" }}>Error: {error}</p>;
+  const loadProveedores = async () => {
+    const { data, error } = await supabase
+      .from("proveedores")
+      .select("*");
+
+    if (error) {
+      console.error("Error cargando proveedores:", error);
+      return;
+    }
+
+    setProveedores(data);
+  };
+
+  const handleSelectProveedor = (proveedor) => {
+    navigate("productos", { proveedorId: proveedor.id });
+  };
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Seleccionar Proveedor</h2>
+      <h1>Proveedores</h1>
+
+      {proveedores.length === 0 && <p>No hay proveedores registrados.</p>}
+
       <ul>
-        {proveedores.map((prov) => (
-          <li key={prov.id} style={{ margin: "10px 0", border: "1px solid #eee", padding: 12 }}>
-            <strong>{prov.nombre}</strong> — NIT: {prov.nit}
-            <div style={{ marginTop: 8 }}>
-              <button onClick={() => navigate("productos", { proveedor: prov })} style={{ marginRight: 8 }}>Ver productos</button>
-            </div>
+        {proveedores.map((p) => (
+          <li key={p.id} style={{ marginBottom: 12 }}>
+            <button
+              onClick={() => handleSelectProveedor(p)}
+              style={{
+                padding: "10px 15px",
+                background: "orange",
+                color: "#fff",
+                border: "none",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              {p.nombre}
+            </button>
           </li>
         ))}
       </ul>

@@ -2,6 +2,7 @@
 import React from "react";
 import { useAuth } from "./context/auth";
 import { useRouter } from "./context/router";
+
 import Navbar from "./components/navbar";
 
 import Proveedores from "./screens/proveedores";
@@ -13,21 +14,23 @@ import Login from "./screens/login";
 import Register from "./screens/register";
 
 export default function App() {
-  const { session, loading, waitingForRole } = useAuth();
-  const { route } = useRouter();
+  const { session, loading, roleName } = useAuth();
+  const { currentScreen } = useRouter();
 
   if (loading) return <p style={{ padding: 20 }}>Cargando...</p>;
   if (!session) return <AuthViews />;
-  if (waitingForRole) return <WaitingRoleScreen />;
+
+  if (!roleName) return <WaitingRoleScreen />;
 
   return (
     <div>
       <Navbar />
+
       <main>
-        {route.name === "proveedores" && <Proveedores />}
-        {route.name === "productos" && <Productos />}
-        {route.name === "solicitudes" && <Solicitudes />}
-        {route.name === "facturas" && <Facturas />}
+        {currentScreen.name === "proveedores" && <Proveedores />}
+        {currentScreen.name === "productos" && <Productos />}
+        {currentScreen.name === "solicitudes" && <Solicitudes />}
+        {currentScreen.name === "facturas" && <Facturas />}
       </main>
     </div>
   );
@@ -35,5 +38,8 @@ export default function App() {
 
 function AuthViews() {
   const [showRegister, setShowRegister] = React.useState(false);
-  return showRegister ? <Register goToLogin={() => setShowRegister(false)} /> : <Login goToSignup={() => setShowRegister(true)} />;
+
+  return showRegister 
+    ? <Register goToLogin={() => setShowRegister(false)} /> 
+    : <Login goToSignup={() => setShowRegister(true)} />;
 }
