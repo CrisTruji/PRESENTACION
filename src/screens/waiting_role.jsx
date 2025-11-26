@@ -1,4 +1,3 @@
-// src/screens/waiting_role.jsx
 import React from "react";
 
 const wrap = {

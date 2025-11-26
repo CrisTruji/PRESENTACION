@@ -1,35 +1,45 @@
-// src/screens/register.jsx
-import React, { useEffect, useState } from "react";
-import { useAuth } from "../context/auth";
-import { listRoles } from "../lib/roles";
+import React, { useState } from "react";
+import { useAuth } from "../context/auth.jsx";
 
 export default function RegisterScreen({ goToLogin }) {
   const { signUp } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
-  const [roleId, setRoleId] = useState(null);
-  const [roles, setRoles] = useState([]);
   const [err, setErr] = useState("");
-
-  useEffect(() => {
-    async function loadRoles() {
-      const r = await listRoles();
-      setRoles(r);
-      if (r.length) setRoleId(r[0].id);
-    }
-    loadRoles();
-  }, []);
+  const [loading, setLoading] = useState(false);
 
   async function handleSignup(e) {
     e.preventDefault();
+    setLoading(true);
+    setErr("");
+    
     try {
-      setErr("");
-      await signUp(email, password, nombre, roleId);
-      alert("Cuenta creada. Revisa tu correo (si usas magic link) o espera confirmación.");
+      if (!nombre.trim() || !email.trim() || !password.trim()) {
+        setErr("Todos los campos son requeridos");
+        return;
+      }
+
+      if (password.length < 6) {
+        setErr("La contraseña debe tener al menos 6 caracteres");
+        return;
+      }
+
+      await signUp(email, password, nombre);
+      alert("✅ Cuenta creada exitosamente. Ya puedes iniciar sesión.");
       goToLogin?.();
     } catch (error) {
-      setErr(error.message || "Error registrando usuario");
+      console.error("Error completo:", error);
+      
+      if (error.message?.includes("User already registered")) {
+        setErr("Este correo ya está registrado");
+      } else if (error.message?.includes("Email not confirmed")) {
+        setErr("Confirma tu email antes de iniciar sesión");
+      } else {
+        setErr(error.message || "Error registrando usuario");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -39,25 +49,43 @@ export default function RegisterScreen({ goToLogin }) {
       {err && <p style={{ color: "red" }}>{err}</p>}
 
       <form onSubmit={handleSignup}>
-        <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
-        <input placeholder="Correo" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input placeholder="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-
-      <label style={{ display: "block", marginTop: 8 }}>Seleccionar rol</label>
-
-<pre style={{ background: "#eee", padding: 10 }}>
-  {JSON.stringify(roles, null, 2)}
-</pre>
-
-<select value={roleId || ""} onChange={(e) => setRoleId(Number(e.target.value))}>
-  {roles.map((r) => (
-    <option key={r.id} value={r.id}>{r.nombre}</option>
-  ))}
-</select>
+        <input 
+          placeholder="Nombre completo" 
+          value={nombre} 
+          onChange={(e) => setNombre(e.target.value)}
+          disabled={loading}
+        />
+        <input 
+          placeholder="Correo electrónico" 
+          type="email"
+          value={email} 
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={loading}
+        />
+        <input 
+          placeholder="Contraseña (mínimo 6 caracteres)" 
+          type="password" 
+          value={password} 
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={loading}
+        />
 
         <div style={{ marginTop: 12 }}>
-          <button className="auth-btn" type="submit">Registrarme</button>
-          <button type="button" className="auth-btn secondary" onClick={goToLogin}>Iniciar sesión</button>
+          <button 
+            className="auth-btn" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Creando cuenta..." : "Registrarme"}
+          </button>
+          <button 
+            type="button" 
+            className="auth-btn secondary" 
+            onClick={goToLogin}
+            disabled={loading}
+          >
+            Iniciar sesión
+          </button>
         </div>
       </form>
     </div>
