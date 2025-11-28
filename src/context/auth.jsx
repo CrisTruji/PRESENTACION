@@ -1,109 +1,132 @@
-// src/context/auth.jsx - VERSIÓN OPTIMIZADA
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { getProfile } from '../services/profiles';
+// src/context/auth.jsx
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  // ESTADO SIMPLIFICADO: elimino user porque session.user ya lo tiene
-  const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [session, setSession] = useState(null); // supabase session
+  const [profile, setProfile] = useState(null); // users_profiles row
+  const [roleName, setRoleName] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // roleName ahora es derivado, no necesita estado separado
-  const roleName = profile?.rol || null;
-
   useEffect(() => {
-    const initializeAuth = async () => {
+    let mounted = true;
+
+    async function init() {
+      console.log("🔵 INIT AUTH LOAD");
       try {
-        // Obtener sesión inicial
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        
-        if (session?.user) {
-          await loadProfile(session.user.id);
+        const { data } = await supabase.auth.getSession();
+        const currentSession = data?.session ?? null;
+
+        if (!mounted) return;
+        setSession(currentSession);
+
+        if (currentSession?.user) {
+          await fetchProfile(currentSession.user.id);
         }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+      } catch (err) {
+        console.error("❌ ERROR init auth:", err);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
+    }
+
+    init();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        console.log("🟡 AUTH STATE CHANGE:", event);
+        setSession(newSession);
+
+        if (event === "SIGNED_IN") {
+          const user = newSession?.user;
+          if (user) {
+            // crear perfil si no existe
+            try {
+              const { data: exists } = await supabase
+                .from("users_profiles")
+                .select("id")
+                .eq("id", user.id)
+                .maybeSingle();
+
+              if (!exists) {
+                const { error: insertError } = await supabase
+                  .from("users_profiles")
+                  .insert([{ id: user.id, nombre: user.email?.split("@")[0] ?? "", email: user.email, rol_id: null }]);
+                if (insertError) console.error("❌ Error creando perfil (listener):", insertError);
+                else console.log("🟢 Perfil creado por listener");
+              }
+            } catch (err) {
+              console.error("❌ listener createProfile error:", err);
+            }
+
+            await fetchProfile(user.id);
+          }
+        }
+
+        if (event === "SIGNED_OUT") {
+          setProfile(null);
+          setRoleName(null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      listener?.subscription?.unsubscribe();
     };
-
-    initializeAuth();
-
-    // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      
-      if (session?.user) {
-        await loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  const loadProfile = async (userId) => {
+  async function fetchProfile(uid) {
     try {
-      // NO setLoading(true) aquí para evitar flashes de loading
-      const profileData = await getProfile(userId);
-      setProfile(profileData);
-      console.log("✅ Perfil cargado:", { 
-        usuario: profileData?.nombre, 
-        rol: profileData?.rol 
-      });
-    } catch (error) {
-      console.error('❌ Error loading profile:', error);
-      setProfile(null);
-    }
-  };
+      const { data, error } = await supabase
+        .from("users_profiles")
+        .select("id, nombre, rol_id, email, roles(nombre)")
+        .eq("id", uid)
+        .maybeSingle();
 
-  const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      // Los estados se limpiarán automáticamente por onAuthStateChange
-    } catch (error) {
-      console.error('Error signing out:', error);
+      if (!data) {
+        setProfile(null);
+        setRoleName(null);
+        return;
+      }
+      setProfile(data);
+      setRoleName(data?.roles?.nombre ?? null);
+    } catch (err) {
+      console.error("❌ fetchProfile error:", err);
+      setProfile(null);
+      setRoleName(null);
     }
-  };
+  }
 
-  const refreshProfile = async () => {
-    if (session?.user?.id) {
-      await loadProfile(session.user.id);
-    }
-  };
+  async function signUp(email, password, nombre = "") {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    // No insertamos perfil aquí (se crea en listener)
+    return data;
+  }
 
-  const value = {
-    // session ya incluye user, así que exponemos ambos por compatibilidad
-    user: session?.user || null,
-    session,
-    profile,
-    loading,
-    roleName, // ahora derivado de profile
-    signOut,
-    refreshProfile,
-    // helpers útiles
-    isAuthenticated: !!session,
-    hasRole: (role) => roleName === role
-  };
+  async function signIn(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setRoleName(null);
+  }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ session, profile, roleName, loading, signIn, signUp, signOut, fetchProfile }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export function useAuth() {
+  return useContext(AuthContext);
+}

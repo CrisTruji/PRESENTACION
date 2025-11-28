@@ -1,3 +1,4 @@
+// src/context/router.jsx
 import React, { createContext, useContext, useState } from "react";
 
 const RouterContext = createContext();
@@ -10,11 +11,7 @@ export const RouterProvider = ({ children, initial = { name: "proveedores", para
     setCurrentScreen({ name: screen, params });
   };
 
-  return (
-    <RouterContext.Provider value={{ currentScreen, navigate }}>
-      {children}
-    </RouterContext.Provider>
-  );
+  return <RouterContext.Provider value={{ currentScreen, navigate }}>{children}</RouterContext.Provider>;
 };
 
 export const useRouter = () => useContext(RouterContext);

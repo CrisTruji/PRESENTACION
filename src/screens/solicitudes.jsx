@@ -1,6 +1,6 @@
 // src/screens/solicitudes.jsx
 import React, { useEffect, useState } from "react";
-import { listSolicitudes, updateSolicitudEstado } from "../lib/solicitudes";
+import { listSolicitudes, updateSolicitudEstado } from "../lib/solicitudes.js";
 import { useAuth } from "../context/auth";
 
 export default function SolicitudesScreen() {
@@ -17,6 +17,7 @@ export default function SolicitudesScreen() {
     cargarSolicitudes(); 
   }, []);
 
+  
   const cargarSolicitudes = async () => {
     try {
       const data = await listSolicitudes();
