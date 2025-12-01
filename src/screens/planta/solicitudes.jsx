@@ -1,53 +1,59 @@
-import { supabase } from "../lib/supabase";
+// src/screens/planta/solicitudes.jsx
+import React, { useEffect, useState } from "react";
+import { getSolicitudesByUser } from "../../services/solicitudes";
+import { useAuth } from "../../context/auth";
+import { useNavigate } from "react-router-dom";
 
-// Crear solicitud
-export async function crearSolicitud({ proveedor_id, created_by, observaciones }) {
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .insert([
-      {
-        proveedor_id,
-        created_by,
-        observaciones,
-        estado: "pendiente",
-      },
-    ])
-    .select()
-    .single();
+export default function SolicitudesPlanta() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [solicitudes, setSolicitudes] = useState([]);
 
-  if (error) throw error;
-  return data;
-}
+  useEffect(() => {
+    if (user) loadSolicitudes();
+  }, [user]);
 
-// Crear items de solicitud
-export async function crearSolicitudItem(item) {
-  const { data, error } = await supabase
-    .from("solicitud_items")
-    .insert([item])
-    .select()
-    .single();
+  async function loadSolicitudes() {
+    const data = await getSolicitudesByUser(user.id);
+    setSolicitudes(data);
+  }
 
-  if (error) throw error;
-  return data;
-}
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Mis Solicitudes</h1>
 
-// Obtener catalogo de productos
-export async function obtenerCatalogoProductos() {
-  const { data, error } = await supabase
-    .from("catalogo_productos")
-    .select("*")
-    .order("nombre", { ascending: true });
+      <table className="w-full border">
+        <thead>
+          <tr className="bg-gray-200">
+            <th className="p-2">ID</th>
+            <th className="p-2">Proveedor</th>
+            <th className="p-2">Fecha</th>
+            <th className="p-2">Estado</th>
+            <th className="p-2">Acciones</th>
+          </tr>
+        </thead>
 
-  if (error) throw error;
-  return data;
-}
-
-// Obtener proveedores
-export async function obtenerProveedores() {
-  const { data, error } = await supabase
-    .from("proveedores")
-    .select("*");
-
-  if (error) throw error;
-  return data;
+        <tbody>
+          {solicitudes.map((s) => (
+            <tr key={s.id} className="border-t">
+              <td className="p-2">{s.id}</td>
+              <td className="p-2">{s.proveedores?.nombre}</td>
+              <td className="p-2">
+                {new Date(s.created_at).toLocaleDateString()}
+              </td>
+              <td className="p-2 capitalize">{s.estado}</td>
+              <td className="p-2">
+                <button
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                  onClick={() => navigate(`/planta/solicitud/${s.id}`)}
+                >
+                  Ver Detalle
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }

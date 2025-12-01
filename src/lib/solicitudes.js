@@ -1,6 +1,7 @@
 // src/services/solicitudes.js
 import { supabase } from "../lib/supabase";
 
+
 export async function listSolicitudes() {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -41,6 +42,7 @@ export const createSolicitud = async ({ proveedor_id, created_by, items = [], ob
   return { data: { solicitud: sData, items: itemsData } };
 };
 
+
 export const getPendingSolicitudes = async () => {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -65,3 +67,20 @@ export const updateSolicitudEstado = async (id, estado, actorId = null, note = "
   await supabase.from("solicitud_historial").insert([{ solicitud_id: id, actor: actorId, accion: `Cambio de estado a ${estado}`, nota: note }]);
   return { data };
 };
+export const getSolicitudesByUser = async (userId) => {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      estado,
+      fecha_solicitud,
+      proveedor:proveedor_id ( id, nombre ),
+      observaciones,
+      created_by
+    `)
+    .eq("created_by", userId)
+    .order("id", { ascending: false });
+
+  return { data, error };
+};
+

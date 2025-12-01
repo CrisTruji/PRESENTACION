@@ -1,17 +1,20 @@
+// src/screens/admin/adminDashboard.jsx
 import React, { useEffect, useState } from "react";
-import { getPendingUsers, assignRole } from "../../services/profiles.js";
-import UserCard from "../../components/UserCard.jsx";
+import { 
+  getPendingUsers, 
+  assignRole 
+} from "../../services/profiles";
 
 export default function AdminDashboard() {
-  const [pending, setPending] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [roleSelected, setRoleSelected] = useState(2); // default: 2
 
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar usuarios pendientes al inicio
   const loadUsers = async () => {
     setLoading(true);
-    const { data, error } = await getPendingUsers();
-    if (error) console.error("Error cargando pendientes:", error);
-    else setPending(data || []);
+    const users = await getPendingUsers();
+    setPendingUsers(users);
     setLoading(false);
   };
 
@@ -19,34 +22,53 @@ export default function AdminDashboard() {
     loadUsers();
   }, []);
 
-  const handleApprove = async (userId) => {
-    const { data, error } = await assignRole(userId, roleSelected);
-    if (error) {
-      alert("Error asignando rol");
-      console.error(error);
-      return;
-    }
-    alert("Rol asignado correctamente");
-    loadUsers();
+  const handleAssignRole = async (userId, newRole) => {
+    await assignRole(userId, newRole);
+    await loadUsers(); // recargar lista
   };
+
+  if (loading) return <p>Cargando usuarios...</p>;
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>Panel de Administración</h1>
-      <p>Usuarios pendientes de aprobación:</p>
+      <h2>Panel de Administración</h2>
 
-      <label>Rol a asignar:</label>
-      <select value={roleSelected} onChange={(e) => setRoleSelected(Number(e.target.value))} style={{ marginBottom: 12 }}>
-        <option value={1}>Administrador</option>
-        <option value={2}>Jefe de planta</option>
-        <option value={3}>Auxiliar de compras</option>
-        <option value={4}>Jefe de compras</option>
-        <option value={5}>Almacenista</option>
-      </select>
+      <h3>Usuarios pendientes de rol</h3>
 
-      {loading ? <p>Cargando usuarios...</p> : pending.length === 0 ? <p>No hay usuarios en espera 🎉</p> : pending.map((u) => (
-        <UserCard key={u.id} user={u} onApprove={() => handleApprove(u.id)} onReject={() => alert("Implementa rechazo server-side")} />
+      {pendingUsers.length === 0 && (
+        <p>No hay usuarios pendientes 👍</p>
+      )}
+
+      {pendingUsers.map(user => (
+        <div 
+          key={user.id} 
+          style={{
+            border: "1px solid #ccc",
+            padding: 10,
+            borderRadius: 6,
+            marginBottom: 10
+          }}
+        >
+          <p><strong>Nombre:</strong> {user.nombre}</p>
+          <p><strong>Email:</strong> {user.email}</p>
+
+          <select
+            onChange={(e) => handleAssignRole(user.id, e.target.value)}
+            defaultValue=""
+          >
+            <option value="" disabled>Asignar rol…</option>
+            <option value="jefe_de_planta">Jefe de Planta</option>
+            <option value="auxiliar_de_compras">Auxiliar de Compras</option>
+            <option value="jefe_de_compras">Jefe de Compras</option>
+            <option value="almacenista">Almacenista</option>
+            <option value="administrador">Administrador</option>
+          </select>
+        </div>
       ))}
+
+      <button onClick={loadUsers} style={{ marginTop: 20 }}>
+        Recargar lista
+      </button>
     </div>
   );
 }

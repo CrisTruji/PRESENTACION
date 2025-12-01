@@ -1,25 +1,31 @@
 // src/context/auth.jsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null); // supabase session
-  const [profile, setProfile] = useState(null); // users_profiles row
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [roleName, setRoleName] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // 🟣 Fake role para desarrollo (sin tocar BD)
+  const [fakeRole, setFakeRole] = useState(null);
+
+  // ================================================================
+  // 🔵 INIT AUTH
+  // ================================================================
   useEffect(() => {
     let mounted = true;
 
     async function init() {
-      console.log("🔵 INIT AUTH LOAD");
       try {
         const { data } = await supabase.auth.getSession();
         const currentSession = data?.session ?? null;
 
         if (!mounted) return;
+
         setSession(currentSession);
 
         if (currentSession?.user) {
@@ -36,13 +42,12 @@ export function AuthProvider({ children }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
-        console.log("🟡 AUTH STATE CHANGE:", event);
         setSession(newSession);
 
         if (event === "SIGNED_IN") {
           const user = newSession?.user;
           if (user) {
-            // crear perfil si no existe
+            // Crear perfil si no existe
             try {
               const { data: exists } = await supabase
                 .from("users_profiles")
@@ -51,14 +56,17 @@ export function AuthProvider({ children }) {
                 .maybeSingle();
 
               if (!exists) {
-                const { error: insertError } = await supabase
-                  .from("users_profiles")
-                  .insert([{ id: user.id, nombre: user.email?.split("@")[0] ?? "", email: user.email, rol_id: null }]);
-                if (insertError) console.error("❌ Error creando perfil (listener):", insertError);
-                else console.log("🟢 Perfil creado por listener");
+                await supabase.from("users_profiles").insert([
+                  {
+                    id: user.id,
+                    nombre: user.email?.split("@")[0] ?? "",
+                    email: user.email,
+                    rol_id: null,
+                  },
+                ]);
               }
             } catch (err) {
-              console.error("❌ listener createProfile error:", err);
+              console.error("❌ Error creando perfil:", err);
             }
 
             await fetchProfile(user.id);
@@ -68,6 +76,7 @@ export function AuthProvider({ children }) {
         if (event === "SIGNED_OUT") {
           setProfile(null);
           setRoleName(null);
+          setFakeRole(null);
         }
       }
     );
@@ -78,6 +87,9 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // ================================================================
+  // 🔵 LOAD PROFILE
+  // ================================================================
   async function fetchProfile(uid) {
     try {
       const { data, error } = await supabase
@@ -87,11 +99,7 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       if (error) throw error;
-      if (!data) {
-        setProfile(null);
-        setRoleName(null);
-        return;
-      }
+
       setProfile(data);
       setRoleName(data?.roles?.nombre ?? null);
     } catch (err) {
@@ -101,16 +109,18 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function signUp(email, password, nombre = "") {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    // No insertamos perfil aquí (se crea en listener)
-    return data;
-  }
-
+  // ================================================================
+  // 🔵 AUTH ACTIONS
+  // ================================================================
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+  }
+
+  async function signUp(email, password, nombre = "") {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    return data;
   }
 
   async function signOut() {
@@ -118,10 +128,38 @@ export function AuthProvider({ children }) {
     setSession(null);
     setProfile(null);
     setRoleName(null);
+    setFakeRole(null);
   }
 
+  // ================================================================
+  // 🟣 FAKE ROLE SWITCHER — cambia el rol en caliente (solo front)
+  // ================================================================
+  function fakeSetRole(newRole) {
+  console.log("🔄 Cambiando rol falso a:", newRole);
+  setFakeRole(newRole);
+}
+
+
+  // El rol REAL o el rol FAKE (si está activo)
+  const activeRole = fakeRole ?? roleName;
+
   return (
-    <AuthContext.Provider value={{ session, profile, roleName, loading, signIn, signUp, signOut, fetchProfile }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        profile,
+        roleName: activeRole,
+        loading,
+
+        signIn,
+        signUp,
+        signOut,
+
+        fakeRole,
+        fakeSetRole,
+      }}
+    >
+      {/* 🔵 BOTONERA PROVISIONAL DE CAMBIO DE ROL */}
       {children}
     </AuthContext.Provider>
   );

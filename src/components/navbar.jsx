@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import React from "react";
-import { useRouter } from "../context/router";
+import { useRouter } from "../router";
 import { useAuth } from "../context/auth";
 
 export default function Navbar() {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useRouter } from "../context/router";
-import { getProductsByProvider } from "../lib/supabase";
+import { useRouter } from "../../router";
+import { getProductsByProvider } from "../../lib/supabase";
 
 export default function ProductosScreen() {
   const { params } = useRouter();
