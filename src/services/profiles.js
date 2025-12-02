@@ -2,6 +2,10 @@
  * Obtiene usuarios pendientes de asignar rol
  * (aquellos con rol = 'usuario')
  */
+
+import { supabase } from "../lib/supabase"; // AJUSTA la ruta según tu proyecto
+
+
 export const getPendingUsers = async () => {
   try {
     const { data, error } = await supabase
@@ -19,6 +23,19 @@ export const getPendingUsers = async () => {
     throw error;
   }
 };
+/* de pronto toca cambiarlo por 
+export async function getPendingUsers() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("estado", "pendiente");
+
+  if (error) throw error;
+  return data;
+}
+
+
+*/
 /**
  * Asigna un rol a un usuario
  */

@@ -50,13 +50,13 @@ export function AuthProvider({ children }) {
             // Crear perfil si no existe
             try {
               const { data: exists } = await supabase
-                .from("users_profiles")
+                .from("profiles")
                 .select("id")
                 .eq("id", user.id)
                 .maybeSingle();
 
               if (!exists) {
-                await supabase.from("users_profiles").insert([
+                await supabase.from("profiles").insert([
                   {
                     id: user.id,
                     nombre: user.email?.split("@")[0] ?? "",
@@ -93,8 +93,8 @@ export function AuthProvider({ children }) {
   async function fetchProfile(uid) {
     try {
       const { data, error } = await supabase
-        .from("users_profiles")
-        .select("id, nombre, rol_id, email, roles(nombre)")
+        .from("profiles")
+        .select("id, nombre, rol, email, roles(nombre)")
         .eq("id", uid)
         .maybeSingle();
 
@@ -160,6 +160,7 @@ export function AuthProvider({ children }) {
       }}
     >
       {/* 🔵 BOTONERA PROVISIONAL DE CAMBIO DE ROL */}
+
       {children}
     </AuthContext.Provider>
   );
