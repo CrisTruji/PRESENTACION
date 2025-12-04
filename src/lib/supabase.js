@@ -83,3 +83,92 @@ export async function createSolicitudItems(items) {
     throw error;
   }
 }
+
+/**
+ * Obtener todos los perfiles con información básica
+ * Nueva función para compatibilidad
+ */
+export async function getAllProfiles() {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(`
+        id,
+        nombre,
+        email,
+        estado,
+        created_at,
+        updated_at,
+        roles:rol (
+          id,
+          nombre
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ Error obteniendo perfiles:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("❌ Excepción en getAllProfiles:", error);
+    return [];
+  }
+}
+
+/**
+ * Obtener un perfil específico por ID
+ */
+export async function getProfileById(userId) {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(`
+        *,
+        roles:rol (
+          id,
+          nombre,
+          descripcion
+        )
+      `)
+      .eq("id", userId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("❌ Error obteniendo perfil:", error);
+    throw error;
+  }
+}
+
+/**
+ * Buscar perfiles por término
+ */
+export async function searchProfiles(searchTerm) {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select(`
+        id,
+        nombre,
+        email,
+        estado,
+        created_at,
+        roles:rol (
+          nombre
+        )
+      `)
+      .or(`nombre.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("❌ Error buscando perfiles:", error);
+    return [];
+  }
+}

@@ -123,16 +123,15 @@
 
   /* ----- BADGES ----- */
   .badge {
-    @apply inline-flex items-center px-3 py-1 rounded-full text-sm 
-           font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
   }
 
   .badge-primary {
-    @apply badge bg-primary-100 text-primary-800;
+    @apply badge bg-primary-100 text-primary-600; /* Cambiado: 800 → 600 */
   }
 
   .badge-secondary {
-    @apply badge bg-secondary-100 text-secondary-800;
+    @apply badge bg-secondary-100 text-secondary-600; /* Cambiado: 800 → 600 */
   }
 
   .badge-success {
@@ -247,8 +246,7 @@
 
   /* ----- LAYOUT ----- */
   .center-absolute {
-    @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 
-           -translate-y-1/2;
+    @apply absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2;
   }
 
   .full-cover {
@@ -274,8 +272,7 @@
   }
 
   .hover-glow {
-    @apply transition-shadow duration-200 hover:shadow-lg 
-           hover:shadow-primary-500/20;
+    @apply transition-shadow duration-200 hover:shadow-lg hover:shadow-primary-500/20;
   }
 
   /* ----- UTILIDADES ESPECÍFICAS ----- */
@@ -379,11 +376,11 @@ button:not(:disabled),
 a:not(:disabled) {
   @apply cursor-pointer;
 }
+
 @layer components {
   /* Efecto de elevación en cards */
   .card-elevated {
-    @apply card hover:shadow-2xl hover:-translate-y-1 
-           transition-all duration-300;
+    @apply card hover:shadow-2xl hover:-translate-y-1 transition-all duration-300;
   }
   
   /* Badge con gradiente */
@@ -396,6 +393,7 @@ a:not(:disabled) {
     @apply form-input pl-10;
   }
 }
+
 /* Agrega al final de tu style.css */
 html, body {
   overflow: hidden;
@@ -417,6 +415,7 @@ html, body {
     padding: 1rem 0;
   }
 }
+
 /* ===== ANIMACIONES MEJORADAS PARA EL LOADER ===== */
 
 /* Spinner más lento y suave */

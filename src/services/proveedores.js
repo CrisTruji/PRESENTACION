@@ -3,7 +3,6 @@
 // 🔹 Obtener todos los proveedores
 export async function getProveedores() {
   try {
-    // Simulación por ahora — reemplaza por tu API real
     return [
       { id: 1, nombre: "Proveedor A", contacto: "a@correo.com" },
       { id: 2, nombre: "Proveedor B", contacto: "b@correo.com" },
