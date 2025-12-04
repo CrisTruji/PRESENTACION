@@ -18,7 +18,7 @@ import SolicitudesPlanta from "../screens/planta/solicitudes";
 import VerificarSolicitud from "../screens/planta/verificarsolicitud";
 
 // COMPRAS (auxiliar y jefe)
-import SolicitudesGenerales from "../screens/solicitudes";
+import SolicitudesGenerales from "../screens/solicitudes/solicitudes.jsx";
 
 // ALMACENISTA
 import Facturas from "../screens/facturas";
