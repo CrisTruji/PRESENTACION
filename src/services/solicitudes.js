@@ -1,97 +1,198 @@
 // src/services/solicitudes.js
+import { supabase } from "../lib/supabase";
 
-
-// 🔹 Crear solicitud (solo la solicitud)
-export async function crearSolicitud(data) {
-  try {
-    console.log("Solicitud creada:", data);
-
-    return {
-      ok: true,
-      message: "Solicitud creada correctamente",
-      solicitud: {
-        id: Date.now(),
-        ...data,
-      },
-    };
-  } catch (error) {
-    console.error("Error creando solicitud:", error);
-    throw error;
-  }
-}
-
-// 🔹 Crear ítem dentro de una solicitud
-export async function crearSolicitudItem(solicitudId, item) {
-  try {
-    console.log("Ítem creado para solicitud:", solicitudId, item);
-
-    return {
-      ok: true,
-      message: "Ítem agregado correctamente",
-      item: {
-        id: Date.now(),
-        solicitudId,
-        ...item,
-      },
-    };
-  } catch (error) {
-    console.error("Error creando ítem:", error);
-    throw error;
-  }
-}
-
-// 🔹 Obtener todas las solicitudes
-export async function getSolicitudes() {
-  try {
-    return [
-      { id: 1, estado: "pendiente", descripcion: "Compra de materiales" },
-      { id: 2, estado: "aprobado_auxiliar", descripcion: "Herramientas de trabajo" },
-    ];
-  } catch (error) {
-    console.error("Error obteniendo solicitudes:", error);
-    throw error;
-  }
-}
-
-// 🔹 Catálogo de productos (versión básica)
-export async function obtenerCatalogoProductos() {
-  try {
-    return [
-      { id: 1, nombre: "Guantes", unidad: "pares" },
-      { id: 2, nombre: "Casco de seguridad", unidad: "unidad" },
-      { id: 3, nombre: "Tornillos 1/2", unidad: "bolsa" },
-      { id: 4, nombre: "Máscara soldador", unidad: "unidad" }
-    ];
-  } catch (error) {
-    console.error("Error obteniendo catálogo:", error);
-    throw error;
-  }
-}
-// 🔹 Lista básica de proveedores
-export async function obtenerProveedores() {
-  try {
-    return [
-      { id: 1, nombre: "Proveedor A", contacto: "contactoA@correo.com" },
-      { id: 2, nombre: "Proveedor B", contacto: "contactoB@correo.com" },
-      { id: 3, nombre: "Ferretería Bogotá", contacto: "ferreteria@bogota.com" }
-    ];
-  } catch (error) {
-    console.error("Error obteniendo proveedores:", error);
-    throw error;
-  }
-}
-
-// 🔹 Obtener solicitudes filtradas por usuario (mock)
+/* =======================================================
+   📌 1. OBTENER SOLICITUDES POR USUARIO
+   ======================================================= */
 export async function getSolicitudesByUser(userId) {
-  try {
-    // Por ahora devolvemos mock de ejemplo
-    return [
-      { id: 1, estado: "pendiente", descripcion: "Compra de materiales", created_by: userId },
-      { id: 3, estado: "rechazado", descripcion: "Reposición de equipo", created_by: userId },
-    ];
-  } catch (error) {
-    console.error("Error obteniendo solicitudes del usuario:", error);
-    throw error;
-  }
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      estado,
+      created_at,
+      proveedores ( id, nombre )
+    `)
+    .eq("usuario_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) console.error("❌ Error getSolicitudesByUser:", error);
+  return { data, error };
 }
 
+/* =======================================================
+   📌 2. OBTENER SOLICITUDES PENDIENTES PARA AUXILIAR
+   ======================================================= */
+export async function getPendingSolicitudes() {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      estado,
+      created_at,
+      proveedores ( id, nombre )
+    `)
+    .eq("estado", "pendiente")
+    .order("created_at", { ascending: false });
+
+  if (error) console.error("❌ Error getPendingSolicitudes:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 3. OBTENER SOLICITUD POR ID (detalle + productos)
+   ======================================================= */
+export async function getSolicitudById(id) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      estado,
+      comentario_admin,
+      comentario_auxiliar,
+      proveedores ( id, nombre ),
+      detalle:solicitud_detalle (
+        id,
+        cantidad,
+        estado,
+        comentario,
+        productos (
+          id,
+          nombre,
+          categoria
+        )
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) console.error("❌ Error getSolicitudById:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 4. ACTUALIZAR ESTADO DE UNA SOLICITUD
+   ======================================================= */
+export async function updateSolicitudEstado(id, estado, comentario_admin = null, comentario_auxiliar = null) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .update({
+      estado,
+      comentario_admin,
+      comentario_auxiliar
+    })
+    .eq("id", id);
+
+  if (error) console.error("❌ Error updateSolicitudEstado:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 5. ACTUALIZAR ESTADO DE UN PRODUCTO DE LA SOLICITUD
+   ======================================================= */
+export async function updateProductoEstado(detalleId, estado, comentario = null) {
+  const { data, error } = await supabase
+    .from("solicitud_detalle")
+    .update({
+      estado,
+      comentario
+    })
+    .eq("id", detalleId);
+
+  if (error) console.error("❌ Error updateProductoEstado:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 6. CREAR SOLICITUD (para jefe de planta)
+   ======================================================= */
+export async function createSolicitud({ proveedorId, usuarioId, productos }) {
+  // 1. Crear solicitud
+  const { data: solicitud, error: err1 } = await supabase
+    .from("solicitudes")
+    .insert({
+      proveedor_id: proveedorId,
+      usuario_id: usuarioId,
+      estado: "pendiente",
+      comentario_admin: null,
+      comentario_auxiliar: null
+    })
+    .select()
+    .single();
+
+  if (err1) {
+    console.error("❌ Error creando solicitud:", err1);
+    return { error: err1 };
+  }
+
+  const solicitudId = solicitud.id;
+
+  // 2. Crear items
+  const detalleInsert = productos.map(p => ({
+    solicitud_id: solicitudId,
+    producto_id: p.id,
+    cantidad: p.cantidad,
+    estado: "autorizado", // por defecto
+    comentario: null
+  }));
+
+  const { error: err2 } = await supabase
+    .from("solicitud_detalle")
+    .insert(detalleInsert);
+
+  if (err2) {
+    console.error("❌ Error creando detalle:", err2);
+    return { error: err2 };
+  }
+
+  return { data: solicitud };
+}
+
+/* =======================================================
+   📌 7. AGREGAR ITEMS A UNA SOLICITUD (faltante)
+   ======================================================= */
+export async function agregarItemsSolicitud(solicitudId, items) {
+  const detalleInsert = items.map(p => ({
+    solicitud_id: solicitudId,
+    producto_id: p.id,
+    cantidad: p.cantidad,
+    estado: "autorizado",
+    comentario: null
+  }));
+
+  const { data, error } = await supabase
+    .from("solicitud_detalle")
+    .insert(detalleInsert);
+
+  if (error) console.error("❌ Error agregarItemsSolicitud:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 8. AUXILIAR APRUEBA PRODUCTO
+   ======================================================= */
+export async function autorizarItem(itemId) {
+  const { data, error } = await supabase
+    .from("solicitud_detalle")
+    .update({ estado: "verificado" })
+    .eq("id", itemId);
+
+  if (error) console.error("❌ Error autorizarItem:", error);
+  return { data, error };
+}
+
+/* =======================================================
+   📌 9. AUXILIAR DEVUELVE PRODUCTO
+   ======================================================= */
+export async function devolverItem(itemId, motivo) {
+  const { data, error } = await supabase
+    .from("solicitud_detalle")
+    .update({
+      estado: "devuelto",
+      comentario: motivo
+    })
+    .eq("id", itemId);
+
+  if (error) console.error("❌ Error devolverItem:", error);
+  return { data, error };
+}

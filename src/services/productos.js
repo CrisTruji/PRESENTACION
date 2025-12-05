@@ -1,29 +1,26 @@
-// src/services/productos.js
+// /src/services/productos.js
 import { supabase } from "../lib/supabase";
 
-/**
- * Obtener productos
- */
-export const getProductos = async () => {
+export async function getProductosByProveedor(proveedorId) {
+  // Traemos los registros de la tabla puente y la relación catalogo_productos
   const { data, error } = await supabase
-    .from("productos")
-    .select("*")
-    .order("nombre");
+    .from("proveedor_productos")
+    .select("catalogo_producto_id, catalogo_productos(id, nombre, categoria)")
+    .eq("proveedor_id", proveedorId);
 
   if (error) throw error;
-  return data;
-};
 
-/**
- * Crear producto
- */
-export const crearProducto = async (producto) => {
-  const { data, error } = await supabase
-    .from("productos")
-    .insert([producto])
-    .select()
-    .single();
+  // Mapear y filtrar (por si algún join retorna null) a solo los productos
+  const productos = (data || [])
+    .map((row) => row.catalogo_productos)
+    .filter(Boolean);
 
-  if (error) throw error;
-  return data;
-};
+  // Ordenar en cliente por nombre (localeCompare para acentos / ñ)
+  productos.sort((a, b) => {
+    const an = (a.nombre || "").toString();
+    const bn = (b.nombre || "").toString();
+    return an.localeCompare(bn, "es", { sensitivity: "base" });
+  });
+
+  return productos;
+}

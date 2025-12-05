@@ -1,191 +1,271 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../../context/auth";
-import {
-  crearSolicitud,
-  crearSolicitudItem,
-  obtenerCatalogoProductos,
-  obtenerProveedores,
-} from "../../services/solicitudes";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "../../context/auth"; // si usas este hook para user
+import { getProveedores } from "../../services/proveedores";
+import { getProductosByProveedor } from "../../services/productos";
+import { createSolicitud, agregarItemsSolicitud } from "../../services/solicitudes";
 
-export default function CrearSolicitud() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+/**
+ * Pantalla: Jefe de Planta -> Crear Solicitud
+ * Integra: seleccionar proveedor -> listar productos -> agregar (sin carrito persistente) -> enviar solicitud
+ *
+ * Nota: aquí no usamos carrito persistente; agregas productos y al enviar todo se persiste.
+ */
 
+export default function CrearSolicitudPlanta() {
+  const { user } = useAuth?.() || {}; // si no tienes hook, reemplaza user.id por el id que uses
   const [proveedores, setProveedores] = useState([]);
-  const [catalogo, setCatalogo] = useState([]);
-  const [proveedorId, setProveedorId] = useState("");
-  const [observaciones, setObservaciones] = useState("");
-
-  const [items, setItems] = useState([]);
-  const [busqueda, setBusqueda] = useState("");
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState("");
+  const [productos, setProductos] = useState([]);
+  const [itemsSeleccionados, setItemsSeleccionados] = useState([]); // items temporal: { catalogo_producto_id, nombre, categoria, cantidad_solicitada, unidad, observaciones }
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    obtenerProveedores().then(setProveedores);
-    obtenerCatalogoProductos().then(setCatalogo);
+    async function init() {
+      try {
+        const provs = await getProveedores();
+        setProveedores(provs);
+      } catch (err) {
+        console.error(err);
+        setError("Error cargando proveedores");
+      }
+    }
+    init();
   }, []);
 
-  const agregarItem = (producto) => {
-    const existe = items.find((i) => i.catalogo_producto_id === producto.id);
-    if (existe) return alert("Este producto ya fue agregado");
+  // Cuando se selecciona proveedor, traer productos de este proveedor
+  const onProveedorChange = async (provId) => {
+    setProveedorSeleccionado(provId);
+    setProductos([]);
+    setItemsSeleccionados([]); // resetear selección al cambiar proveedor
+    if (!provId) return;
 
-    const nuevo = {
-      catalogo_producto_id: producto.id,
-      nombre_producto: producto.nombre,
-      cantidad_solicitada: 1,
-      unidad: "UND",
-      observaciones: "",
-    };
-
-    setItems([...items, nuevo]);
+    try {
+      const prods = await getProductosByProveedor(Number(provId));
+      setProductos(prods);
+    } catch (err) {
+      console.error(err);
+      setError("Error cargando productos");
+    }
   };
 
-  const actualizarItem = (index, campo, valor) => {
-    const newItems = [...items];
-    newItems[index][campo] = valor;
-    setItems(newItems);
-  };
-
-  const eliminarItem = (id) => {
-    setItems(items.filter((i) => i.catalogo_producto_id !== id));
-  };
-
-  const guardarSolicitud = async () => {
-    if (!proveedorId) return alert("Selecciona un proveedor");
-    if (items.length === 0) return alert("Agrega al menos un producto");
-
-    const solicitud = await crearSolicitud({
-      proveedor_id: proveedorId,
-      created_by: user.id,
-      observaciones: observaciones || "",
-    });
-
-    for (const it of items) {
-      await crearSolicitudItem({
-        solicitud_id: solicitud.id,
-        catalogo_producto_id: it.catalogo_producto_id,
-        cantidad_solicitada: it.cantidad_solicitada,
-        unidad: it.unidad,
-        observaciones: it.observaciones,
-      });
+  // Agregar producto a la lista temporal (sin carrito persistente, pero sí lista temporal)
+  const agregarProducto = (producto, cantidad, unidad = "und", observaciones = "") => {
+    if (!producto || !cantidad || Number(cantidad) <= 0) {
+      setError("Ingrese una cantidad válida");
+      return;
     }
 
-    navigate("/planta/confirmacion");
+    // evitar duplicados
+    if (itemsSeleccionados.some((i) => Number(i.catalogo_producto_id) === Number(producto.id))) {
+      setError("Producto ya agregado");
+      return;
+    }
+
+    const nuevo = {
+      catalogo_producto_id: Number(producto.id),
+      nombre: producto.nombre,
+      categoria: producto.categoria,
+      cantidad_solicitada: Number(cantidad),
+      unidad,
+      observaciones
+    };
+
+    setItemsSeleccionados((prev) => [...prev, nuevo]);
+    setError("");
   };
 
-  const productosFiltrados = catalogo.filter((p) =>
-    p.nombre.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  const eliminarItem = (catalogo_producto_id) => {
+    setItemsSeleccionados((prev) => prev.filter((p) => p.catalogo_producto_id !== catalogo_producto_id));
+  };
 
+  // Enviar solicitud (encabezado + items)
+  const handleEnviarSolicitud = async () => {
+    if (!proveedorSeleccionado) {
+      setError("Seleccione un proveedor antes de enviar");
+      return;
+    }
+    if (itemsSeleccionados.length === 0) {
+      setError("Agregue al menos un producto");
+      return;
+    }
+
+    setCargando(true);
+    setError("");
+
+    try {
+      const solicitud = await crearSolicitud({
+        proveedor_id: Number(proveedorSeleccionado),
+        created_by: user?.id || null,
+        observaciones: ""
+      });
+
+      await agregarItemsSolicitud(solicitud.id, itemsSeleccionados);
+
+      // éxito: limpiar UI y mostrar mensaje
+      setItemsSeleccionados([]);
+      setProveedorSeleccionado("");
+      setProductos([]);
+      alert("Solicitud creada correctamente");
+    } catch (err) {
+      console.error(err);
+      setError("Error creando la solicitud");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  // Render
   return (
-    <div className="p-4">
-      <h1 className="text-xl font-bold mb-4">Crear Solicitud</h1>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Crear Solicitud - Jefe de Planta</h1>
 
-      {/* SELECCIONAR PROVEEDOR */}
-      <label className="block mb-1 font-semibold">Proveedor</label>
-      <select
-        value={proveedorId}
-        onChange={(e) => setProveedorId(e.target.value)}
-        className="border px-2 py-1 w-full mb-4"
-      >
-        <option value="">Seleccione...</option>
-        {proveedores.map((prov) => (
-          <option key={prov.id} value={prov.id}>
-            {prov.nombre}
-          </option>
-        ))}
-      </select>
+      {error && <div className="mb-3 text-red-600">{error}</div>}
 
-      {/* OBSERVACIONES */}
-      <label className="block mb-1 font-semibold">Observaciones</label>
-      <textarea
-        value={observaciones}
-        onChange={(e) => setObservaciones(e.target.value)}
-        className="border w-full p-2 mb-4"
-      />
-
-      {/* BUSCAR PRODUCTO */}
-      <h2 className="text-lg font-semibold mt-4">Productos</h2>
-      <input
-        type="text"
-        placeholder="Buscar producto..."
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        className="border px-2 py-1 w-full mb-3"
-      />
-
-      <div className="border p-3 mb-4 max-h-40 overflow-auto">
-        {productosFiltrados.map((prod) => (
-          <div
-            key={prod.id}
-            className="flex justify-between items-center py-1 border-b"
-          >
-            <span>{prod.nombre}</span>
-            <button
-              className="bg-blue-500 text-white px-2 py-1 rounded"
-              onClick={() => agregarItem(prod)}
-            >
-              Agregar
-            </button>
-          </div>
-        ))}
+      {/* Selector de proveedor */}
+      <div className="mb-6">
+        <label className="block mb-2 font-medium">Seleccione proveedor</label>
+        <select
+          className="border rounded p-2 w-full"
+          value={proveedorSeleccionado}
+          onChange={(e) => onProveedorChange(e.target.value)}
+        >
+          <option value="">-- Seleccione un proveedor --</option>
+          {proveedores.map((p) => (
+            <option key={p.id} value={p.id}>{p.nombre}</option>
+          ))}
+        </select>
       </div>
 
-      {/* ITEMS */}
-      <h2 className="text-lg font-semibold mb-2">Items agregados</h2>
+      {/* Productos del proveedor */}
+      {proveedorSeleccionado && (
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-3">Productos del proveedor</h2>
 
-      {items.map((it, i) => (
-        <div
-          key={it.catalogo_producto_id}
-          className="border p-3 mb-3 rounded bg-gray-50"
-        >
-          <p className="font-semibold">{it.nombre_producto}</p>
-
-          <div className="flex gap-2 mt-2">
-            <input
-              type="number"
-              min="1"
-              value={it.cantidad_solicitada}
-              onChange={(e) =>
-                actualizarItem(i, "cantidad_solicitada", e.target.value)
-              }
-              className="border px-2 py-1 w-20"
-            />
-
-            <input
-              type="text"
-              value={it.unidad}
-              onChange={(e) => actualizarItem(i, "unidad", e.target.value)}
-              className="border px-2 py-1 w-20"
-            />
-
-            <input
-              type="text"
-              placeholder="Observación"
-              value={it.observaciones}
-              onChange={(e) =>
-                actualizarItem(i, "observaciones", e.target.value)
-              }
-              className="border flex-1 px-2 py-1"
-            />
-
-            <button
-              className="bg-red-500 text-white px-3 rounded"
-              onClick={() => eliminarItem(it.catalogo_producto_id)}
-            >
-              X
-            </button>
-          </div>
+          {productos.length === 0 ? (
+            <p className="text-sm text-gray-600">No se encontraron productos para este proveedor.</p>
+          ) : (
+            <div className="grid gap-3">
+              {productos.map((prod) => (
+                <ProductoFila key={prod.id} producto={prod} onAgregar={agregarProducto} />
+              ))}
+            </div>
+          )}
         </div>
-      ))}
+      )}
 
-      {/* GUARDAR */}
-      <button
-        onClick={guardarSolicitud}
-        className="bg-green-600 text-white w-full py-2 rounded mt-4 font-bold"
-      >
-        Guardar Solicitud
-      </button>
+      {/* Items seleccionados (temporal) */}
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-3">Productos seleccionados</h2>
+
+        {itemsSeleccionados.length === 0 ? (
+          <p className="text-sm text-gray-600">No ha añadido productos.</p>
+        ) : (
+          <table className="w-full table-auto border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="border px-2 py-1 text-left">Producto</th>
+                <th className="border px-2 py-1">Cantidad</th>
+                <th className="border px-2 py-1">Unidad</th>
+                <th className="border px-2 py-1">Observaciones</th>
+                <th className="border px-2 py-1">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itemsSeleccionados.map((it) => (
+                <tr key={it.catalogo_producto_id}>
+                  <td className="border px-2 py-1">{it.nombre}</td>
+                  <td className="border px-2 py-1 text-center">{it.cantidad_solicitada}</td>
+                  <td className="border px-2 py-1 text-center">{it.unidad}</td>
+                  <td className="border px-2 py-1">{it.observaciones}</td>
+                  <td className="border px-2 py-1 text-center">
+                    <button className="text-red-600" onClick={() => eliminarItem(it.catalogo_producto_id)}>Eliminar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Botón enviar */}
+      <div className="flex gap-3">
+        <button
+          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+          onClick={handleEnviarSolicitud}
+          disabled={cargando}
+        >
+          {cargando ? "Enviando..." : "Enviar solicitud"}
+        </button>
+
+        <button
+          className="bg-gray-200 px-4 py-2 rounded"
+          onClick={() => {
+            setItemsSeleccionados([]);
+            setProveedorSeleccionado("");
+            setProductos([]);
+            setError("");
+          }}
+        >
+          Limpiar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Componente de fila de producto (interno)
+ * Recibe producto {id, nombre, categoria} y onAgregar callback(producto, cantidad, unidad, observaciones)
+ * Implementa inputs para cantidad, unidad y notas por fila para no requerir carrito separado.
+ */
+function ProductoFila({ producto, onAgregar }) {
+  const [cantidad, setCantidad] = useState("");
+  const [unidad, setUnidad] = useState("und");
+  const [observaciones, setObservaciones] = useState("");
+
+  return (
+    <div className="border p-3 rounded flex items-center justify-between gap-4">
+      <div>
+        <div className="font-medium">{producto.nombre}</div>
+        <div className="text-sm text-gray-600">{producto.categoria || "-"}</div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min="0"
+          placeholder="Cantidad"
+          className="border rounded p-1 w-24"
+          value={cantidad}
+          onChange={(e) => setCantidad(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Unidad"
+          className="border rounded p-1 w-20"
+          value={unidad}
+          onChange={(e) => setUnidad(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Notas (opcional)"
+          className="border rounded p-1 w-48"
+          value={observaciones}
+          onChange={(e) => setObservaciones(e.target.value)}
+        />
+        <button
+          className="bg-green-600 text-white px-3 py-1 rounded"
+          onClick={() => {
+            onAgregar(producto, cantidad, unidad, observaciones);
+            setCantidad("");
+            setObservaciones("");
+            setUnidad("und");
+          }}
+        >
+          Agregar
+        </button>
+      </div>
     </div>
   );
 }
