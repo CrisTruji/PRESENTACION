@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth"; // si usas este hook para user
 import { getProveedores } from "../../services/proveedores";
 import { getProductosByProveedor } from "../../services/productos";
-import { createSolicitud, agregarItemsSolicitud } from "../../services/solicitudes";
+import { crearSolicitud, agregarItemsSolicitud } from "../../services/solicitudes";
 
 /**
  * Pantalla: Jefe de Planta -> Crear Solicitud

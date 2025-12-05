@@ -1,26 +1,29 @@
-// /src/services/productos.js
 import { supabase } from "../lib/supabase";
 
+/**
+ * Obtener productos relacionados a un proveedor usando la tabla intermedia
+ * Retorna array de { id, nombre, categoria }
+ */
 export async function getProductosByProveedor(proveedorId) {
-  // Traemos los registros de la tabla puente y la relación catalogo_productos
   const { data, error } = await supabase
     .from("proveedor_productos")
-    .select("catalogo_producto_id, catalogo_productos(id, nombre, categoria)")
-    .eq("proveedor_id", proveedorId);
+    .select(`
+      catalogo_producto_id,
+      catalogo_productos (
+        id,
+        nombre,
+        categoria
+      )
+    `)
+    .eq("proveedor_id", proveedorId)
+    /* .order("catalogo_productos.nombre", { ascending: true }); */
 
   if (error) throw error;
 
-  // Mapear y filtrar (por si algún join retorna null) a solo los productos
-  const productos = (data || [])
-    .map((row) => row.catalogo_productos)
-    .filter(Boolean);
-
-  // Ordenar en cliente por nombre (localeCompare para acentos / ñ)
-  productos.sort((a, b) => {
-    const an = (a.nombre || "").toString();
-    const bn = (b.nombre || "").toString();
-    return an.localeCompare(bn, "es", { sensitivity: "base" });
-  });
-
-  return productos;
+  // Normalizar a lista de productos
+  return (data || []).map((r) => ({
+    id: r.catalogo_productos.id,
+    nombre: r.catalogo_productos.nombre,
+    categoria: r.catalogo_productos.categoria
+  }));
 }
