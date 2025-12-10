@@ -19,6 +19,8 @@ import VerificarSolicitud from "../screens/planta/verificarsolicitud";
 
 // COMPRAS (auxiliar y jefe)
 import GestionCompras from "../screens/compras/gestioncompras";
+import GestionAux from "../screens/aux_compras/gestionaux.jsx";
+
 
 // PANTALLAS GLOBALES / OTRAS (según tu estructura)
 // hay archivos en src/screens/ (no en /compras)
@@ -48,9 +50,13 @@ export default function RoleRouter() {
         break;
 
       case "auxiliar_de_compras":
+        defaultScreen = "gestion_aux";
+        break;
+
       case "jefe_de_compras":
         defaultScreen = "gestion_compras";
         break;
+
 
       case "almacenista":
         defaultScreen = "recepcion_factura";
@@ -80,8 +86,12 @@ export default function RoleRouter() {
         return <VerificarSolicitud />;
 
       // COMPRAS
+      case "gestion_aux":
+        return <GestionAux />;
       case "gestion_compras":
         return <GestionCompras />;
+
+
 
       // PANTALLAS GLOBALES (existentes en tu repo)
       case "proveedores":

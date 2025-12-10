@@ -4,15 +4,24 @@ import { supabase } from "../lib/supabase";
 /**
  * Crear encabezado de solicitud
  */
-export async function crearSolicitud({ proveedor_id, created_by, observaciones = "" }) {
+export async function crearSolicitud({ proveedor_id, created_by, email_creador, observaciones = "" }) {
   const { data, error } = await supabase
     .from("solicitudes")
-    .insert([{ proveedor_id, created_by, observaciones }])
+    .insert([
+      {
+        proveedor_id,
+        created_by,
+        email_creador,   // 👈 NUEVO CAMPO
+        observaciones
+      }
+    ])
     .select()
     .single();
+
   if (error) throw error;
   return data;
 }
+
 
 /**
  * Agregar items a solicitud
@@ -34,25 +43,59 @@ export async function agregarItemsSolicitud(solicitud_id, items) {
 /**
  * Obtener solicitudes filtradas (por creador, por estado, etc.)
  */
-export async function getSolicitudes({ created_by } = {}) {
-  let q = supabase
+export async function getSolicitudes() {
+  let { data, error } = await supabase
     .from("solicitudes")
     .select(`
+  id,
+  estado,
+  proveedor_id,
+  fecha_solicitud,
+  created_by,
+  observaciones,
+  proveedores:proveedor_id(id,nombre),
+  solicitud_items(
+    id,
+    cantidad_solicitada,
+    unidad,
+    estado_item,
+    observaciones,
+    motivo_rechazo,
+    catalogo_productos(
       id,
-      proveedor_id,
-      estado,
-      fecha_solicitud,
-      created_by,
-      proveedor:proveedores ( id, nombre )
-    `)
-    .order("created_at", { ascending: false });
+      nombre,
+      categoria,
+      codigo_arbol
+    )
+  )
+`)
 
-  if (created_by) q = q.eq("created_by", created_by);
 
-  const { data, error } = await q;
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    console.error("❌ ERROR en getSolicitudes:", error);
+    return [];
+  }
+
+  // ⭐ ORDENAR DESPUÉS DE RECIBIRLAS
+  const prioridad = {
+    pendiente: 1,
+    pendiente_auxiliar: 2,
+    aprobado_auxiliar: 3,
+    aprobado_compras: 4,
+    comprado: 5,
+  };
+
+  data.sort((a, b) => {
+    const pa = prioridad[a.estado] || 99;
+    const pb = prioridad[b.estado] || 99;
+    if (pa !== pb) return pa - pb;
+    return new Date(a.fecha_solicitud) - new Date(b.fecha_solicitud);
+  });
+
+  return data;
 }
+
+
 
 /**
  * Obtener items de una solicitud
@@ -117,3 +160,49 @@ export async function getSolicitudConItems(solicitud_id) {
   return data;
 }
 
+/**
+ * Obtiene todas las solicitudes pendientes para el rol Auxiliar de Compras
+ */
+export async function getSolicitudesPendientes() {
+  try {
+    const { data, error } = await supabase
+      .from("solicitudes")
+      .select(`
+        id,
+        estado,
+        fecha_solicitud,
+        observaciones,
+        email_creador,
+
+        proveedor:proveedores (
+          id,
+          nombre
+        ),
+
+        items:solicitud_items (
+          id,
+          cantidad_solicitada,
+          unidad,
+          estado_item,
+          observaciones,
+          motivo_rechazo,
+
+          catalogo_producto:catalogo_productos (
+            id,
+            nombre,
+            categoria,
+            codigo_arbol
+          )
+        )
+      `)
+      .eq("estado", "pendiente")
+      .order("fecha_solicitud", { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (err) {
+    console.error("❌ ERROR en getSolicitudesPendientes:", err);
+    return [];
+  }
+}
