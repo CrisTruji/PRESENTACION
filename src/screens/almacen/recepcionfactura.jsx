@@ -1,33 +1,33 @@
 // src/router/rolerouter.jsx
 import React, { useEffect } from "react";
-import { useAuth } from "../context/auth";
-import { useRouter } from "../context/roleroutercontext";
+import { useAuth } from "../../context/auth";
+import { useRouter } from "../../context/roleroutercontext";
 
 // ================================
 // IMPORTS DE PANTALLAS POR ROL
 // ================================
 
 // ADMIN
-import AdminDashboard from "../screens/admin/adminDashboard";
-import AdminRequests from "../screens/admin/admin_requests";
+import AdminDashboard from "../../screens/admin/adminDashboard";
+import AdminRequests from "../../screens/admin/admin_requests";
 
 // PLANTA (jefe de planta)
-import CrearSolicitud from "../screens/planta/crearsolicitud";
-import Productos from "../screens/planta/productos";
-import SolicitudesPlanta from "../screens/planta/solicitudes";
-import VerificarSolicitud from "../screens/planta/verificarsolicitud";
+import CrearSolicitud from "../../screens/planta/crearsolicitud";
+import Productos from "../../screens/planta/productos";
+import SolicitudesPlanta from "../../screens/planta/solicitudes";
+import VerificarSolicitud from "../../screens/planta/verificarsolicitud";
 
 // COMPRAS (auxiliar y jefe)
-import GestionCompras from "../screens/compras/gestioncompras";
+import GestionCompras from "../../screens/compras/gestioncompras";
 
 // PANTALLAS GLOBALES / OTRAS (según tu estructura)
 // hay archivos en src/screens/ (no en /compras)
-import Proveedores from "../screens/proveedores";
-import Facturas from "../screens/facturas";
+import Proveedores from "../../screens/proveedores";
+import Facturas from "../../screens/facturas";
 
 // ALMACEN
 // archivo real en tu repo: src/screens/almacen/receocionfactura.jsx
-import RecepcionFactura from "../screens/almacen/recepcionfactura.jsx";
+import RecepcionFactura from "../../screens/almacen/recepcionfactura";
 
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();

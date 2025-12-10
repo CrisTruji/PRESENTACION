@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { useRouter } from "../context/router";
+import { useRouter } from "../context/roleroutercontext";
 
 export default function ProveedoresScreen() {
   const { navigate } = useRouter();

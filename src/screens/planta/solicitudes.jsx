@@ -1,59 +1,39 @@
 // src/screens/planta/solicitudes.jsx
-import React, { useEffect, useState } from "react";
-import { getSolicitudesByUser } from "../../services/solicitudes";
+import React from "react";
+import useSolicitudes from "../../screens/hooks/usesolicitudes";
 import { useAuth } from "../../context/auth";
-import { useNavigate } from "react-router-dom";
 
 export default function SolicitudesPlanta() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [solicitudes, setSolicitudes] = useState([]);
+  const { user } = useAuth?.() || {};
+  const { solicitudes, loading } = useSolicitudes({ created_by: user?.id });
 
-  useEffect(() => {
-    if (user) loadSolicitudes();
-  }, [user]);
-
-  async function loadSolicitudes() {
-    const data = await getSolicitudesByUser(user.id);
-    setSolicitudes(data);
-  }
+  if (loading) return <p>Cargando solicitudes...</p>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Mis Solicitudes</h1>
-
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-200">
-            <th className="p-2">ID</th>
-            <th className="p-2">Proveedor</th>
-            <th className="p-2">Fecha</th>
-            <th className="p-2">Estado</th>
-            <th className="p-2">Acciones</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {solicitudes.map((s) => (
-            <tr key={s.id} className="border-t">
-              <td className="p-2">{s.id}</td>
-              <td className="p-2">{s.proveedores?.nombre}</td>
-              <td className="p-2">
-                {new Date(s.created_at).toLocaleDateString()}
-              </td>
-              <td className="p-2 capitalize">{s.estado}</td>
-              <td className="p-2">
-                <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
-                  onClick={() => navigate(`/planta/solicitud/${s.id}`)}
-                >
-                  Ver Detalle
-                </button>
-              </td>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-4">Mis Solicitudes</h1>
+      {solicitudes.length === 0 ? (
+        <p>No tienes solicitudes</p>
+      ) : (
+        <table className="w-full table-auto">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2">Proveedor</th>
+              <th className="p-2">Fecha</th>
+              <th className="p-2">Estado</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {solicitudes.map((s) => (
+              <tr key={s.id}>
+                <td className="border p-2">{s.proveedor?.nombre}</td>
+                <td className="border p-2">{new Date(s.fecha_solicitud).toLocaleString()}</td>
+                <td className="border p-2">{s.estado}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -3,9 +3,9 @@ import React from "react";
 
 export default function VerificarSolicitud() {
   return (
-    <div>
-      <h1>Verificar Solicitud</h1>
-      <p>Aquí va el contenido de tu pantalla.</p>
+    <div className="p-6">
+      <h1 className="text-2xl">Verificar Solicitud</h1>
+      <p>Pantalla esqueleto — aquí podrás ver detalles / aprobar si aplica.</p>
     </div>
   );
 }

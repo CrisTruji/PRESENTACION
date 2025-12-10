@@ -1,7 +1,8 @@
+// src/services/solicitudes.js
 import { supabase } from "../lib/supabase";
 
 /**
- * Crea solicitud (encabezado), retorna registro creado
+ * Crear encabezado de solicitud
  */
 export async function crearSolicitud({ proveedor_id, created_by, observaciones = "" }) {
   const { data, error } = await supabase
@@ -9,14 +10,12 @@ export async function crearSolicitud({ proveedor_id, created_by, observaciones =
     .insert([{ proveedor_id, created_by, observaciones }])
     .select()
     .single();
-
   if (error) throw error;
   return data;
 }
 
 /**
- * Inserta items en solicitud (varios)
- * items: [{ catalogo_producto_id, cantidad_solicitada, unidad, observaciones }]
+ * Agregar items a solicitud
  */
 export async function agregarItemsSolicitud(solicitud_id, items) {
   const payload = items.map((i) => ({
@@ -27,30 +26,94 @@ export async function agregarItemsSolicitud(solicitud_id, items) {
     observaciones: i.observaciones || null
   }));
 
+  const { data, error } = await supabase.from("solicitud_items").insert(payload);
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Obtener solicitudes filtradas (por creador, por estado, etc.)
+ */
+export async function getSolicitudes({ created_by } = {}) {
+  let q = supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      proveedor_id,
+      estado,
+      fecha_solicitud,
+      created_by,
+      proveedor:proveedores ( id, nombre )
+    `)
+    .order("created_at", { ascending: false });
+
+  if (created_by) q = q.eq("created_by", created_by);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Obtener items de una solicitud
+ */
+export async function getItemsBySolicitud(solicitud_id) {
   const { data, error } = await supabase
     .from("solicitud_items")
-    .insert(payload);
+    .select(`
+      id,
+      solicitud_id,
+      cantidad_solicitada,
+      unidad,
+      observaciones,
+      catalogo_producto:catalogo_productos ( id, nombre, categoria )
+    `)
+    .eq("solicitud_id", solicitud_id);
+
+  if (error) throw error;
+  return data || [];
+}
+
+
+/**
+ * Actualizar estado de una solicitud
+ */
+export async function actualizarEstadoSolicitud(solicitud_id, nuevoEstado) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .update({ estado: nuevoEstado })
+    .eq("id", solicitud_id)
+    .select()
+    .single();
 
   if (error) throw error;
   return data;
 }
 /**
- * Obtiene todas las solicitudes creadas por un usuario específico
+ * Obtener una solicitud con todos sus items relacionados
  */
-export async function getSolicitudesByUser(userId) {
+export async function getSolicitudConItems(solicitud_id) {
   const { data, error } = await supabase
     .from("solicitudes")
     .select(`
       id,
       proveedor_id,
-      created_by,
       estado,
-      created_at,
-      proveedores ( nombre )
+      fecha_solicitud,
+      created_by,
+      proveedor:proveedores ( id, nombre, telefono, correo ),
+      items:solicitud_items (
+        id,
+        cantidad_solicitada,
+        unidad,
+        observaciones,
+        catalogo_producto:catalogo_productos ( id, nombre, categoria )
+      )
     `)
-    .eq("created_by", userId)
-    .order("created_at", { ascending: false });
+    .eq("id", solicitud_id)
+    .single();
 
   if (error) throw error;
   return data;
 }
+

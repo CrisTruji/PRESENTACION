@@ -1,28 +1,26 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../supabase/client";
+// src/hooks/usesolicitudes.js
+import { useEffect, useState } from "react";
+import { getSolicitudes } from "../../services/solicitudes";
 
-export function useSolicitudes() {
+export default function useSolicitudes({ created_by } = {}) {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchSolicitudes = async () => {
+  async function fetch() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("solicitudes")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) setSolicitudes(data);
-    setLoading(false);
-  };
+    try {
+      const data = await getSolicitudes({ created_by });
+      setSolicitudes(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    fetchSolicitudes();
-  }, []);
+    fetch();
+  }, [created_by]);
 
-  return {
-    solicitudes,
-    loading,
-    refetch: fetchSolicitudes,
-  };
+  return { solicitudes, loading, refetch: fetch };
 }

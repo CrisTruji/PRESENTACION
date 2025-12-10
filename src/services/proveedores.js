@@ -1,3 +1,4 @@
+// src/services/proveedores.js
 import { supabase } from "../lib/supabase";
 
 export async function getProveedores() {
@@ -5,7 +6,6 @@ export async function getProveedores() {
     .from("proveedores")
     .select("id, nombre")
     .order("nombre", { ascending: true });
-
   if (error) throw error;
   return data || [];
 }
