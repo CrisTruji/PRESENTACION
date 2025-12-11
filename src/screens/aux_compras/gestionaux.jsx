@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
+import { useRouter } from "../../context/roleroutercontext";
 import { getSolicitudes } from "../../services/solicitudes";
+
 
 export default function GestionAux() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const { navigate } = useRouter();
 
   useEffect(() => {
     cargarSolicitudes();
@@ -11,7 +15,7 @@ export default function GestionAux() {
 
   async function cargarSolicitudes() {
     setLoading(true);
-    const data = await getSolicitudes(); // 👈 ahora trae TODAS con prioridad
+    const data = await getSolicitudes();
     setSolicitudes(data || []);
     setLoading(false);
   }
@@ -93,10 +97,17 @@ export default function GestionAux() {
                 </ul>
               </div>
 
-              {/* botón para ver/gestionar */}
-              <button className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                Ver detalles
-              </button>
+              {/* BOTÓN CORRECTO */}
+              <div className="mt-4">
+                <button
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                  onClick={() =>
+                    navigate("ver_detalles_solicitud", { id: sol.id })
+                  }
+                >
+                  Ver detalles
+                </button>
+              </div>
             </div>
           ))}
         </div>

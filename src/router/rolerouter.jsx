@@ -3,42 +3,43 @@ import React, { useEffect } from "react";
 import { useAuth } from "../context/auth";
 import { useRouter } from "../context/roleroutercontext";
 
-// ================================
-// IMPORTS DE PANTALLAS POR ROL
-// ================================
-
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
 import AdminRequests from "../screens/admin/admin_requests";
 
-// PLANTA (jefe de planta)
+// PLANTA
 import CrearSolicitud from "../screens/planta/crearsolicitud";
 import Productos from "../screens/planta/productos";
 import SolicitudesPlanta from "../screens/planta/solicitudes";
 import VerificarSolicitud from "../screens/planta/verificarsolicitud";
 
-// COMPRAS (auxiliar y jefe)
-import GestionCompras from "../screens/compras/gestioncompras";
+// AUXILIAR
 import GestionAux from "../screens/aux_compras/gestionaux.jsx";
+import VerDetallesSolicitud from "../screens/aux_compras/verdetallessolicitudes.jsx";
 
+// COMPRAS
+import GestionCompras from "../screens/compras/gestioncompras";
 
-// PANTALLAS GLOBALES / OTRAS (según tu estructura)
-// hay archivos en src/screens/ (no en /compras)
+// GLOBAL
 import Proveedores from "../screens/proveedores";
 import Facturas from "../screens/facturas";
 
-// ALMACEN
-// archivo real en tu repo: src/screens/almacen/receocionfactura.jsx
+// ALMACÉN
 import RecepcionFactura from "../screens/almacen/recepcionfactura.jsx";
 
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
 
+  // ================================
+  // LOADING
+  // ================================
   if (loading) return <p>Cargando…</p>;
   if (!roleName) return <p>No tienes rol asignado</p>;
 
-  // Asignar pantalla inicial por rol (solo la primera vez)
+  // ================================
+  // ASIGNAR PANTALLA INICIAL
+  // ================================
   useEffect(() => {
     if (currentScreen?.isInitialAssigned) return;
 
@@ -57,7 +58,6 @@ export default function RoleRouter() {
         defaultScreen = "gestion_compras";
         break;
 
-
       case "almacenista":
         defaultScreen = "recepcion_factura";
         break;
@@ -67,48 +67,64 @@ export default function RoleRouter() {
         break;
 
       default:
-        defaultScreen = "";
+        defaultScreen = "home";
     }
 
-    if (defaultScreen) navigate(defaultScreen, { isInitialAssigned: true });
+    navigate(defaultScreen, { isInitialAssigned: true });
   }, [roleName]);
 
-  const renderInternalScreen = () => {
+  // ================================
+  // RENDER DE PANTALLAS
+  // ================================
+  const renderScreen = () => {
     switch (currentScreen.name) {
       // PLANTA
       case "crear_solicitud":
         return <CrearSolicitud />;
+
       case "productos":
         return <Productos />;
+
       case "solicitudes_planta":
         return <SolicitudesPlanta />;
+
       case "verificar_solicitud":
         return <VerificarSolicitud />;
 
-      // COMPRAS
+      // AUXILIAR
       case "gestion_aux":
         return <GestionAux />;
+
+      case "ver_detalles_solicitud":
+        return (
+          <VerDetallesSolicitud
+            solicitudId={currentScreen.params?.id}
+          />
+        );
+
+      // JEFE DE COMPRAS
       case "gestion_compras":
         return <GestionCompras />;
 
-
-
-      // PANTALLAS GLOBALES (existentes en tu repo)
+      // GLOBAL
       case "proveedores":
         return <Proveedores />;
+
       case "facturas":
         return <Facturas />;
 
-      // ALMACEN
+      // ALMACÉN
       case "recepcion_factura":
         return <RecepcionFactura />;
 
       // ADMIN
       case "admin_dashboard":
         return <AdminDashboard />;
+
       case "admin_requests":
         return <AdminRequests />;
 
+      // DEFAULT
       default:
         return (
           <div style={{ padding: 20, color: "red" }}>
@@ -119,5 +135,5 @@ export default function RoleRouter() {
     }
   };
 
-  return <>{renderInternalScreen()}</>;
+  return <>{renderScreen()}</>;
 }

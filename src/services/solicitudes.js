@@ -1,9 +1,9 @@
 // src/services/solicitudes.js
 import { supabase } from "../lib/supabase";
 
-/**
- * Crear encabezado de solicitud
- */
+/* ============================================================
+   CREAR SOLICITUD
+   ============================================================ */
 export async function crearSolicitud({ proveedor_id, created_by, email_creador, observaciones = "" }) {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -11,7 +11,7 @@ export async function crearSolicitud({ proveedor_id, created_by, email_creador, 
       {
         proveedor_id,
         created_by,
-        email_creador,   // 👈 NUEVO CAMPO
+        email_creador,
         observaciones
       }
     ])
@@ -22,10 +22,9 @@ export async function crearSolicitud({ proveedor_id, created_by, email_creador, 
   return data;
 }
 
-
-/**
- * Agregar items a solicitud
- */
+/* ============================================================
+   AGREGAR ITEMS A SOLICITUD
+   ============================================================ */
 export async function agregarItemsSolicitud(solicitud_id, items) {
   const payload = items.map((i) => ({
     solicitud_id,
@@ -40,43 +39,41 @@ export async function agregarItemsSolicitud(solicitud_id, items) {
   return data;
 }
 
-/**
- * Obtener solicitudes filtradas (por creador, por estado, etc.)
- */
+/* ============================================================
+   OBTENER TODAS LAS SOLICITUDES
+   ============================================================ */
 export async function getSolicitudes() {
   let { data, error } = await supabase
     .from("solicitudes")
     .select(`
-  id,
-  estado,
-  proveedor_id,
-  fecha_solicitud,
-  created_by,
-  observaciones,
-  proveedores:proveedor_id(id,nombre),
-  solicitud_items(
-    id,
-    cantidad_solicitada,
-    unidad,
-    estado_item,
-    observaciones,
-    motivo_rechazo,
-    catalogo_productos(
       id,
-      nombre,
-      categoria,
-      codigo_arbol
-    )
-  )
-`)
-
+      estado,
+      proveedor_id,
+      fecha_solicitud,
+      created_by,
+      observaciones,
+      proveedores:proveedor_id(id,nombre),
+      solicitud_items(
+        id,
+        cantidad_solicitada,
+        unidad,
+        estado_item,
+        observaciones,
+        motivo_rechazo,
+        catalogo_productos(
+          id,
+          nombre,
+          categoria,
+          codigo_arbol
+        )
+      )
+    `);
 
   if (error) {
     console.error("❌ ERROR en getSolicitudes:", error);
     return [];
   }
 
-  // ⭐ ORDENAR DESPUÉS DE RECIBIRLAS
   const prioridad = {
     pendiente: 1,
     pendiente_auxiliar: 2,
@@ -95,11 +92,9 @@ export async function getSolicitudes() {
   return data;
 }
 
-
-
-/**
- * Obtener items de una solicitud
- */
+/* ============================================================
+   ITEMS DE UNA SOLICITUD
+   ============================================================ */
 export async function getItemsBySolicitud(solicitud_id) {
   const { data, error } = await supabase
     .from("solicitud_items")
@@ -117,10 +112,9 @@ export async function getItemsBySolicitud(solicitud_id) {
   return data || [];
 }
 
-
-/**
- * Actualizar estado de una solicitud
- */
+/* ============================================================
+   ACTUALIZAR ESTADO SOLICITUD
+   ============================================================ */
 export async function actualizarEstadoSolicitud(solicitud_id, nuevoEstado) {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -132,9 +126,10 @@ export async function actualizarEstadoSolicitud(solicitud_id, nuevoEstado) {
   if (error) throw error;
   return data;
 }
-/**
- * Obtener una solicitud con todos sus items relacionados
- */
+
+/* ============================================================
+   OBTENER SOLICITUD COMPLETA CON ITEMS
+   ============================================================ */
 export async function getSolicitudConItems(solicitud_id) {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -160,9 +155,9 @@ export async function getSolicitudConItems(solicitud_id) {
   return data;
 }
 
-/**
- * Obtiene todas las solicitudes pendientes para el rol Auxiliar de Compras
- */
+/* ============================================================
+   PENDIENTES PARA JEFE PLANTA
+   ============================================================ */
 export async function getSolicitudesPendientes() {
   try {
     const { data, error } = await supabase
@@ -175,8 +170,7 @@ export async function getSolicitudesPendientes() {
         email_creador,
 
         proveedor:proveedores (
-          id,
-          nombre
+          id, nombre
         ),
 
         items:solicitud_items (
@@ -186,7 +180,6 @@ export async function getSolicitudesPendientes() {
           estado_item,
           observaciones,
           motivo_rechazo,
-
           catalogo_producto:catalogo_productos (
             id,
             nombre,
@@ -199,10 +192,134 @@ export async function getSolicitudesPendientes() {
       .order("fecha_solicitud", { ascending: true });
 
     if (error) throw error;
-
     return data || [];
   } catch (err) {
-    console.error("❌ ERROR en getSolicitudesPendientes:", err);
+    console.error("❌ ERROR getSolicitudesPendientes:", err);
     return [];
   }
+}
+
+/* ============================================================
+   PENDIENTES PARA AUXILIAR
+   ============================================================ */
+export async function getSolicitudesPendientesAuxiliar() {
+  try {
+    const { data, error } = await supabase
+      .from("solicitudes")
+      .select(`
+        id,
+        estado,
+        fecha_solicitud,
+        observaciones,
+        proveedor_id,
+        email_creador,
+        proveedores(id, nombre),
+        solicitud_items(
+          id,
+          cantidad_solicitada,
+          unidad,
+          estado_item,
+          observaciones,
+          motivo_rechazo,
+          catalogo_productos(id, nombre, categoria, codigo_arbol)
+        )
+      `)
+      .order("estado", { ascending: true })
+      .order("fecha_solicitud", { ascending: true });
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error("❌ ERROR getSolicitudesPendientesAuxiliar:", err);
+    return [];
+  }
+}
+
+/* ============================================================
+   ACCIONES DEL AUXILIAR
+   ============================================================ */
+export async function marcarItemRevisado(idItem) {
+  return await supabase
+    .from("solicitud_items")
+    .update({ estado_item: "revisado_auxiliar" })
+    .eq("id", idItem);
+}
+
+export async function aprobarItemAuxiliar(idItem) {
+  return await supabase
+    .from("solicitud_items")
+    .update({ estado_item: "aprobado_auxiliar", motivo_rechazo: null })
+    .eq("id", idItem);
+}
+
+export async function rechazarItemAuxiliar(idItem, motivo) {
+  return await supabase
+    .from("solicitud_items")
+    .update({
+      estado_item: "rechazado_auxiliar",
+      motivo_rechazo: motivo
+    })
+    .eq("id", idItem);
+}
+
+export async function cerrarRevisionAuxiliar(idSolicitud) {
+  const { data: items, error } = await supabase
+    .from("solicitud_items")
+    .select("estado_item")
+    .eq("solicitud_id", idSolicitud);
+
+  if (error) throw error;
+
+  const hayRechazados = items.some(i => i.estado_item === "rechazado_auxiliar");
+  const todosAprobados = items.every(i => i.estado_item === "aprobado_auxiliar");
+
+  let nuevoEstado = "revisada_auxiliar";
+
+  if (hayRechazados) nuevoEstado = "devuelta_jefe_planta";
+  else if (todosAprobados) nuevoEstado = "aprobada_auxiliar";
+
+  return await supabase
+    .from("solicitudes")
+    .update({ estado: nuevoEstado })
+    .eq("id", idSolicitud);
+}
+
+/* ============================================================
+   GET SOLICITUD POR ID (DETALLE COMPLETO)
+   ============================================================ */
+export async function getSolicitudById(solicitud_id) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      estado,
+      fecha_solicitud,
+      observaciones,
+      email_creador,
+      proveedor:proveedores (
+        id,
+        nombre,
+        telefono,
+        correo
+      ),
+      items:solicitud_items (
+        id,
+        cantidad_solicitada,
+        unidad,
+        estado_item,
+        observaciones,
+        motivo_rechazo,
+        catalogo_producto:catalogo_productos (
+          id,
+          nombre,
+          categoria,
+          codigo_arbol
+        )
+      )
+    `)
+    .eq("id", solicitud_id)
+    .single();
+
+  if (error) throw error;
+  return data;
 }
