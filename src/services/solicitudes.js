@@ -284,41 +284,84 @@ export async function cerrarRevisionAuxiliar(idSolicitud) {
     .eq("id", idSolicitud);
 }
 
-/* ============================================================
-   GET SOLICITUD POR ID (DETALLE COMPLETO)
-   ============================================================ */
+/**
+ * CLAVE: OBTENER_SOLICITUD_POR_ID
+ * Obtiene una solicitud con proveedor e ítems relacionados
+ */
 export async function getSolicitudById(solicitud_id) {
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .select(`
+
+  // CLAVE: SELECT_SIN_COMENTARIOS
+  const selectQuery = `
+    id,
+    estado,
+    fecha_solicitud,
+    observaciones,
+    email_creador,
+
+    proveedor:proveedores (
       id,
-      estado,
-      fecha_solicitud,
+      nombre,
+      nit
+    ),
+
+    items:solicitud_items (
+      id,
+      cantidad_solicitada,
+      unidad,
+      estado_item,
       observaciones,
-      email_creador,
-      proveedor:proveedores (
+      motivo_rechazo,
+
+      catalogo_producto:catalogo_productos (
         id,
         nombre,
-        telefono,
-        correo
-      ),
-      items:solicitud_items (
-        id,
-        cantidad_solicitada,
-        unidad,
-        estado_item,
-        observaciones,
-        motivo_rechazo,
-        catalogo_producto:catalogo_productos (
-          id,
-          nombre,
-          categoria,
-          codigo_arbol
-        )
+        categoria,
+        codigo_arbol
       )
-    `)
+    )
+  `;
+
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(selectQuery)
     .eq("id", solicitud_id)
     .single();
+
+  // CLAVE: MANEJO_ERROR_SUPABASE
+  if (error) {
+    console.error("❌ Error al obtener solicitud:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+
+/**
+ * CLAVE: OBTENER_SOLICITUDES_POR_ROL
+ */
+export async function getSolicitudesPorRol(rol) {
+
+  let estadosPermitidos = [];
+
+  // CLAVE: REGLAS_VISIBILIDAD
+  if (rol === "auxiliar_de_compras") {
+    estadosPermitidos = ["pendiente"];
+  }
+
+  if (rol === "jefe_de_compras") {
+    estadosPermitidos = ["aprobado_auxiliar"];
+  }
+
+  if (rol === "jefe_de_planta") {
+    estadosPermitidos = ["rechazada_auxiliar"];
+  }
+
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select("id, estado, fecha_solicitud")
+    .in("estado", estadosPermitidos)
+    .order("fecha_solicitud", { ascending: false });
 
   if (error) throw error;
   return data;

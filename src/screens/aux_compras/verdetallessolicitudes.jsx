@@ -1,43 +1,60 @@
-// PANTALLA_DETALLE_AUXILIAR
 // src/screens/aux_compras/VerDetallesSolicitud.jsx
 
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useRouter } from "../../context/roleroutercontext";
 import {
   getSolicitudById,
-  updateSolicitudEstado,
-  updateSolicitudItemEstado
-} from "../../services/solicitudes";
+  actualizarEstadoSolicitud,
+  rechazarItemAuxiliar
+} from "/src/services/solicitudes";
 
 export default function VerDetallesSolicitud() {
-  // PARAMETROS_URL
-  const { id } = useParams();
-  const navigate = useNavigate();
+  // ===============================
+  // ROUTER INTERNO
+  // ===============================
+  const { currentScreen, navigate } = useRouter();
 
-  // ESTADOS_LOCALES
+  // ✅ ID SEGURO (NO SE ROMPE)
+  const id = currentScreen?.params?.id;
+
+  // ===============================
+  // ESTADOS
+  // ===============================
   const [solicitud, setSolicitud] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // MODAL_CANCELAR_ITEM
+  // MODAL
   const [modal, setModal] = useState({ open: false, item: null });
   const [comentario, setComentario] = useState("");
 
   // ===============================
-  // CARGAR_DATOS_SOLICITUD
+  // CARGAR SOLICITUD
   // ===============================
   useEffect(() => {
-    async function load() {
-      const data = await getSolicitudById(id);
-      setSolicitud(data);
-      setItems(data?.solicitud_items || []);
+    if (!id) {
+      console.error("ID de solicitud no recibido");
       setLoading(false);
+      return;
     }
+
+    async function load() {
+      try {
+        const data = await getSolicitudById(id);
+        setSolicitud(data);
+        setItems(data?.solicitud_items || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
     load();
   }, [id]);
 
   // ===============================
-  // ABRIR_MODAL_ITEM
+  // MODAL
   // ===============================
   function abrirModal(item) {
     setComentario("");
@@ -45,14 +62,13 @@ export default function VerDetallesSolicitud() {
   }
 
   // ===============================
-  // CONFIRMAR_RECHAZO_ITEM
+  // RECHAZAR ITEM
   // ===============================
   async function rechazarItem() {
     const item = modal.item;
 
-    await updateSolicitudItemEstado(
+    await rechazarItemAuxiliar(
       item.id,
-      "rechazado_auxiliar",
       comentario
     );
 
@@ -68,7 +84,7 @@ export default function VerDetallesSolicitud() {
   }
 
   // ===============================
-  // APROBAR_SOLICITUD_COMPLETA
+  // APROBAR SOLICITUD
   // ===============================
   async function aprobarSolicitud() {
     const existeRechazado = items.some(
@@ -80,32 +96,32 @@ export default function VerDetallesSolicitud() {
       return;
     }
 
-    await updateSolicitudEstado(
+    await actualizarEstadoSolicitud(
       id,
       "aprobado_auxiliar",
       "Solicitud aprobada por auxiliar"
     );
 
     alert("Solicitud aprobada");
-    navigate("/aux/gestion"); // <-- Ajusta a tu ruta real
+    navigate("gestion_aux");
   }
 
   // ===============================
-  // DEVOLVER_SOLICITUD_COMPLETA
+  // DEVOLVER SOLICITUD
   // ===============================
   async function devolverSolicitud() {
-    await updateSolicitudEstado(
+    await actualizarEstadoSolicitud(
       id,
       "rechazado_auxiliar",
       "Solicitud devuelta por auxiliar"
     );
 
     alert("Solicitud devuelta a jefe de planta");
-    navigate("/aux/gestion");
+    navigate("gestion_aux");
   }
 
   // ===============================
-  // RENDER_CARGANDO
+  // LOADING
   // ===============================
   if (loading) {
     return (
@@ -115,17 +131,23 @@ export default function VerDetallesSolicitud() {
     );
   }
 
+  if (!solicitud) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Solicitud no encontrada
+      </div>
+    );
+  }
+
   // ===============================
-  // UI PRINCIPAL
+  // UI
   // ===============================
   return (
     <div className="p-6">
-      {/* TITULO */}
       <h1 className="text-2xl font-bold mb-4">
         Solicitud #{solicitud.id}
       </h1>
 
-      {/* INFO_GENERAL */}
       <div className="bg-white shadow rounded p-4 mb-6">
         <p><strong>Proveedor:</strong> {solicitud.proveedor?.nombre}</p>
         <p><strong>Creada por:</strong> {solicitud.email_creador}</p>
@@ -138,7 +160,6 @@ export default function VerDetallesSolicitud() {
         )}
       </div>
 
-      {/* LISTA_PRODUCTOS */}
       <h2 className="text-xl font-semibold mb-2">Productos</h2>
 
       <div className="space-y-4">
@@ -156,10 +177,7 @@ export default function VerDetallesSolicitud() {
             </p>
 
             <p className="text-sm my-1">
-              Estado:{" "}
-              <span className="font-bold">
-                {item.estado_item}
-              </span>
+              Estado: <span className="font-bold">{item.estado_item}</span>
             </p>
 
             {item.observaciones && (
@@ -168,9 +186,8 @@ export default function VerDetallesSolicitud() {
               </p>
             )}
 
-            {/* BOTON_RECHAZAR */}
-            {item.estado_item === "pendiente" ||
-            item.estado_item === "revisado_auxiliar" ? (
+            {(item.estado_item === "pendiente" ||
+              item.estado_item === "revisado_auxiliar") ? (
               <button
                 onClick={() => abrirModal(item)}
                 className="mt-2 bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
@@ -184,26 +201,22 @@ export default function VerDetallesSolicitud() {
         ))}
       </div>
 
-      {/* BOTONES_FINALES */}
       <div className="mt-6 flex gap-4">
         <button
           onClick={aprobarSolicitud}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          className="bg-green-600 text-white px-4 py-2 rounded"
         >
           Aprobar solicitud
         </button>
 
         <button
           onClick={devolverSolicitud}
-          className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+          className="bg-red-600 text-white px-4 py-2 rounded"
         >
           Devolver completa
         </button>
       </div>
 
-      {/* =============================== */}
-      {/* MODAL_RECHAZO */}
-      {/* =============================== */}
       {modal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center">
           <div className="bg-white p-6 rounded shadow-lg w-96">
