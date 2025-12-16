@@ -113,7 +113,10 @@ export function AuthProvider({ children }) {
   // 🔵 AUTH ACTIONS
   // ================================================================
   async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) throw error;
   }
 
@@ -135,10 +138,9 @@ export function AuthProvider({ children }) {
   // 🟣 FAKE ROLE SWITCHER — cambia el rol en caliente (solo front)
   // ================================================================
   function fakeSetRole(newRole) {
-  console.log("🔄 Cambiando rol falso a:", newRole);
-  setFakeRole(newRole);
-}
-
+    console.log("🔄 Cambiando rol falso a:", newRole);
+    setFakeRole(newRole);
+  }
 
   // El rol REAL o el rol FAKE (si está activo)
   const activeRole = fakeRole ?? roleName;
@@ -159,9 +161,87 @@ export function AuthProvider({ children }) {
         fakeSetRole,
       }}
     >
-      {/* 🔵 BOTONERA PROVISIONAL DE CAMBIO DE ROL */}
-
       {children}
+
+      {/* 🔵 BOTONERA DE CAMBIO DE ROL - Solo para desarrollo */}
+      {process.env.NODE_ENV !== "production" && session && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: "white",
+            border: "2px solid #2563eb",
+            borderRadius: "8px",
+            padding: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 1000,
+            maxWidth: "320px",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "8px",
+              fontWeight: "bold",
+              color: "#2563eb",
+            }}
+          >
+            🔧 Cambiar Rol (Desarrollo)
+          </div>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "#6b7280",
+              marginBottom: "12px",
+            }}
+          >
+            Rol activo: <strong>{activeRole || "sin rol"}</strong>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {[
+              { id: "administrador", label: "Admin" },
+              { id: "jefe_de_planta", label: "Jefe Planta" },
+              { id: "jefe_de_compras", label: "Jefe Compras" },
+              { id: "auxiliar_de_compras", label: "Aux Compras" },
+              { id: "almacenista", label: "Almacenista" },
+              { id: "usuario", label: "Usuario" },
+            ].map((role) => (
+              <button
+                key={role.id}
+                onClick={() => fakeSetRole(role.id)}
+                style={{
+                  padding: "6px 10px",
+                  background: activeRole === role.id ? "#2563eb" : "#f3f4f6",
+                  color: activeRole === role.id ? "white" : "#374151",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  minWidth: "80px",
+                }}
+              >
+                {role.label}
+              </button>
+            ))}
+            <button
+              onClick={() => fakeSetRole(null)}
+              style={{
+                padding: "6px 10px",
+                background: "#fef2f2",
+                color: "#dc2626",
+                border: "1px solid #fca5a5",
+                borderRadius: "4px",
+                fontSize: "0.75rem",
+                cursor: "pointer",
+                width: "100%",
+                marginTop: "4px",
+              }}
+            >
+              Restaurar Rol Real
+            </button>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }

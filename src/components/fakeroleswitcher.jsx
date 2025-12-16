@@ -16,19 +16,5 @@ export default function FakeRoleSwitcher() {
     if (r === "administrador") navigate("admin_dashboard");
   }
 
-  return (
-    <div style={{ padding: 12, background: "#eee", marginBottom: 12 }}>
-      <strong>FAKE ROLE SWITCHER</strong>
-      <p>Rol actual: {roleName}</p>
-
-      <select onChange={(e) => changeRole(e.target.value)} value={roleName}>
-        <option value="administrador">Administrador</option>
-        <option value="jefe_de_planta">Jefe de planta</option>
-        <option value="auxiliar_de_compras">Auxiliar de compras</option>
-        <option value="jefe_de_compras">Jefe de compras</option>
-        <option value="almacenista">Almacenista</option>
-        <option value="usuario">Usuario normal</option>
-      </select>
-    </div>
-  );
+  return <div></div>;
 }
