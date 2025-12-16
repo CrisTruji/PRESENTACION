@@ -9,8 +9,6 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [roleName, setRoleName] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // 🟣 Fake role para desarrollo (sin tocar BD)
   const [fakeRole, setFakeRole] = useState(null);
 
   // ================================================================

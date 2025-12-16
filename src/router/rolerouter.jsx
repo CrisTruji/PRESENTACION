@@ -95,7 +95,7 @@ export default function RoleRouter() {
       case "facturas":
         return <Facturas />;
       case "solicitudes":
-        return <Proveedores />; // Temporal: redirigir a proveedores
+        return <Proveedores />;
 
       // ALMACEN
       case "recepcion_factura":

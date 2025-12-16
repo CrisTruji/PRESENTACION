@@ -71,8 +71,22 @@ export default function Navbar() {
     >
       {/* Logo y navegación */}
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <strong style={{ fontSize: "1.25rem", color: "#1f2937" }}>
-          📊 DataSpectra
+        <strong 
+          style={{ 
+            fontSize: "1.25rem", 
+            color: "#1f2937",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          {/* Logo más pequeño y responsivo */}
+          <img 
+            src="logo.jpg" 
+            alt="Logo Healthy" 
+            className="w-8 h-8 md:w-10 md:h-10 object-contain"
+          />
+          Healthy
         </strong>
 
         {/* Navegación por pestañas */}

@@ -27,7 +27,7 @@ import Facturas from "../../screens/facturas";
 
 // ALMACEN
 // archivo real en tu repo: src/screens/almacen/receocionfactura.jsx
-import RecepcionFactura from "../../screens/almacen/recepcionfactura";
+
 
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
