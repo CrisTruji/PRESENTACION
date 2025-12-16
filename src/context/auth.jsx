@@ -12,6 +12,8 @@ export function AuthProvider({ children }) {
 
   // 🟣 Fake role para desarrollo (sin tocar BD)
   const [fakeRole, setFakeRole] = useState(null);
+  // 🟣 Estado para controlar visibilidad del RoleRouter
+  const [showRoleRouter, setShowRoleRouter] = useState(true);
 
   // ================================================================
   // 🔵 INIT AUTH
@@ -159,226 +161,137 @@ export function AuthProvider({ children }) {
 
         fakeRole,
         fakeSetRole,
+        showRoleRouter,
+        setShowRoleRouter,
       }}
     >
       {children}
 
-{process.env.NODE_ENV !== "production" && session && (
-  <div
-    style={{
-      position: "fixed",
-      bottom: 20,
-      right: 20,
-      zIndex: 1000,
-    }}
-  >
-    {/* Botón de control - siempre visible */}
-    <button
-      onClick={() => {
-        const container = document.getElementById('fakeRoleSwitcher');
-        if (container) {
-          container.style.display = container.style.display === 'none' ? 'block' : 'none';
-        }
-      }}
-      style={{
-        position: "absolute",
-        bottom: "0",
-        right: "0",
-        background: "#2563eb",
-        color: "white",
-        border: "none",
-        borderRadius: "50%",
-        width: "40px",
-        height: "40px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
-        fontSize: "20px",
-        zIndex: 1001,
-        transition: "transform 0.2s ease",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "scale(1.1)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "scale(1)";
-      }}
-      title="Alternar panel de roles"
-    >
-      🔧
-    </button>
-
-    {/* Contenedor del switcher - inicialmente visible */}
-    <div
-      id="fakeRoleSwitcher"
-      style={{
-        background: "white",
-        border: "2px solid #2563eb",
-        borderRadius: "12px",
-        padding: "16px",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
-        maxWidth: "340px",
-        marginBottom: "50px",
-        transition: "all 0.3s ease",
-      }}
-    >
-      {/* Header del switcher */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: "12px",
-      }}>
-        <div style={{
-          fontWeight: "bold",
-          color: "#2563eb",
-          fontSize: "14px",
-        }}>
-          🔧 Cambiar Rol (Desarrollo)
-        </div>
-        
-        {/* Botón de cerrar dentro del panel */}
-        <button
-          onClick={() => {
-            const container = document.getElementById('fakeRoleSwitcher');
-            if (container) {
-              container.style.display = 'none';
-            }
-          }}
+      {/* 🔵 BOTONERA DE CAMBIO DE ROL - Solo para desarrollo */}
+      {process.env.NODE_ENV !== "production" && session && showRoleRouter && (
+        <div
           style={{
-            background: "none",
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: "white",
+            border: "2px solid #2563eb",
+            borderRadius: "8px",
+            padding: "12px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 1000,
+            maxWidth: "320px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
+            }}
+          >
+            <div style={{ fontWeight: "bold", color: "#2563eb" }}>
+              🔧 Cambiar Rol (Desarrollo)
+            </div>
+            <button
+              onClick={() => setShowRoleRouter(false)}
+              style={{
+                background: "transparent",
+                border: "1px solid #d1d5db",
+                borderRadius: "4px",
+                padding: "2px 8px",
+                fontSize: "0.7rem",
+                color: "#6b7280",
+                cursor: "pointer",
+              }}
+              title="Ocultar panel"
+            >
+              ✕
+            </button>
+          </div>
+          <div
+            style={{
+              fontSize: "0.75rem",
+              color: "#6b7280",
+              marginBottom: "12px",
+            }}
+          >
+            Rol activo: <strong>{activeRole || "sin rol"}</strong>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {[
+              { id: "administrador", label: "Admin" },
+              { id: "jefe_de_planta", label: "Jefe Planta" },
+              { id: "jefe_de_compras", label: "Jefe Compras" },
+              { id: "auxiliar_de_compras", label: "Aux Compras" },
+              { id: "almacenista", label: "Almacenista" },
+              { id: "usuario", label: "Usuario" },
+            ].map((role) => (
+              <button
+                key={role.id}
+                onClick={() => fakeSetRole(role.id)}
+                style={{
+                  padding: "6px 10px",
+                  background: activeRole === role.id ? "#2563eb" : "#f3f4f6",
+                  color: activeRole === role.id ? "white" : "#374151",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  minWidth: "80px",
+                }}
+              >
+                {role.label}
+              </button>
+            ))}
+            <button
+              onClick={() => fakeSetRole(null)}
+              style={{
+                padding: "6px 10px",
+                background: "#fef2f2",
+                color: "#dc2626",
+                border: "1px solid #fca5a5",
+                borderRadius: "4px",
+                fontSize: "0.75rem",
+                cursor: "pointer",
+                width: "100%",
+                marginTop: "4px",
+              }}
+            >
+              Restaurar Rol Real
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔵 BOTÓN PARA MOSTRAR EL ROLEROUTER CUANDO ESTÁ OCULTO */}
+      {process.env.NODE_ENV !== "production" && session && !showRoleRouter && (
+        <button
+          onClick={() => setShowRoleRouter(true)}
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: "#2563eb",
+            color: "white",
             border: "none",
-            color: "#6b7280",
+            borderRadius: "50%",
+            width: "40px",
+            height: "40px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
             cursor: "pointer",
-            fontSize: "18px",
-            padding: "0",
-            width: "24px",
-            height: "24px",
+            zIndex: 999,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            borderRadius: "4px",
+            fontSize: "18px",
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f3f4f6";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "none";
-          }}
-          title="Minimizar panel"
+          title="Mostrar panel de roles"
         >
-          ×
+          🔧
         </button>
-      </div>
-
-      {/* Información del rol */}
-      <div style={{
-        fontSize: "0.75rem",
-        color: "#6b7280",
-        marginBottom: "16px",
-        padding: "8px",
-        background: "#f8fafc",
-        borderRadius: "6px",
-        border: "1px solid #e2e8f0",
-      }}>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span>Rol activo:</span>
-          <strong style={{ color: "#1e293b" }}>
-            {activeRole || "sin rol"}
-          </strong>
-        </div>
-        <div style={{ fontSize: "0.7rem", color: "#94a3b8", marginTop: "2px" }}>
-          {fakeRole ? "Rol falso activo" : "Rol real de la base de datos"}
-        </div>
-      </div>
-
-      {/* Botones de roles */}
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "repeat(2, 1fr)", 
-        gap: "8px",
-        marginBottom: "12px",
-      }}>
-        {[
-          { id: "administrador", label: "Admin", emoji: "👑" },
-          { id: "jefe_de_planta", label: "Jefe Planta", emoji: "🏭" },
-          { id: "jefe_de_compras", label: "Jefe Compras", emoji: "💰" },
-          { id: "auxiliar_de_compras", label: "Aux Compras", emoji: "🛒" },
-          { id: "almacenista", label: "Almacenista", emoji: "📦" },
-          { id: "usuario", label: "Usuario", emoji: "👤" },
-        ].map((role) => (
-          <button
-            key={role.id}
-            onClick={() => fakeSetRole(role.id)}
-            style={{
-              padding: "8px 10px",
-              background: activeRole === role.id ? "#2563eb" : "#f1f5f9",
-              color: activeRole === role.id ? "white" : "#334155",
-              border: `1px solid ${activeRole === role.id ? "#2563eb" : "#cbd5e1"}`,
-              borderRadius: "6px",
-              fontSize: "0.75rem",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              justifyContent: "center",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (activeRole !== role.id) {
-                e.currentTarget.style.background = "#e2e8f0";
-                e.currentTarget.style.borderColor = "#94a3b8";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeRole !== role.id) {
-                e.currentTarget.style.background = "#f1f5f9";
-                e.currentTarget.style.borderColor = "#cbd5e1";
-              }
-            }}
-          >
-            <span>{role.emoji}</span>
-            {role.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Botón de restaurar */}
-      <button
-        onClick={() => fakeSetRole(null)}
-        style={{
-          padding: "10px",
-          background: "#fef2f2",
-          color: "#dc2626",
-          border: "1px solid #fca5a5",
-          borderRadius: "6px",
-          fontSize: "0.75rem",
-          cursor: "pointer",
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "6px",
-          fontWeight: "500",
-          transition: "all 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "#fee2e2";
-          e.currentTarget.style.borderColor = "#f87171";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "#fef2f2";
-          e.currentTarget.style.borderColor = "#fca5a5";
-        }}
-      >
-        <span>↩️</span>
-        Restaurar Rol Real
-      </button>
-    </div>
-  </div>
-)}
+      )}
     </AuthContext.Provider>
   );
 }

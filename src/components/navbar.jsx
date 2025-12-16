@@ -29,8 +29,6 @@ export default function Navbar() {
         return [
           { label: "💰 Gestión", name: "gestion_compras" },
           { label: "📋 Solicitudes", name: "solicitudes_planta" },
-          { label: "🏢 Proveedores", name: "proveedores" },
-          { label: "📦 Productos", name: "productos" },
           { label: "🧾 Facturas", name: "facturas" },
         ];
 
@@ -71,19 +69,19 @@ export default function Navbar() {
     >
       {/* Logo y navegación */}
       <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <strong 
-          style={{ 
-            fontSize: "1.25rem", 
+        <strong
+          style={{
+            fontSize: "1.25rem",
             color: "#1f2937",
             display: "flex",
             alignItems: "center",
-            gap: "8px"
+            gap: "8px",
           }}
         >
           {/* Logo más pequeño y responsivo */}
-          <img 
-            src="logo.jpg" 
-            alt="Logo Healthy" 
+          <img
+            src="logo.jpg"
+            alt="Logo Healthy"
             className="w-8 h-8 md:w-10 md:h-10 object-contain"
           />
           Healthy
