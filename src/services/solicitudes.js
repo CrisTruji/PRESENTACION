@@ -431,3 +431,81 @@ export async function getSolicitudConItems(solicitud_id) {
   if (error) throw error;
   return data;
 }
+
+/* ============================================================
+   ACTUALIZAR ITEM (JEFE DE PLANTA)
+   ============================================================ */
+export async function actualizarItem(itemId, datos) {
+  const { error } = await supabase
+    .from("solicitud_items")
+    .update({
+      cantidad_solicitada: datos.cantidad_solicitada,
+      unidad: datos.unidad,
+      observaciones: datos.observaciones || null
+    })
+    .eq("id", itemId);
+
+  if (error) throw error;
+  return true;
+}
+
+/* ============================================================
+   ELIMINAR ITEM (JEFE DE PLANTA)
+   ============================================================ */
+export async function eliminarItem(itemId) {
+  const { error } = await supabase
+    .from("solicitud_items")
+    .delete()
+    .eq("id", itemId);
+
+  if (error) throw error;
+  return true;
+}
+
+/* ============================================================
+   REENVIAR SOLICITUD (JEFE DE PLANTA)
+   ============================================================ */
+export async function reenviarSolicitud(solicitudId) {
+  // 1. Obtener los ítems actuales
+  const { data: items, error: errorItems } = await supabase
+    .from("solicitud_items")
+    .select("id, estado_item")
+    .eq("solicitud_id", solicitudId);
+
+  if (errorItems) throw errorItems;
+
+  if (items.length === 0) {
+    throw new Error("La solicitud debe tener al menos un producto");
+  }
+
+  // 2. Resetear estado de todos los ítems a pendiente
+  const { error: errorReset } = await supabase
+    .from("solicitud_items")
+    .update({ 
+      estado_item: ESTADOS_ITEM.PENDIENTE,
+      motivo_rechazo: null
+    })
+    .eq("solicitud_id", solicitudId);
+
+  if (errorReset) throw errorReset;
+
+  // 3. Cambiar estado de la solicitud a pendiente
+  const { error: errorSolicitud } = await supabase
+    .from("solicitudes")
+    .update({ estado: ESTADOS_SOLICITUD.PENDIENTE })
+    .eq("id", solicitudId);
+
+  if (errorSolicitud) throw errorSolicitud;
+
+  // 4. Registrar en historial
+  await registrarHistorial(
+    solicitudId, 
+    ESTADOS_SOLICITUD.PENDIENTE, 
+    "Solicitud corregida y reenviada por jefe de planta"
+  );
+
+  return { 
+    success: true, 
+    mensaje: "Solicitud reenviada correctamente"
+  };
+}

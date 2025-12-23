@@ -1,350 +1,413 @@
 // src/screens/planta/solicitudes.jsx
-import React from "react";
-import useSolicitudes from "../../screens/hooks/usesolicitudes";
+import React, { useState } from "react";
+import { useRouter } from "../../context/roleroutercontext";
+import useSolicitudes from "../hooks/usesolicitudes";
 import { useAuth } from "../../context/auth";
+import { 
+  ESTADOS_SOLICITUD, 
+  ETIQUETAS_ESTADO_SOLICITUD,
+  getEstadoClasses,
+  getEstadoIcon 
+} from "../../lib/estados";
 
 export default function SolicitudesPlanta() {
-  const { user, profile, session } = useAuth?.() || {};
+  const { navigate } = useRouter();
+  const { user, profile, session, roleName } = useAuth?.() || {};
   const userId = profile?.id || user?.id || session?.user?.id;
 
   const { solicitudes = [], loading } = useSolicitudes({ created_by: userId });
 
-  // Función para determinar el color del badge según estado (igual que en GestionAux)
-  const getEstadoColor = (estado) => {
-    switch (estado?.toLowerCase()) {
-      case "aprobado":
-      case "aprobado_auxiliar":
-        return "green";
-        
-      case "rechazado":
-      case "rechazado_auxiliar":
-      case "cancelado":
-        return "red";
-        
-      case "pendiente":
-      case "en_revision":
-        return "yellow";
-        
-      case "en_proceso":
-      case "en_compra":
-        return "blue";
-        
-      case "comprado":
-      case "completado":
-        return "purple";
-        
-      default:
-        return "gray";
+  // Pestaña activa
+  const [tabActiva, setTabActiva] = useState('todas');
+
+  // ============================================================
+  // CONFIGURACIÓN POR ROL
+  // ============================================================
+
+  const esJefeDePlanta = roleName === 'jefe_de_planta';
+  const esAuxiliarDeCompras = roleName === 'auxiliar_de_compras';
+  const esJefeDeCompras = roleName === 'jefe_de_compras';
+
+  // Definir qué pestañas ve cada rol
+  const pestanasDisponibles = {
+    jefe_de_planta: ['todas', 'pendientes', 'devueltas', 'aprobadas'],
+    auxiliar_de_compras: ['todas', 'pendientes', 'aprobadas'],
+    jefe_de_compras: ['todas', 'pendientes', 'aprobadas'],
+    almacenista: ['todas', 'compradas'],
+    administrador: ['todas', 'pendientes', 'devueltas', 'aprobadas', 'compradas']
+  };
+
+  const pestañasActuales = pestanasDisponibles[roleName] || ['todas'];
+
+  // ============================================================
+  // FILTROS POR ROL
+  // ============================================================
+
+  const solicitudesFiltradas = solicitudes.filter(sol => {
+    if (tabActiva === 'todas') return true;
+    
+    if (tabActiva === 'pendientes') {
+      // Para jefe de planta: solo sus pendientes
+      if (esJefeDePlanta) {
+        return [
+          ESTADOS_SOLICITUD.PENDIENTE,
+          ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR
+        ].includes(sol.estado);
+      }
+      
+      // Para auxiliar: las que debe revisar
+      if (esAuxiliarDeCompras) {
+        return [
+          ESTADOS_SOLICITUD.PENDIENTE,
+          ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR
+        ].includes(sol.estado);
+      }
+      
+      // Para jefe de compras: las aprobadas por auxiliar
+      if (esJefeDeCompras) {
+        return sol.estado === ESTADOS_SOLICITUD.APROBADO_AUXILIAR;
+      }
     }
+    
+    // Solo jefe de planta ve "devueltas"
+    if (tabActiva === 'devueltas' && esJefeDePlanta) {
+      return [
+        ESTADOS_SOLICITUD.DEVUELTA_JEFE_PLANTA,
+        ESTADOS_SOLICITUD.RECHAZADO_AUXILIAR
+      ].includes(sol.estado);
+    }
+    
+    if (tabActiva === 'aprobadas') {
+      return [
+        ESTADOS_SOLICITUD.APROBADO_AUXILIAR,
+        ESTADOS_SOLICITUD.APROBADO_COMPRAS,
+        ESTADOS_SOLICITUD.COMPRADO,
+        ESTADOS_SOLICITUD.FINALIZADO
+      ].includes(sol.estado);
+    }
+    
+    if (tabActiva === 'compradas') {
+      return [
+        ESTADOS_SOLICITUD.COMPRADO,
+        ESTADOS_SOLICITUD.FINALIZADO
+      ].includes(sol.estado);
+    }
+    
+    return true;
+  });
+
+  // ============================================================
+  // ESTADÍSTICAS
+  // ============================================================
+
+  const stats = {
+    todas: solicitudes.length,
+    pendientes: solicitudes.filter(s => 
+      [ESTADOS_SOLICITUD.PENDIENTE, ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR].includes(s.estado)
+    ).length,
+    devueltas: solicitudes.filter(s => 
+      [ESTADOS_SOLICITUD.DEVUELTA_JEFE_PLANTA, ESTADOS_SOLICITUD.RECHAZADO_AUXILIAR].includes(s.estado)
+    ).length,
+    aprobadas: solicitudes.filter(s => 
+      [ESTADOS_SOLICITUD.APROBADO_AUXILIAR, ESTADOS_SOLICITUD.APROBADO_COMPRAS].includes(s.estado)
+    ).length,
+    compradas: solicitudes.filter(s => 
+      [ESTADOS_SOLICITUD.COMPRADO, ESTADOS_SOLICITUD.FINALIZADO].includes(s.estado)
+    ).length
   };
 
-  // Función para obtener el texto del estado legible (igual que en GestionAux)
-  const getEstadoTexto = (estado) => {
-    if (!estado) return "Sin estado";
-    
-    const estadoMap = {
-      "pendiente": "Pendiente",
-      "en_revision": "En revisión",
-      "aprobado": "Aprobado",
-      "aprobado_auxiliar": "Aprobado (Aux)",
-      "rechazado": "Rechazado",
-      "rechazado_auxiliar": "Rechazado (Aux)",
-      "en_proceso": "En proceso",
-      "en_compra": "En compra",
-      "comprado": "Comprado",
-      "completado": "Completado",
-      "cancelado": "Cancelado"
-    };
-    
-    return estadoMap[estado.toLowerCase()] || estado;
+  // Verificar si una solicitud puede editarse (solo jefe de planta)
+  const puedeEditar = (estado) => {
+    return esJefeDePlanta && [
+      ESTADOS_SOLICITUD.DEVUELTA_JEFE_PLANTA,
+      ESTADOS_SOLICITUD.RECHAZADO_AUXILIAR
+    ].includes(estado);
   };
 
-  // Función para contar solicitudes por estado
-  const contarPorEstado = (estado) => {
-    return solicitudes.filter(s => 
-      s.estado?.toLowerCase() === estado?.toLowerCase()
-    ).length;
-  };
+  // ============================================================
+  // LOADING
+  // ============================================================
 
   if (loading) {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center">
-        <div className="spinner mb-4"></div>
-        <p className="text-gray-600 font-medium">Cargando solicitudes…</p>
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 font-medium">Cargando solicitudes...</p>
       </div>
     );
   }
 
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="p-4 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      {/* Header con estadísticas */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Mis Solicitudes de Compra
+              📋 {esJefeDePlanta ? 'Mis Solicitudes' : 'Solicitudes de Compra'}
             </h1>
             <p className="text-gray-600">
-              Historial de todas las solicitudes que has creado
+              {esJefeDePlanta && 'Gestiona y revisa tus solicitudes enviadas'}
+              {esAuxiliarDeCompras && 'Solicitudes pendientes de revisión'}
+              {esJefeDeCompras && 'Solicitudes para gestionar compra'}
+              {!esJefeDePlanta && !esAuxiliarDeCompras && !esJefeDeCompras && 'Historial de solicitudes'}
             </p>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 text-sm">
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg">
-              <span className="text-primary-600">📋</span>
-              Total: {solicitudes.length}
-            </span>
           </div>
         </div>
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Pendientes</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {contarPorEstado("pendiente")}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-yellow-50 rounded-lg flex items-center justify-center">
-                <span className="text-yellow-600">⏳</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Aprobadas</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {contarPorEstado("aprobado") + contarPorEstado("aprobado_auxiliar")}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-                <span className="text-green-600">✅</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Rechazadas</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {contarPorEstado("rechazado") + contarPorEstado("rechazado_auxiliar")}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                <span className="text-red-600">❌</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-3 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Compradas</p>
-                <p className="text-lg font-bold text-gray-800">
-                  {contarPorEstado("comprado")}
-                </p>
-              </div>
-              <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
-                <span className="text-purple-600">🛒</span>
-              </div>
-            </div>
-          </div>
+        {/* Tabs (solo las que corresponden al rol) */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {pestañasActuales.includes('todas') && (
+            <button
+              onClick={() => setTabActiva('todas')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                tabActiva === 'todas'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              Todas ({stats.todas})
+            </button>
+          )}
+
+          {pestañasActuales.includes('pendientes') && (
+            <button
+              onClick={() => setTabActiva('pendientes')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                tabActiva === 'pendientes'
+                  ? 'bg-yellow-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              ⏳ Pendientes ({stats.pendientes})
+            </button>
+          )}
+
+          {pestañasActuales.includes('devueltas') && (
+            <button
+              onClick={() => setTabActiva('devueltas')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap relative ${
+                tabActiva === 'devueltas'
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              ⚠️ Devueltas ({stats.devueltas})
+              {stats.devueltas > 0 && tabActiva !== 'devueltas' && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
+                  {stats.devueltas}
+                </span>
+              )}
+            </button>
+          )}
+
+          {pestañasActuales.includes('aprobadas') && (
+            <button
+              onClick={() => setTabActiva('aprobadas')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                tabActiva === 'aprobadas'
+                  ? 'bg-green-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              ✅ Aprobadas ({stats.aprobadas})
+            </button>
+          )}
+
+          {pestañasActuales.includes('compradas') && (
+            <button
+              onClick={() => setTabActiva('compradas')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                tabActiva === 'compradas'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              🛒 Compradas ({stats.compradas})
+            </button>
+          )}
         </div>
+
+        {/* Alerta para devueltas (solo jefe de planta) */}
+        {tabActiva === 'devueltas' && esJefeDePlanta && stats.devueltas > 0 && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="font-bold text-red-900 mb-1">
+                  Solicitudes devueltas para corrección
+                </h3>
+                <p className="text-sm text-red-800">
+                  Estas solicitudes fueron rechazadas por el auxiliar de compras. 
+                  Revisa los motivos, corrige los productos y vuelve a enviarlas.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Lista de solicitudes */}
-      {solicitudes.length === 0 ? (
-        <div className="card p-8 text-center">
+      {solicitudesFiltradas.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-8 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-gray-400 text-2xl">📄</span>
+            <span className="text-gray-400 text-2xl">
+              {tabActiva === 'devueltas' ? '✅' : '📄'}
+            </span>
           </div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            No hay solicitudes
+            {tabActiva === 'devueltas' 
+              ? '¡Excelente! No hay solicitudes devueltas' 
+              : 'No hay solicitudes en esta categoría'}
           </h3>
           <p className="text-gray-500 max-w-md mx-auto">
-            {userId
-              ? "Aún no has creado ninguna solicitud. Comienza creando tu primera solicitud de compra."
-              : "No se pudo identificar tu usuario. Por favor, verifica tu sesión."}
+            {tabActiva === 'devueltas'
+              ? 'Todas tus solicitudes están siendo procesadas correctamente.'
+              : tabActiva === 'pendientes'
+              ? esJefeDePlanta ? 'Crea una nueva solicitud de compra para comenzar.' : 'No hay solicitudes pendientes de revisión.'
+              : 'No tienes solicitudes en esta categoría aún.'}
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-          {/* Tabla compacta - igual que en GestionAux */}
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Solicitud
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha y Hora
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Fecha
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Proveedor
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Estado
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Items
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Acciones
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {solicitudes.map((sol) => {
-                  const estadoColor = getEstadoColor(sol.estado);
-                  const estadoTexto = getEstadoTexto(sol.estado);
-                  const esComprado = sol.estado?.toLowerCase() === "comprado";
-                  
+                {solicitudesFiltradas.map((sol) => {
+                  const esDevuelta = puedeEditar(sol.estado);
+                  const itemsRechazados = sol.solicitud_items?.filter(
+                    item => item.estado_item === 'rechazado_auxiliar'
+                  ).length || 0;
+
                   return (
                     <tr 
                       key={sol.id} 
-                      className="hover:bg-gray-50 transition-colors duration-150"
+                      className={`transition-colors ${
+                        esDevuelta ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'
+                      }`}
                     >
-                      {/* Número de solicitud */}
+                      {/* ID */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3"
-                            style={{
-                              backgroundColor: estadoColor === "green" ? "#d1fae5" :
-                                            estadoColor === "red" ? "#fee2e2" :
-                                            estadoColor === "yellow" ? "#fef3c7" :
-                                            estadoColor === "blue" ? "#dbeafe" :
-                                            estadoColor === "purple" ? "#e9d5ff" : "#f3f4f6"
-                            }}
-                          >
-                            <span className="font-bold" style={{
-                              color: estadoColor === "green" ? "#059669" :
-                                    estadoColor === "red" ? "#dc2626" :
-                                    estadoColor === "yellow" ? "#d97706" :
-                                    estadoColor === "blue" ? "#2563eb" :
-                                    estadoColor === "purple" ? "#7c3aed" : "#6b7280"
-                            }}>
-                              {esComprado ? "✓" : "#"}
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                            esDevuelta ? 'bg-red-200' : 'bg-blue-100'
+                          }`}>
+                            <span className={`font-bold ${
+                              esDevuelta ? 'text-red-700' : 'text-blue-600'
+                            }`}>
+                              {esDevuelta ? '!' : '#'}
                             </span>
                           </div>
                           <div>
                             <div className="font-semibold text-gray-900">
                               {sol.id}
                             </div>
-                            {esComprado && (
-                              <div className="text-xs text-gray-500 mt-0.5">
-                                Finalizado
+                            {esDevuelta && itemsRechazados > 0 && (
+                              <div className="text-xs text-red-600 font-medium">
+                                {itemsRechazados} rechazado{itemsRechazados > 1 ? 's' : ''}
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
 
-                      {/* Fecha y Hora */}
+                      {/* Fecha */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(sol.fecha_solicitud).toLocaleDateString(
-                            "es-ES",
-                            {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            }
-                          )}
+                          {new Date(sol.fecha_solicitud).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(sol.fecha_solicitud).toLocaleTimeString(
-                            "es-ES",
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }
-                          )}
+                          {new Date(sol.fecha_solicitud).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
                         </div>
                       </td>
 
                       {/* Proveedor */}
                       <td className="px-4 py-3">
                         <div className="text-sm text-gray-900 max-w-[150px] truncate">
-                          {sol.proveedor?.nombre || "No especificado"}
+                          {sol.proveedor?.nombre || sol.proveedores?.nombre || 'No especificado'}
                         </div>
                       </td>
 
                       {/* Estado */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            estadoColor === "green"
-                              ? "bg-green-100 text-green-800"
-                              : estadoColor === "red"
-                              ? "bg-red-100 text-red-800"
-                              : estadoColor === "yellow"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : estadoColor === "blue"
-                              ? "bg-blue-100 text-blue-800"
-                              : estadoColor === "purple"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {estadoTexto}
-                          {esComprado && (
-                            <span className="ml-1">✓</span>
-                          )}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          getEstadoClasses(sol.estado, 'solicitud')
+                        }`}>
+                          <span>{getEstadoIcon(sol.estado, 'solicitud')}</span>
+                          {ETIQUETAS_ESTADO_SOLICITUD[sol.estado]}
                         </span>
                       </td>
 
-                      {/* Cantidad de items */}
+                      {/* Items */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {sol.solicitud_items?.length || 0}
                         </div>
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {esDevuelta ? (
+                          <button
+                            onClick={() => navigate('verificar_solicitud', { id: sol.id })}
+                            className="px-3 py-1.5 bg-red-500 text-white rounded hover:bg-red-600 text-xs font-medium flex items-center gap-1 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Corregir
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate('verificar_solicitud', { id: sol.id })}
+                            className="px-3 py-1.5 border border-blue-500 text-blue-600 rounded hover:bg-blue-50 text-xs font-medium flex items-center gap-1 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Ver
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-          
-          {/* Leyenda de estados */}
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
-            <div className="flex flex-wrap items-center gap-4">
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-yellow-100 rounded-full"></span>
-                Pendientes
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-green-100 rounded-full"></span>
-                Aprobadas
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-red-100 rounded-full"></span>
-                Rechazadas
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-blue-100 rounded-full"></span>
-                En proceso
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-purple-100 rounded-full"></span>
-                Compradas
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Información de debug (solo desarrollo) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <p className="text-xs text-gray-500 font-medium mb-2">Debug info:</p>
-          <div className="text-xs text-gray-600 space-y-1">
-            <p>Usuario ID: {userId || "No encontrado"}</p>
-            <p>Total solicitudes: {solicitudes.length}</p>
-            <p>Estados encontrados: {[...new Set(solicitudes.map(s => s.estado))].join(", ")}</p>
           </div>
         </div>
       )}

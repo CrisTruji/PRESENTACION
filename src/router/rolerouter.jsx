@@ -31,39 +31,7 @@ export default function RoleRouter() {
   const { currentScreen, navigate } = useRouter();
 
   const prevRoleRef = useRef(null);
-
-  const ROLE_SCREENS = {
-  administrador: [
-    "admin_dashboard",
-    "admin_requests",
-    "proveedores",
-    "facturas",
-  ],
-
-  jefe_de_planta: [
-    "crear_solicitud",
-    "productos",
-    "solicitudes_planta",
-    "verificar_solicitud",
-  ],
-
-  auxiliar_de_compras: [
-    "gestion_aux",
-    "ver_detalles_solicitud",
-  ],
-
-  jefe_de_compras: [
-    "gestion_compras",
-    "proveedores",
-    "facturas",
-  ],
-
-  almacenista: [
-    "recepcion_factura",
-    "facturas",
-  ],
-};
-
+  
 
   // -----------------------------
   // GUARDS
@@ -110,18 +78,6 @@ export default function RoleRouter() {
       navigate(home, { replace: true });
     }
   }, [roleName]);
-
-  const allowedScreens = ROLE_SCREENS[roleName] ?? [];
-const screenName = currentScreen?.name;
-
-if (!allowedScreens.includes(screenName)) {
-  console.warn(
-    `⛔ Pantalla no permitida → rol=${roleName}, screen=${screenName}`
-  );
-
-  navigate(getHomeScreenByRole(), { replace: true });
-  return null;
-}
 
   // -----------------------------
   // RENDER DE PANTALLAS
