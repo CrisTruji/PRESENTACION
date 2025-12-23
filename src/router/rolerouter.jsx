@@ -1,54 +1,90 @@
-// src/router/rolerouter.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useAuth } from "../context/auth";
 import { useRouter } from "../context/roleroutercontext";
-
-// ================================
-// IMPORTS DE PANTALLAS POR ROL
-// ================================
 
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
 import AdminRequests from "../screens/admin/admin_requests";
 
-// PLANTA (jefe de planta)
+// PLANTA
 import CrearSolicitud from "../screens/planta/crearsolicitud";
 import Productos from "../screens/planta/productos";
 import SolicitudesPlanta from "../screens/planta/solicitudes";
 import VerificarSolicitud from "../screens/planta/verificarsolicitud";
 
-// COMPRAS (auxiliar y jefe)
+// COMPRAS
 import GestionCompras from "../screens/compras/gestioncompras";
-import GestionAux from "../screens/aux_compras/gestionaux.jsx";
+import GestionAux from "../screens/aux_compras/gestionaux";
 
 // AUXILIAR
-import VerDetallesSolicitud from "../screens/aux_compras/verdetallessolicitudes.jsx";
+import VerDetallesSolicitud from "../screens/aux_compras/verdetallessolicitudes";
 
-// PANTALLAS GLOBALES
+// GLOBALES
 import Proveedores from "../screens/proveedores";
 import Facturas from "../screens/facturas";
 
 // ALMACEN
-import RecepcionFactura from "../screens/almacen/recepcionfactura.jsx";
+import RecepcionFactura from "../screens/almacen/recepcionfactura";
 
 export default function RoleRouter() {
-  const { roleName, loading } = useAuth();
+  const { roleName, loading, session } = useAuth();
   const { currentScreen, navigate } = useRouter();
 
+  const prevRoleRef = useRef(null);
+
+  const ROLE_SCREENS = {
+  administrador: [
+    "admin_dashboard",
+    "admin_requests",
+    "proveedores",
+    "facturas",
+  ],
+
+  jefe_de_planta: [
+    "crear_solicitud",
+    "productos",
+    "solicitudes_planta",
+    "verificar_solicitud",
+  ],
+
+  auxiliar_de_compras: [
+    "gestion_aux",
+    "ver_detalles_solicitud",
+  ],
+
+  jefe_de_compras: [
+    "gestion_compras",
+    "proveedores",
+    "facturas",
+  ],
+
+  almacenista: [
+    "recepcion_factura",
+    "facturas",
+  ],
+};
+
+
+  // -----------------------------
+  // GUARDS
+  // -----------------------------
   if (loading) return <p>Cargando…</p>;
+  if (!session) return <p>No autenticado</p>;
   if (!roleName) return <p>No tienes rol asignado</p>;
 
-  // Determinar pantalla inicial por rol
-  const getHomeScreenByRole = () => {
-    switch (roleName) {
+  // -----------------------------
+  // HOME POR ROL
+  // -----------------------------
+  const getHomeScreenByRole = (role) => {
+    switch (role) {
       case "administrador":
         return "admin_dashboard";
       case "jefe_de_planta":
         return "crear_solicitud";
-      case "jefe_de_compras":
-        return "gestion_compras";
       case "auxiliar_de_compras":
         return "gestion_aux";
+      case "jefe_de_compras":
+        return "gestion_compras";
       case "almacenista":
         return "recepcion_factura";
       default:
@@ -56,76 +92,83 @@ export default function RoleRouter() {
     }
   };
 
-  // Asignar pantalla inicial por rol (solo la primera vez)
+  // -----------------------------
+  // 🔥 RESET CUANDO CAMBIA EL ROL
+  // -----------------------------
   useEffect(() => {
-    if (currentScreen?.isInitialAssigned) return;
+    if (prevRoleRef.current !== roleName) {
+      console.log(
+        "🔁 Rol cambiado:",
+        prevRoleRef.current,
+        "→",
+        roleName
+      );
 
-    const homeScreen = getHomeScreenByRole();
+      prevRoleRef.current = roleName;
 
-    if (homeScreen) {
-      navigate(homeScreen, { isInitialAssigned: true });
+      const home = getHomeScreenByRole(roleName);
+      navigate(home, { replace: true });
     }
   }, [roleName]);
 
-  const renderInternalScreen = () => {
-    switch (currentScreen.name) {
-      // PLANTA
-      case "crear_solicitud":
-        return <CrearSolicitud />;
-      case "productos":
-        return <Productos />;
-      case "solicitudes_planta":
-        return <SolicitudesPlanta />;
-      case "verificar_solicitud":
-        return <VerificarSolicitud />;
+  const allowedScreens = ROLE_SCREENS[roleName] ?? [];
+const screenName = currentScreen?.name;
 
-      // COMPRAS
-      case "gestion_aux":
-        return <GestionAux />;
-      case "gestion_compras":
-        return <GestionCompras />;
+if (!allowedScreens.includes(screenName)) {
+  console.warn(
+    `⛔ Pantalla no permitida → rol=${roleName}, screen=${screenName}`
+  );
 
-      // AUXILIAR
-      case "ver_detalles_solicitud":
-        return <VerDetallesSolicitud solicitudId={currentScreen.params?.id} />;
+  navigate(getHomeScreenByRole(), { replace: true });
+  return null;
+}
 
-      // PANTALLAS GLOBALES
-      case "proveedores":
-        return <Proveedores />;
-      case "facturas":
-        return <Facturas />;
-      case "solicitudes":
-        return <Proveedores />;
+  // -----------------------------
+  // RENDER DE PANTALLAS
+  // -----------------------------
+  switch (currentScreen?.name) {
+    case "crear_solicitud":
+      return <CrearSolicitud />;
 
-      // ALMACEN
-      case "recepcion_factura":
-        return <RecepcionFactura />;
+    case "productos":
+      return <Productos />;
 
-      // ADMIN
-      case "admin_dashboard":
-        return <AdminDashboard />;
-      case "admin_requests":
-        return <AdminRequests />;
+    case "solicitudes_planta":
+      return <SolicitudesPlanta />;
 
-      default:
-        // Si no hay pantalla, mostrar la inicial del rol
-        const defaultScreen = getHomeScreenByRole();
-        if (defaultScreen && defaultScreen !== currentScreen?.name) {
-          setTimeout(() => navigate(defaultScreen), 0);
-          return (
-            <div style={{ padding: 20, textAlign: "center" }}>
-              <h3>Redirigiendo a pantalla principal...</h3>
-            </div>
-          );
-        }
-        return (
-          <div style={{ padding: 20, color: "red" }}>
-            <h3>Pantalla no encontrada:</h3>
-            <p>{currentScreen?.name || "(sin nombre)"}</p>
-          </div>
-        );
-    }
-  };
+    case "verificar_solicitud":
+      return <VerificarSolicitud />;
 
-  return <>{renderInternalScreen()}</>;
+    case "gestion_aux":
+      return <GestionAux />;
+
+    case "ver_detalles_solicitud":
+      return <VerDetallesSolicitud />;
+
+    case "gestion_compras":
+      return <GestionCompras />;
+
+    case "proveedores":
+      return <Proveedores />;
+
+    case "facturas":
+      return <Facturas />;
+
+    case "recepcion_factura":
+      return <RecepcionFactura />;
+
+    case "admin_dashboard":
+      return <AdminDashboard />;
+
+    case "admin_requests":
+      return <AdminRequests />;
+
+    default:
+      return (
+        <div style={{ padding: 20 }}>
+          <h3>Pantalla no encontrada</h3>
+          <p>{currentScreen?.name}</p>
+        </div>
+      );
+  }
 }
