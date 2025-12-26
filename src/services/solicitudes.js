@@ -59,54 +59,37 @@ export async function agregarItemsSolicitud(solicitud_id, items) {
    OBTENER TODAS LAS SOLICITUDES
    ============================================================ */
 export async function getSolicitudes() {
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from("solicitudes")
     .select(`
       id,
-      estado,
       proveedor_id,
+      estado,
       fecha_solicitud,
       created_by,
-      observaciones,
-      proveedores:proveedor_id(id,nombre),
-      solicitud_items(
+      proveedor:proveedores (
+        id,
+        nombre,
+        nit
+      ),
+      items:solicitud_items (
         id,
         cantidad_solicitada,
         unidad,
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_productos(
+        catalogo_producto:catalogo_productos (
           id,
           nombre,
-          categoria,
-          codigo_arbol
+          categoria
         )
       )
-    `);
+    `)
+    .order("fecha_solicitud", { ascending: false });
 
-  if (error) {
-    console.error("❌ ERROR en getSolicitudes:", error);
-    return [];
-  }
-
-  // Ordenar por prioridad de estado
-  const prioridad = {
-    [ESTADOS_SOLICITUD.PENDIENTE]: 1,
-    [ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR]: 2,
-    [ESTADOS_SOLICITUD.APROBADO_AUXILIAR]: 3,
-    [ESTADOS_SOLICITUD.APROBADO_COMPRAS]: 4,
-    [ESTADOS_SOLICITUD.COMPRADO]: 5,
-  };
-
-  data.sort((a, b) => {
-    const pa = prioridad[a.estado] || 99;
-    const pb = prioridad[b.estado] || 99;
-    if (pa !== pb) return pa - pb;
-    return new Date(a.fecha_solicitud) - new Date(b.fecha_solicitud);
-  });
-
-  return data;
+  if (error) throw error;
+  return data || [];
 }
 
 /* ============================================================
@@ -405,7 +388,7 @@ export async function getItemsBySolicitud(solicitud_id) {
 /* ============================================================
    OBTENER SOLICITUD COMPLETA CON ITEMS
    ============================================================ */
-export async function getSolicitudConItems(solicitud_id) {
+export async function getSolicitudConItems(solicitudId) {
   const { data, error } = await supabase
     .from("solicitudes")
     .select(`
@@ -414,18 +397,28 @@ export async function getSolicitudConItems(solicitud_id) {
       estado,
       fecha_solicitud,
       created_by,
-      proveedor:proveedores ( id, nombre, telefono, correo ),
+      observaciones,
+      proveedor:proveedores (
+        id,
+        nombre,
+        nit
+      ),
       items:solicitud_items (
         id,
+        catalogo_producto_id,
         cantidad_solicitada,
         unidad,
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_producto:catalogo_productos ( id, nombre, categoria )
+        catalogo_productos (
+          id,
+          nombre,
+          categoria
+        )
       )
     `)
-    .eq("id", solicitud_id)
+    .eq("id", solicitudId)
     .single();
 
   if (error) throw error;
