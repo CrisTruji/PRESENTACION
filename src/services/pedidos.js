@@ -1,25 +1,16 @@
-// src/services/pedidos.js
 import { supabase } from "../lib/supabase";
+import { supabaseRequest } from "../lib/supabaseRequest"; // He agregado esta linea
 
-/**
- * Crear pedido (encabezado)
- * payload: { solicitud_id, proveedor_id, created_by }
- */
 export async function crearPedido({ solicitud_id, proveedor_id, created_by }) {
-  const { data, error } = await supabase
-    .from("pedidos")
-    .insert([{ solicitud_id, proveedor_id, created_by }])
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  return supabaseRequest( // He agregado esta linea
+    supabase
+      .from("pedidos")
+      .insert([{ solicitud_id, proveedor_id, created_by }])
+      .select()
+      .single()
+  );
 }
 
-/**
- * Agregar items a pedido
- * items: [{ catalogo_producto_id, cantidad, precio_unitario }]
- */
 export async function agregarItemsPedido(pedido_id, items) {
   const payload = items.map(i => ({
     pedido_id,
@@ -28,10 +19,7 @@ export async function agregarItemsPedido(pedido_id, items) {
     precio_unitario: i.precio_unitario || null
   }));
 
-  const { data, error } = await supabase
-    .from("pedido_items")
-    .insert(payload);
-
-  if (error) throw error;
-  return data;
+  return supabaseRequest( // He agregado esta linea
+    supabase.from("pedido_items").insert(payload)
+  );
 }

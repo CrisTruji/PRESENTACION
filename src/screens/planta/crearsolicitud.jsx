@@ -58,6 +58,40 @@ const categoryIcons = {
   default: "📋",
 };
 
+// Lista de unidades médicas (AGREGAR ESTA CONSTANTE)
+const unidadesMedicas = [
+  { codigo: "0001", nombre: "HEALTHY MATRIZ" },
+  { codigo: "0002", nombre: "SEATECH" },
+  { codigo: "0003", nombre: "ASOCAÑA CALI" },
+  { codigo: "0004", nombre: "CLINICA LA NUESTRA" },
+  { codigo: "0005", nombre: "CASA LIMPIA" },
+  { codigo: "0006", nombre: "CLINICA NUEVA EL LAGO" },
+  { codigo: "0007", nombre: "CLINICA RED HUMANA" },
+  { codigo: "0008", nombre: "AURUM MEDICAL" },
+  { codigo: "0009", nombre: "CLINICA GARPER MEDICA" },
+  { codigo: "0011", nombre: "PLANTA IBAGUE" },
+  { codigo: "0012", nombre: "CLINICA KERALTY" },
+  { codigo: "0013", nombre: "CLINICA AVIDANTI" },
+  { codigo: "0014", nombre: "BRUNE RETAIL" },
+  { codigo: "0015", nombre: "RETAIL FLORIDA" },
+  { codigo: "0016", nombre: "COORDINADORA MERCANTIL BGT" },
+  { codigo: "0017", nombre: "CARRITO MEDICADIZ" },
+  { codigo: "0018", nombre: "CARRITO KERALTY" },
+  { codigo: "0019", nombre: "COLEGIO LICEO FRANCES" },
+  { codigo: "0020", nombre: "VERSANIA 139" },
+  { codigo: "0021", nombre: "VERSANIA AV 68" },
+  { codigo: "0022", nombre: "VERSANIA PRESENTES" },
+  { codigo: "0023", nombre: "CLINICA MEDICADIZ" },
+  { codigo: "0024", nombre: "SEVIN DRUMMOND" },
+  { codigo: "0025", nombre: "VIRREY SOLIS SUBA" },
+  { codigo: "0026", nombre: "ARCHROMA BOGOTA" },
+  { codigo: "0027", nombre: "HUTSMAN BOGOTA" },
+  { codigo: "0028", nombre: "ALMUERZO PERSONAL BOGOTA" },
+  { codigo: "0029", nombre: "ALMUERZO PERSONAL IBAGUE" },
+  { codigo: "0030", nombre: "EIREN COLSANITAS" },
+  { codigo: "0031", nombre: "CLINICA AZUL MEDPLUS" },
+];
+
 export default function CrearSolicitudPlanta() {
   const { user } = useAuth();
   const [proveedores, setProveedores] = useState([]);
@@ -71,6 +105,7 @@ export default function CrearSolicitudPlanta() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [proveedorNombre, setProveedorNombre] = useState("");
+  const [codigoUnidad, setCodigoUnidad] = useState("");
 
   useEffect(() => {
     async function init() {
@@ -178,6 +213,12 @@ export default function CrearSolicitudPlanta() {
       setError("Seleccione un proveedor.");
       return;
     }
+
+    if (!codigoUnidad) {
+      setError("Seleccione una unidad.");
+      return;
+    }
+
     if (itemsSeleccionados.length === 0) {
       setError("Debe agregar al menos un producto.");
       return;
@@ -190,6 +231,7 @@ export default function CrearSolicitudPlanta() {
     try {
       const solicitud = await crearSolicitud({
         proveedor_id: Number(proveedorSeleccionado),
+        codigo_unidad: codigoUnidad,
         created_by: user?.id,
         observaciones: "",
       });
@@ -205,6 +247,7 @@ export default function CrearSolicitudPlanta() {
         setBusquedaProveedor("");
         setProductos([]);
         setItemsSeleccionados([]);
+        setCodigoUnidad("");
         setError("");
         setSuccess("");
       }, 5000);
@@ -224,6 +267,7 @@ export default function CrearSolicitudPlanta() {
     setBusquedaProveedor("");
     setProductos([]);
     setItemsSeleccionados([]);
+    setCodigoUnidad("");
     setError("");
     setSuccess("");
   };
@@ -295,7 +339,7 @@ export default function CrearSolicitudPlanta() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna izquierda - Formularios */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Card Selección de Proveedor */}
+            {/* Card Selección de Proveedor (EXACTAMENTE IGUAL) */}
             <div className="card-hover">
               <div className="p-6">
                 <div className="flex items-center mb-4">
@@ -401,6 +445,66 @@ export default function CrearSolicitudPlanta() {
               </div>
             </div>
 
+            {/* === NUEVA CARD: Selección de Unidad Médica === */}
+            <div className="card-hover">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg
+                      className="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                      />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-800">
+                    Seleccionar Unidad Médica
+                  </h2>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="codigo_unidad" className="form-label">
+                    Unidad Médica
+                  </label>
+                  
+                  {/* Select con el mismo estilo que los otros inputs */}
+                  <select
+                    id="codigo_unidad"
+                    name="codigo_unidad"
+                    required
+                    value={codigoUnidad}
+                    onChange={(e) => setCodigoUnidad(e.target.value)}
+                    className="form-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400"
+                  >
+                    <option value="" disabled className="text-gray-400">
+                      Seleccione una unidad...
+                    </option>
+                    {unidadesMedicas.map((unidad) => (
+                      <option 
+                        key={unidad.codigo} 
+                        value={unidad.codigo}
+                        className="text-gray-700"
+                      >
+                        {unidad.codigo} - {unidad.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <p className="mt-2 text-sm text-gray-500">
+                    Se enviará el código a la columna <code className="text-primary-600 font-medium">codigo_unidad</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* === FIN NUEVA CARD === */}
+
             {/* Card Productos del Proveedor */}
             {proveedorSeleccionado && (
               <div className="card-hover">
@@ -500,7 +604,7 @@ export default function CrearSolicitudPlanta() {
 
                 {/* Información del proveedor */}
                 {proveedorNombre && (
-                  <div className="mb-4 p-3 bg-primary-50 rounded-lg">
+                  <div className="mb-3 p-3 bg-primary-50 rounded-lg">
                     <div className="flex items-center gap-2 mb-1">
                       <svg
                         className="w-4 h-4 text-primary-600"
@@ -525,6 +629,36 @@ export default function CrearSolicitudPlanta() {
                     >
                       {proveedorNombre}
                     </p>
+                  </div>
+                )}
+
+                {/* Información de la unidad seleccionada */}
+                {codigoUnidad && (
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg
+                        className="w-4 h-4 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-blue-600">
+                        Unidad Médica:
+                      </span>
+                    </div>
+                    <p className="font-semibold text-gray-800">
+                      {unidadesMedicas.find(u => u.codigo === codigoUnidad)?.nombre}
+                    </p>
+                    <div className="text-xs text-blue-600 font-mono mt-1">
+                      Código: {codigoUnidad}
+                    </div>
                   </div>
                 )}
 
@@ -662,7 +796,8 @@ export default function CrearSolicitudPlanta() {
                     disabled={
                       cargando ||
                       itemsSeleccionados.length === 0 ||
-                      !proveedorSeleccionado
+                      !proveedorSeleccionado ||
+                      !codigoUnidad
                     }
                     onClick={handleEnviarSolicitud}
                   >
@@ -775,16 +910,20 @@ export default function CrearSolicitudPlanta() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-primary-600 font-medium">2.</span>
+                  <span>Seleccione la unidad médica desde el listado</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary-600 font-medium">3.</span>
                   <span>
                     Agregue productos con sus cantidades
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">3.</span>
+                  <span className="text-primary-600 font-medium">4.</span>
                   <span>Revise el resumen en el panel derecho</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">4.</span>
+                  <span className="text-primary-600 font-medium">5.</span>
                   <span>Presione "Enviar Solicitud" cuando esté listo</span>
                 </li>
               </ul>

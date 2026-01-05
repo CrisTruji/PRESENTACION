@@ -1,12 +1,13 @@
 import { supabase } from "../lib/supabase";
+import { supabaseRequest } from "../lib/supabaseRequest"; // He agregado esta linea
 
 /**
  * Obtener usuarios pendientes (basado en estado 'pendiente')
  * Manteniendo el nombre getPendingUsers para compatibilidad
  */
 export const getPendingUsers = async () => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .select(`
         *,
@@ -16,17 +17,11 @@ export const getPendingUsers = async () => {
           descripcion
         )
       `)
-      .eq("estado", "pendiente")  // Cambiado: usar 'estado' en lugar de 'rol'
-      .order("created_at", { ascending: true });
+      .eq("estado", "pendiente")
+      .order("created_at", { ascending: true })
+  );
 
-    if (error) throw error;
-
-    return data || [];
-
-  } catch (error) {
-    console.error("❌ Error al obtener usuarios pendientes:", error);
-    throw error;
-  }
+  return data || [];
 };
 
 /**
@@ -34,20 +29,14 @@ export const getPendingUsers = async () => {
  * Nueva función para el dashboard
  */
 export const getAllRoles = async () => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("roles")
       .select("*")
-      .order("nombre", { ascending: true });
+      .order("nombre", { ascending: true })
+  );
 
-    if (error) throw error;
-
-    return data || [];
-
-  } catch (error) {
-    console.error("❌ Error al obtener roles:", error);
-    throw error;
-  }
+  return data || [];
 };
 
 /**
@@ -55,27 +44,21 @@ export const getAllRoles = async () => {
  * Manteniendo el mismo nombre y parámetros
  */
 export const assignRole = async (userId, newRole) => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .update({
         rol: newRole,
-        estado: 'activo',  // Añadido: actualizar estado a activo
+        estado: "activo",
         updated_at: new Date().toISOString()
       })
       .eq("id", userId)
       .select()
-      .single();
+      .single()
+  );
 
-    if (error) throw error;
-
-    console.log("✅ Rol actualizado y usuario activado:", data);
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error asignando rol:", error);
-    throw error;
-  }
+  console.log("✅ Rol actualizado y usuario activado:", data);
+  return data;
 };
 
 /**
@@ -83,26 +66,20 @@ export const assignRole = async (userId, newRole) => {
  * Nueva función para el dashboard
  */
 export const rejectUser = async (userId) => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .update({
-        estado: 'rechazado',
+        estado: "rechazado",
         updated_at: new Date().toISOString()
       })
       .eq("id", userId)
       .select()
-      .single();
+      .single()
+  );
 
-    if (error) throw error;
-
-    console.log("✅ Usuario rechazado:", data);
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error rechazando usuario:", error);
-    throw error;
-  }
+  console.log("✅ Usuario rechazado:", data);
+  return data;
 };
 
 /**
@@ -110,31 +87,25 @@ export const rejectUser = async (userId) => {
  * Nueva función para el dashboard
  */
 export const getUserStats = async () => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
-      .select("estado, created_at");
+      .select("estado, created_at")
+  );
 
-    if (error) throw error;
+  const today = new Date().toISOString().split("T")[0];
 
-    const today = new Date().toISOString().split('T')[0];
-    
-    const stats = {
-      total: data.length,
-      pending: data.filter(u => u.estado === 'pendiente').length,
-      active: data.filter(u => u.estado === 'activo').length,
-      rejected: data.filter(u => u.estado === 'rechazado').length,
-      today: data.filter(u => 
-        u.created_at && u.created_at.startsWith(today)
-      ).length
-    };
+  const stats = {
+    total: data.length,
+    pending: data.filter(u => u.estado === "pendiente").length,
+    active: data.filter(u => u.estado === "activo").length,
+    rejected: data.filter(u => u.estado === "rechazado").length,
+    today: data.filter(
+      u => u.created_at && u.created_at.startsWith(today)
+    ).length
+  };
 
-    return stats;
-
-  } catch (error) {
-    console.error("❌ Error obteniendo estadísticas:", error);
-    throw error;
-  }
+  return stats;
 };
 
 /**
@@ -142,28 +113,21 @@ export const getUserStats = async () => {
  * Puedes mantenerla si otras partes la usan
  */
 export const getPendingUsersByRol = async () => {
-  try {
-    const { data, error } = await supabase
+  return supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .select("*")
       .eq("rol", "usuario")
-      .order("created_at", { ascending: true });
-
-    if (error) throw error;
-
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error al obtener usuarios pendientes por rol:", error);
-    throw error;
-  }
+      .order("created_at", { ascending: true })
+  );
 };
+
 /**
  * Obtener usuarios activos
  */
 export const getActiveUsers = async () => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .select(`
         *,
@@ -174,24 +138,18 @@ export const getActiveUsers = async () => {
         )
       `)
       .eq("estado", "activo")
-      .order("nombre", { ascending: true });
+      .order("nombre", { ascending: true })
+  );
 
-    if (error) throw error;
-
-    return data || [];
-
-  } catch (error) {
-    console.error("❌ Error al obtener usuarios activos:", error);
-    throw error;
-  }
+  return data || [];
 };
 
 /**
  * Actualizar perfil de usuario (nombre, email, rol)
  */
 export const updateUserProfile = async (userId, updates) => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest( // He agregado esta linea
+    supabase
       .from("profiles")
       .update({
         nombre: updates.nombre,
@@ -201,43 +159,31 @@ export const updateUserProfile = async (userId, updates) => {
       })
       .eq("id", userId)
       .select()
-      .single();
+      .single()
+  );
 
-    if (error) throw error;
-
-    console.log("✅ Perfil actualizado:", data);
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error actualizando perfil:", error);
-    throw error;
-  }
+  console.log("✅ Perfil actualizado:", data);
+  return data;
 };
 
 /**
  * Desactivar usuario (cambiar estado a 'inactivo')
  */
 export const deactivateUser = async (userId) => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest(
+    supabase
       .from("profiles")
       .update({
-        estado: 'inactivo',
+        estado: "inactivo",
         updated_at: new Date().toISOString()
       })
       .eq("id", userId)
       .select()
-      .single();
+      .single()
+  );
 
-    if (error) throw error;
-
-    console.log("✅ Usuario desactivado:", data);
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error desactivando usuario:", error);
-    throw error;
-  }
+  console.log("✅ Usuario desactivado:", data);
+  return data;
 };
 
 /**
@@ -245,21 +191,15 @@ export const deactivateUser = async (userId) => {
  * ¡CUIDADO! Esta acción es permanente
  */
 export const deleteUser = async (userId) => {
-  try {
-    const { data, error } = await supabase
+  const data = await supabaseRequest(
+    supabase
       .from("profiles")
       .delete()
       .eq("id", userId)
       .select()
-      .single();
+      .single()
+  );
 
-    if (error) throw error;
-
-    console.log("⚠️ Usuario eliminado:", data);
-    return data;
-
-  } catch (error) {
-    console.error("❌ Error eliminando usuario:", error);
-    throw error;
-  }
+  console.log("⚠️ Usuario eliminado:", data);
+  return data;
 };

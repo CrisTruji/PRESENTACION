@@ -1,115 +1,61 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+const DEBUG_AUTH = import.meta.env.VITE_DEBUG_AUTH === "true";
+
+function debug(...args) {
+  if (DEBUG_AUTH) {
+    debug(...args);
+  }
+}
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [roleName, setRoleName] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fake role (DEV ONLY)
+  // DEV / SIMULACIÓN
   const [fakeRole, setFakeRole] = useState(null);
   const [showRoleRouter, setShowRoleRouter] = useState(true);
 
   // =====================================================
-  // 🟢 INIT AUTH (session + events)
+  // 🟢 AUTH → SOLO EVENTOS + JWT (SIN DB)
   // =====================================================
   useEffect(() => {
-    let mounted = true;
-
-    async function initAuth() {
-      console.log("🚀 AUTH INIT");
-
-      const { data, error } = await supabase.auth.getSession();
-      if (error) console.error("❌ getSession error:", error);
-
-      const currentSession = data?.session ?? null;
-
-      if (!mounted) return;
-
-      setSession(currentSession);
-
-     try {
-  if (currentSession?.user) {
-    await fetchOrCreateProfile(currentSession.user);
-  }
-} catch (e) {
-  console.error("❌ initAuth error:", e);
-} finally {
-  setLoading(false);
-}
-
-    }
-
-    initAuth();
-
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        console.log("🔔 AUTH EVENT:", event);
+      async (event, session) => {
+        debug("🔔 AUTH EVENT:", event);
 
-        if (!mounted) return;
+        setSession(session);
 
-        setSession(newSession);
+        if (session?.access_token) {
+          try {
+            const payload = JSON.parse(
+              atob(session.access_token.split(".")[1])
+            );
 
-        if (newSession?.user) {
-          await fetchOrCreateProfile(newSession.user);
+            debug("🟣 JWT PAYLOAD:", payload);
+
+            setRoleName(payload.role ?? null);
+          } catch (e) {
+            console.error("❌ Error decodificando JWT:", e);
+            setRoleName(null);
+          }
         } else {
-          setProfile(null);
           setRoleName(null);
           setFakeRole(null);
         }
+
+        setLoading(false);
       }
     );
 
     return () => {
-      mounted = false;
-      listener?.subscription?.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
-
-  // =====================================================
-  // 🟢 FETCH / CREATE PROFILE
-  // =====================================================
-  async function fetchOrCreateProfile(user) {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*, roles(nombre)")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      // Si no existe profile → crear
-      if (!data) {
-        console.log("🆕 Creando profile");
-
-        const { error: insertError } = await supabase.from("profiles").insert([
-          {
-            id: user.id,
-            nombre: user.email?.split("@")[0] ?? "",
-            email: user.email,
-            rol: null,
-          },
-        ]);
-
-        if (insertError) throw insertError;
-
-        setProfile(null);
-        setRoleName(null);
-        return;
-      }
-
-      setProfile(data);
-      setRoleName(data?.roles?.nombre ?? null);
-    } catch (err) {
-      console.error("❌ fetchOrCreateProfile error:", err);
-      setProfile(null);
-      setRoleName(null);
-    }
-  }
 
   // =====================================================
   // 🟢 AUTH ACTIONS
@@ -134,34 +80,56 @@ export function AuthProvider({ children }) {
   async function signOut() {
     await supabase.auth.signOut();
     setSession(null);
-    setProfile(null);
     setRoleName(null);
     setFakeRole(null);
   }
 
   // =====================================================
-  // 🟣 FAKE ROLE (solo navegación)
+  // 🟣 FAKE ROLE (SOLO DEV / UI)
   // =====================================================
   function fakeSetRole(role) {
-    console.log("🟣 Fake role:", role);
+    debug("🟣 Fake role:", role);
     setFakeRole(role);
   }
 
   const effectiveRole = fakeRole ?? roleName;
 
+  // =====================================================
+  // 🎨 UI (DEV PANEL)
+  // =====================================================
+  const colors = {
+    primary: "#4F46E5",
+    secondary: "#0EA5E9",
+    accent: "#F97316",
+    dark: "#334155",
+    light: "#F8FAFC",
+    border: "#E2E8F0",
+    danger: "#DC2626",
+  };
+
+  const roles = [
+    "administrador",
+    "jefe_de_planta",
+    "jefe_de_compras",
+    "auxiliar_de_compras",
+    "almacenista",
+    "usuario",
+  ];
+
+  const formatRoleName = (role) =>
+    role.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+
   return (
     <AuthContext.Provider
       value={{
         session,
-        profile,
+        user: session?.user ?? null,
         roleName: effectiveRole,
         realRoleName: roleName,
         loading,
-
         signIn,
         signUp,
         signOut,
-
         fakeRole,
         fakeSetRole,
         showRoleRouter,
@@ -170,57 +138,137 @@ export function AuthProvider({ children }) {
     >
       {children}
 
-      {/* PANEL DEV DE ROLES */}
-      {process.env.NODE_ENV !== "production" &&
-        session &&
-        showRoleRouter && (
-          <div
-            style={{
-              position: "fixed",
-              bottom: 20,
-              right: 20,
-              zIndex: 9999,
-            }}
-          >
+      {/* ================================================= */}
+      {/* 🛠️ DEV PANEL*/}
+      {/* ================================================= */}
+      {process.env.NODE_ENV !== "production" && session && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "16px",
+            right: "16px",
+            zIndex: 9999,
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          {showRoleRouter ? (
             <div
               style={{
                 background: "#fff",
-                padding: 12,
-                borderRadius: 8,
-                boxShadow: "0 2px 10px rgba(0,0,0,.2)",
+                padding: "12px",
+                borderRadius: "10px",
+                width: "250px",
+                border: `1px solid ${colors.border}`,
+                boxShadow: "0 4px 20px rgba(0,0,0,.15)",
               }}
             >
-              <strong>Rol activo:</strong> {effectiveRole || "sin rol"}
-              <div style={{ marginTop: 8 }}>
-                {[
-                  "administrador",
-                  "jefe_de_planta",
-                  "jefe_de_compras",
-                  "auxiliar_de_compras",
-                  "almacenista",
-                  "usuario",
-                ].map((r) => (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <strong style={{ fontSize: "12px" }}>
+                  Rol:{" "}
+                  {effectiveRole
+                    ? formatRoleName(effectiveRole)
+                    : "Sin rol"}
+                </strong>
+                <button
+                  onClick={() => setShowRoleRouter(false)}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2,1fr)",
+                  gap: "6px",
+                  marginBottom: "10px",
+                }}
+              >
+                {roles.map((r) => (
                   <button
                     key={r}
                     onClick={() => fakeSetRole(r)}
-                    style={{ margin: 4 }}
+                    style={{
+                      fontSize: "11px",
+                      padding: "6px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      border:
+                        r === effectiveRole
+                          ? `1px solid ${colors.primary}`
+                          : `1px solid ${colors.border}`,
+                      background:
+                        r === effectiveRole
+                          ? colors.primary
+                          : "white",
+                      color:
+                        r === effectiveRole ? "white" : colors.dark,
+                    }}
                   >
-                    {r}
+                    {formatRoleName(r)}
                   </button>
                 ))}
-                <button onClick={() => fakeSetRole(null)}>
-                  Rol real
-                </button>
               </div>
+
+              <button
+                onClick={() => fakeSetRole(null)}
+                style={{
+                  width: "100%",
+                  padding: "8px",
+                  borderRadius: "6px",
+                  border: "none",
+                  background: fakeRole
+                    ? colors.danger
+                    : colors.secondary,
+                  color: "white",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                {fakeRole ? "Restaurar rol real" : "Rol real"}
+              </button>
             </div>
-          </div>
-        )}
+          ) : (
+            <button
+              onClick={() => setShowRoleRouter(true)}
+              style={{
+                width: "42px",
+                height: "42px",
+                borderRadius: "8px",
+                background: colors.primary,
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "18px",
+              }}
+            >
+              🛠️
+            </button>
+          )}
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }
 
+// =====================================================
+// 🪝 HOOK
+// =====================================================
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth fuera de AuthProvider");
+  if (!ctx) {
+    throw new Error("useAuth debe usarse dentro de AuthProvider");
+  }
   return ctx;
 }

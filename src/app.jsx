@@ -15,7 +15,7 @@ export default function App() {
   const { session, loading, roleName } = useAuth();
 
   // 1. Cargando sesión
-  if (loading) return <p style={{ padding: 20 }}>Cargando...</p>;
+  if (loading) return <p style={{ padding: 20 }}>Cargando sesión...</p>;
 
   // 2. No autenticado → mostrar login/register
   if (!session) return <AuthViews />;

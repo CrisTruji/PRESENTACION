@@ -14,6 +14,7 @@ import {
    ============================================================ */
 export async function crearSolicitud({ 
   proveedor_id, 
+  codigo_unidad,
   created_by, 
   email_creador, 
   observaciones = "" 
@@ -22,6 +23,7 @@ export async function crearSolicitud({
     .from("solicitudes")
     .insert([{
       proveedor_id,
+      codigo_unidad,
       created_by,
       email_creador,
       observaciones,
@@ -64,6 +66,7 @@ export async function getSolicitudes() {
     .select(`
       id,
       proveedor_id,
+      codigo_unidad,
       estado,
       fecha_solicitud,
       created_by,
@@ -101,6 +104,7 @@ export async function getSolicitudById(solicitud_id) {
     .select(`
       id,
       estado,
+      codigo_unidad,
       fecha_solicitud,
       observaciones,
       email_creador,
@@ -151,6 +155,7 @@ export async function getSolicitudesPorRol(rol) {
     .select(`
       id,
       estado,
+      codigo_unidad,
       fecha_solicitud,
       observaciones,
       email_creador,
@@ -174,6 +179,47 @@ export async function getSolicitudesPorRol(rol) {
   }
 
   return data || [];
+}
+
+/* ============================================================
+   OBTENER SOLICITUD COMPLETA CON ITEMS
+   ============================================================ */
+export async function getSolicitudConItems(solicitudId) {
+  const { data, error } = await supabase
+    .from("solicitudes")
+    .select(`
+      id,
+      proveedor_id,
+      codigo_unidad,
+      estado,
+      fecha_solicitud,
+      created_by,
+      observaciones,
+      proveedor:proveedores (
+        id,
+        nombre,
+        nit
+      ),
+      items:solicitud_items (
+        id,
+        catalogo_producto_id,
+        cantidad_solicitada,
+        unidad,
+        estado_item,
+        observaciones,
+        motivo_rechazo,
+        catalogo_productos (
+          id,
+          nombre,
+          categoria
+        )
+      )
+    `)
+    .eq("id", solicitudId)
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 /* ============================================================
@@ -383,46 +429,6 @@ export async function getItemsBySolicitud(solicitud_id) {
 
   if (error) throw error;
   return data || [];
-}
-
-/* ============================================================
-   OBTENER SOLICITUD COMPLETA CON ITEMS
-   ============================================================ */
-export async function getSolicitudConItems(solicitudId) {
-  const { data, error } = await supabase
-    .from("solicitudes")
-    .select(`
-      id,
-      proveedor_id,
-      estado,
-      fecha_solicitud,
-      created_by,
-      observaciones,
-      proveedor:proveedores (
-        id,
-        nombre,
-        nit
-      ),
-      items:solicitud_items (
-        id,
-        catalogo_producto_id,
-        cantidad_solicitada,
-        unidad,
-        estado_item,
-        observaciones,
-        motivo_rechazo,
-        catalogo_productos (
-          id,
-          nombre,
-          categoria
-        )
-      )
-    `)
-    .eq("id", solicitudId)
-    .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /* ============================================================

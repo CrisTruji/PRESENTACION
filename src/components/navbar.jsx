@@ -1,5 +1,3 @@
-// src/components/Navbar.jsx
-import React from "react";
 import { useRouter } from "../router";
 import { useAuth } from "../context/auth";
 
@@ -80,7 +78,7 @@ export default function Navbar() {
         >
           {/* Logo más pequeño y responsivo */}
           <img
-            src="logo.jpg"
+            src="logo.png"
             alt="Logo Healthy"
             className="w-8 h-8 md:w-10 md:h-10 object-contain"
           />

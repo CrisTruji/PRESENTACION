@@ -1,11 +1,11 @@
-// src/services/proveedores.js
 import { supabase } from "../lib/supabase";
+import { supabaseRequest } from "../lib/supabaseRequest"; // He agregado esta linea
 
 export async function getProveedores() {
-  const { data, error } = await supabase
-    .from("proveedores")
-    .select("id, nombre")
-    .order("nombre", { ascending: true });
-  if (error) throw error;
-  return data || [];
+  return supabaseRequest( // He agregado esta linea
+    supabase
+      .from("proveedores")
+      .select("id, nombre")
+      .order("nombre", { ascending: true })
+  );
 }
