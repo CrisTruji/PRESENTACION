@@ -98,24 +98,27 @@ export async function registrarRecepcionFactura(datos) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const factura = await supabaseRequest(
-    supabase
-      .from("facturas")
-      .insert([{
-        solicitud_id,
-        proveedor_id,
-        numero_factura,
-        fecha_factura,
-        fecha_recepcion: new Date().toISOString().split('T')[0],
-        valor_total: total_factura,
-        pdf_url: pdf_url || null,
-        created_by: user?.id,
-        recibido_por: user?.id,
-        estado_recepcion: determinarEstadoRecepcion(items)
-      }])
-      .select()
-      .single()
-  );
+const factura = await supabaseRequest(
+  supabase
+    .from("facturas")
+    .insert([{
+      solicitud_id,
+      proveedor_id,
+      codigo_unidad: solicitud?.codigo_unidad || null,
+      numero_factura,
+      fecha_factura,
+      fecha_recepcion: new Date().toISOString().split('T')[0],
+      valor_total: total_factura,
+      pdf_url: pdf_url || null,
+      created_by: user?.id,
+      recibido_por: user?.id,
+      estado_recepcion: determinarEstadoRecepcion(items),
+      estado_procesamiento: 'pendiente',
+      intentos_procesamiento: 0
+    }])
+    .select()
+    .single()
+);
 
   const factura_items = items.map(item => ({
     factura_id: factura.id,
