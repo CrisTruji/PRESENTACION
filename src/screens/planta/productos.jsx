@@ -22,6 +22,7 @@ export default function Productos() {
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sortField, setSortField] = useState("nombre");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -31,7 +32,22 @@ export default function Productos() {
   // Cargar productos
   useEffect(() => {
     loadProductos();
-  }, [currentPage, searchTerm, selectedCategory, sortField, sortDirection]);
+  }, [
+    currentPage,
+    debouncedSearchTerm,
+    selectedCategory,
+    sortField,
+    sortDirection,
+  ]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
 
   const loadProductos = async () => {
     try {
@@ -43,8 +59,8 @@ export default function Productos() {
         .from("catalogo_productos")
         .select("*", { count: "exact", head: true });
 
-      if (searchTerm) {
-        countQuery = countQuery.or(`nombre.ilike.%${searchTerm}%`);
+      if (debouncedSearchTerm) {
+        countQuery = countQuery.or(`nombre.ilike.%${debouncedSearchTerm}%`);
       }
 
       if (selectedCategory) {
@@ -58,8 +74,8 @@ export default function Productos() {
       let dataQuery = supabase.from("catalogo_productos").select("*");
 
       // Aplicar los mismos filtros
-      if (searchTerm) {
-        dataQuery = dataQuery.or(`nombre.ilike.%${searchTerm}%`);
+      if (debouncedSearchTerm) {
+        dataQuery = dataQuery.or(`nombre.ilike.%${debouncedSearchTerm}%`);
       }
 
       if (selectedCategory) {
@@ -135,17 +151,6 @@ export default function Productos() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-16">
-          <div className="spinner mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando productos...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -274,7 +279,14 @@ export default function Productos() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {productos.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center">
+                    <div className="spinner mx-auto mb-3"></div>
+                    <p className="text-gray-500">Cargando productos...</p>
+                  </td>
+                </tr>
+              ) : productos.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center">
                     <div className="text-gray-500">

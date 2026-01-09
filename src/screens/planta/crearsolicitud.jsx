@@ -58,7 +58,7 @@ const categoryIcons = {
   default: "📋",
 };
 
-// Lista de unidades médicas (AGREGAR ESTA CONSTANTE)
+// Lista de unidades médicas
 const unidadesMedicas = [
   { codigo: "0001", nombre: "HEALTHY MATRIZ" },
   { codigo: "0002", nombre: "SEATECH" },
@@ -102,10 +102,33 @@ export default function CrearSolicitudPlanta() {
   const [itemsSeleccionados, setItemsSeleccionados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [cargandoProductos, setCargandoProductos] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  
+  // Nuevos estados para sistema de notificaciones mejorado
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [notificacionActiva, setNotificacionActiva] = useState(null);
+  
   const [proveedorNombre, setProveedorNombre] = useState("");
   const [codigoUnidad, setCodigoUnidad] = useState("");
+
+  // Función mejorada para mostrar notificaciones
+  const mostrarNotificacion = (tipo, mensaje, duracion = 8000) => {
+    const id = Date.now();
+    const nuevaNotificacion = {
+      id,
+      tipo,
+      mensaje,
+      timestamp: new Date().toLocaleTimeString(),
+      duracion
+    };
+    
+    setNotificaciones(prev => [...prev, nuevaNotificacion]);
+    setNotificacionActiva(nuevaNotificacion);
+    
+    // Duración aumentada a 8 segundos (antes 3-5)
+    setTimeout(() => {
+      setNotificacionActiva(prev => prev?.id === id ? null : prev);
+    }, duracion);
+  };
 
   useEffect(() => {
     async function init() {
@@ -116,7 +139,7 @@ export default function CrearSolicitudPlanta() {
         setProveedoresFiltrados(provs);
       } catch (err) {
         console.error(err);
-        setError("Error cargando proveedores");
+        mostrarNotificacion('error', "Error cargando proveedores", 10000);
       } finally {
         setCargando(false);
       }
@@ -145,8 +168,6 @@ export default function CrearSolicitudPlanta() {
     setBusquedaProveedor("");
     setProductos([]);
     setItemsSeleccionados([]);
-    setError("");
-    setSuccess("");
 
     if (!provId) return;
 
@@ -156,7 +177,7 @@ export default function CrearSolicitudPlanta() {
       setProductos(prods);
     } catch (err) {
       console.error(err);
-      setError("Error cargando productos del proveedor");
+      mostrarNotificacion('error', "Error cargando productos del proveedor", 10000);
     } finally {
       setCargandoProductos(false);
     }
@@ -168,7 +189,7 @@ export default function CrearSolicitudPlanta() {
     unidad = "und",
   ) => {
     if (!producto || !cantidad || Number(cantidad) <= 0) {
-      setError("Ingrese una cantidad válida");
+      mostrarNotificacion('error', "Ingrese una cantidad válida", 8000);
       return;
     }
 
@@ -177,7 +198,7 @@ export default function CrearSolicitudPlanta() {
         (i) => Number(i.catalogo_producto_id) === producto.id
       )
     ) {
-      setError("Este producto ya fue agregado");
+      mostrarNotificacion('error', "Este producto ya fue agregado", 8000);
       return;
     }
 
@@ -192,11 +213,7 @@ export default function CrearSolicitudPlanta() {
       },
     ]);
 
-    setError("");
-    setSuccess(`"${producto.nombre}" agregado a la solicitud`);
-
-    // Auto-ocultar mensaje de éxito después de 3 segundos
-    setTimeout(() => setSuccess(""), 3000);
+    mostrarNotificacion('success', `"${producto.nombre}" agregado a la solicitud`, 8000);
   };
 
   const eliminarItem = (id) => {
@@ -204,29 +221,26 @@ export default function CrearSolicitudPlanta() {
     setItemsSeleccionados((prev) =>
       prev.filter((p) => p.catalogo_producto_id !== id)
     );
-    setSuccess(`"${item?.nombre}" eliminado de la solicitud`);
-    setTimeout(() => setSuccess(""), 3000);
+    mostrarNotificacion('success', `"${item?.nombre}" eliminado de la solicitud`, 8000);
   };
 
   const handleEnviarSolicitud = async () => {
     if (!proveedorSeleccionado) {
-      setError("Seleccione un proveedor.");
+      mostrarNotificacion('error', "Seleccione un proveedor.", 8000);
       return;
     }
 
     if (!codigoUnidad) {
-      setError("Seleccione una unidad.");
+      mostrarNotificacion('error', "Seleccione una unidad.", 8000);
       return;
     }
 
     if (itemsSeleccionados.length === 0) {
-      setError("Debe agregar al menos un producto.");
+      mostrarNotificacion('error', "Debe agregar al menos un producto.", 8000);
       return;
     }
 
     setCargando(true);
-    setError("");
-    setSuccess("");
 
     try {
       const solicitud = await crearSolicitud({
@@ -238,9 +252,9 @@ export default function CrearSolicitudPlanta() {
 
       await agregarItemsSolicitud(solicitud.id, itemsSeleccionados);
 
-      setSuccess("✅ Solicitud creada correctamente. ID: " + solicitud.id);
+      mostrarNotificacion('success', `✅ Solicitud creada correctamente. ID: ${solicitud.id}`, 10000);
 
-      // Limpiar después de 5 segundos
+      // Limpiar después de 8 segundos
       setTimeout(() => {
         setProveedorSeleccionado("");
         setProveedorNombre("");
@@ -248,14 +262,10 @@ export default function CrearSolicitudPlanta() {
         setProductos([]);
         setItemsSeleccionados([]);
         setCodigoUnidad("");
-        setError("");
-        setSuccess("");
-      }, 5000);
+      }, 8000);
     } catch (err) {
       console.error(err);
-      setError(
-        "Error creando la solicitud: " + (err.message || "Intente nuevamente")
-      );
+      mostrarNotificacion('error', "Error creando la solicitud: " + (err.message || "Intente nuevamente"), 10000);
     } finally {
       setCargando(false);
     }
@@ -268,8 +278,6 @@ export default function CrearSolicitudPlanta() {
     setProductos([]);
     setItemsSeleccionados([]);
     setCodigoUnidad("");
-    setError("");
-    setSuccess("");
   };
 
   // Función para obtener estilos de categoría
@@ -284,6 +292,37 @@ export default function CrearSolicitudPlanta() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
+      {/* Estilos CSS para animaciones */}
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes progress {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
+          }
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+        
+        .animate-progress {
+          animation: progress linear forwards;
+        }
+      `}</style>
+      
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -295,42 +334,46 @@ export default function CrearSolicitudPlanta() {
           </p>
         </div>
 
-        {/* Alertas */}
-        <div className="space-y-4 mb-6">
-          {error && (
-            <div className="alert-error">
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
+        {/* Sistema de Notificaciones Mejorado */}
+        <div className="fixed top-4 right-4 z-50 space-y-3 max-w-md">
+          {/* Notificación activa */}
+          {notificacionActiva && (
+            <div className={`animate-slide-in p-4 rounded-lg shadow-lg border-l-4 ${
+              notificacionActiva.tipo === 'success' 
+                ? 'bg-green-50 border-green-500 text-green-800' 
+                : 'bg-red-50 border-red-500 text-red-800'
+            }`}>
+              <div className="flex justify-between items-start">
+                <div className="flex items-center">
+                  {notificacionActiva.tipo === 'success' ? (
+                    <svg className="w-6 h-6 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 mr-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  <div>
+                    <p className="font-semibold">{notificacionActiva.mensaje}</p>
+                    <p className="text-sm opacity-75 mt-1">{notificacionActiva.timestamp}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setNotificacionActiva(null)}
+                  className="ml-4 opacity-50 hover:opacity-100 transition-opacity"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {error}
+                  ✕
+                </button>
               </div>
-            </div>
-          )}
-
-          {success && (
-            <div className="alert-success">
-              <div className="flex items-center">
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                {success}
+              {/* Barra de progreso */}
+              <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${
+                    notificacionActiva.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'
+                  } animate-progress`}
+                  style={{ animationDuration: `${notificacionActiva.duracion}ms` }}
+                />
               </div>
             </div>
           )}
@@ -339,7 +382,7 @@ export default function CrearSolicitudPlanta() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna izquierda - Formularios */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Card Selección de Proveedor (EXACTAMENTE IGUAL) */}
+            {/* Card Selección de Proveedor */}
             <div className="card-hover">
               <div className="p-6">
                 <div className="flex items-center mb-4">
@@ -423,7 +466,7 @@ export default function CrearSolicitudPlanta() {
                       </p>
                       <button
                         type="button"
-                        className="text-xs text-primary-600 hover:text-primary-800 mt-2"
+                        className="text-xs text-primary-600 hover:text-primary-800 mt-2 transition-colors"
                         onClick={() => {
                           setProveedorSeleccionado("");
                           setProveedorNombre("");
@@ -445,7 +488,7 @@ export default function CrearSolicitudPlanta() {
               </div>
             </div>
 
-            {/* === NUEVA CARD: Selección de Unidad Médica === */}
+            {/* Card: Selección de Unidad Médica */}
             <div className="card-hover">
               <div className="p-6">
                 <div className="flex items-center mb-4">
@@ -474,7 +517,6 @@ export default function CrearSolicitudPlanta() {
                     Unidad Médica
                   </label>
                   
-                  {/* Select con el mismo estilo que los otros inputs */}
                   <select
                     id="codigo_unidad"
                     name="codigo_unidad"
@@ -503,7 +545,6 @@ export default function CrearSolicitudPlanta() {
                 </div>
               </div>
             </div>
-            {/* === FIN NUEVA CARD === */}
 
             {/* Card Productos del Proveedor */}
             {proveedorSeleccionado && (

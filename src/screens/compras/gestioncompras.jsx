@@ -290,11 +290,7 @@ export default function GestionCompras() {
   const totalAprobadas = contarPorEstado("aprobado_auxiliar");
   const totalEnProceso = contarPorEstado("en_proceso");
   const totalEnCompra = contarPorEstado("en_compra");
-
-  if (loading) {
-    return <LoadingState />;
-  }
-
+  
   if (error && solicitudes.length === 0) {
     return <ErrorState error={error} onRetry={fetchSolicitudes} />;
   }
@@ -343,6 +339,7 @@ export default function GestionCompras() {
       <SolicitudesTable
         solicitudes={solicitudes}
         sortField={sortField}
+        loading={loading}
         sortDirection={sortDirection}
         onSort={handleSort}
         getSortIcon={getSortIcon}
@@ -382,17 +379,6 @@ export default function GestionCompras() {
   );
 }
 
-// Componentes auxiliares
-function LoadingState() {
-  return (
-    <div className="min-h-[400px] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-600">Cargando solicitudes...</p>
-      </div>
-    </div>
-  );
-}
 
 function ErrorState({ error, onRetry }) {
   return (
@@ -590,6 +576,7 @@ function FiltersSection({
 function SolicitudesTable({
   solicitudes,
   sortField,
+  loading,
   sortDirection,
   onSort,
   getSortIcon,
@@ -603,6 +590,16 @@ function SolicitudesTable({
   debouncedSearchTerm,
   selectedProveedor,
 }) {
+    if (loading) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
+        <div className="px-6 py-12 text-center">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando solicitudes...</p>
+        </div>
+      </div>
+    );
+  }
   if (solicitudes.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">

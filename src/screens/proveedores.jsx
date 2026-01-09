@@ -6,13 +6,12 @@ import {
   Search,
   Eye,
   Building,
-  Phone,
   Mail,
   ChevronRight,
   ChevronLeft,
   ChevronUp,
   ChevronDown,
-  Hash, // Icono para NIT
+  Hash,
 } from "lucide-react";
 
 export default function ProveedoresScreen() {
@@ -25,6 +24,7 @@ export default function ProveedoresScreen() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("nombre");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,8 +32,17 @@ export default function ProveedoresScreen() {
   const itemsPerPage = 10;
 
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
+  useEffect(() => {
     loadProveedores();
-  }, [currentPage, searchTerm, sortField, sortDirection]);
+  }, [currentPage, debouncedSearchTerm, sortField, sortDirection]);
 
   const loadProveedores = async () => {
     try {
@@ -45,9 +54,9 @@ export default function ProveedoresScreen() {
         .from("proveedores")
         .select("*", { count: "exact", head: true });
 
-      if (searchTerm) {
+      if (debouncedSearchTerm) {
         countQuery = countQuery.or(
-          `nombre.ilike.%${searchTerm}%,rut.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,nit.ilike.%${searchTerm}%`
+          `nombre.ilike.%${debouncedSearchTerm}%,nit.ilike.%${debouncedSearchTerm}%`
         );
       }
 
@@ -58,9 +67,9 @@ export default function ProveedoresScreen() {
       let dataQuery = supabase.from("proveedores").select("*");
 
       // Aplicar filtro de búsqueda (incluyendo NIT en la búsqueda)
-      if (searchTerm) {
+      if (debouncedSearchTerm) {
         dataQuery = dataQuery.or(
-          `nombre.ilike.%${searchTerm}%,rut.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,nit.ilike.%${searchTerm}%`
+          `nombre.ilike.%${debouncedSearchTerm}%,nit.ilike.%${debouncedSearchTerm}%`
         );
       }
 
@@ -123,17 +132,6 @@ export default function ProveedoresScreen() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-16">
-          <div className="spinner mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando proveedores...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -246,7 +244,14 @@ export default function ProveedoresScreen() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {proveedores.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center">
+                    <div className="spinner mx-auto mb-3"></div>
+                    <p className="text-gray-500">Cargando proveedores...</p>
+                  </td>
+                </tr>
+              ) : proveedores.length === 0 ? (
                 <tr>
                   <td colSpan="4" className="px-6 py-12 text-center">
                     <div className="text-gray-500">

@@ -27,7 +27,8 @@ import traceback
 from supabase.lib.client_options import ClientOptions
 
 # === CONFIGURACIÓN ===
-CARPETA_BOTONES = "Buttons"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CARPETA_BOTONES = os.path.join(BASE_DIR, "Buttons")
 URL_TECFOOD = "https://food.teknisa.com//df/#/df_entrada#dfe11000_lancamento_entrada"
 URL_RETIRADA = "https://food.teknisa.com//est/#/est_relatorios#est31100_posicao_de_estoque"
 
@@ -1654,45 +1655,67 @@ def actualizar_tabla_inventario():
 # FUNCIONES AUXILIARES ORIGINALES 
 
 def buscar_y_click(imagen, nombre, confianza=0.9, intentos=3, esperar=5):
-    ruta_imagen = os.path.join(CARPETA_BOTONES, imagen)
+    # Resolver ruta absoluta (CLAVE)
+    ruta_imagen = os.path.abspath(os.path.join(CARPETA_BOTONES, imagen))
     inicio_total = time.time()
+
+    # Validación temprana (evita 100 warnings inútiles)
+    if not os.path.isfile(ruta_imagen):
+        print(f"❌ Imagen no encontrada: {ruta_imagen}")
+        return False
+
+    pyautogui.FAILSAFE = True
+    pyautogui.PAUSE = 0.1
 
     for i in range(intentos):
         print(f"🔎 Buscando botón '{nombre}' (Intento {i+1}/{intentos})...")
 
         tiempo_inicio_intento = time.time()
+        ubicacion_estable = None
+        frames_estables = 0
+
         while time.time() - tiempo_inicio_intento < esperar:
             try:
                 ubicacion = pyautogui.locateCenterOnScreen(
                     ruta_imagen,
-                    confidence=confianza,
+                    confidence=max(confianza - 0.15, 0.6),
                     grayscale=True
                 )
 
                 if ubicacion:
-                    # Confirmar estabilidad (2 frames)
-                    time.sleep(0.3)
-                    ubicacion_confirmada = pyautogui.locateCenterOnScreen(
-                        ruta_imagen,
-                        confidence=confianza,
-                        grayscale=True
-                    )
+                    if ubicacion_estable:
+                        dx = abs(ubicacion.x - ubicacion_estable.x)
+                        dy = abs(ubicacion.y - ubicacion_estable.y)
 
-                    if ubicacion_confirmada:
-                        pyautogui.moveTo(ubicacion_confirmada, duration=0.2)
+                        if dx < 4 and dy < 4:
+                            frames_estables += 1
+                        else:
+                            frames_estables = 1
+                            ubicacion_estable = ubicacion
+                    else:
+                        ubicacion_estable = ubicacion
+                        frames_estables = 1
+
+                    if frames_estables >= 3:
+                        pyautogui.moveTo(ubicacion_estable, duration=0.25)
                         pyautogui.click()
                         print(f"✅ Botón '{nombre}' encontrado y clickeado.")
                         return True
+                else:
+                    frames_estables = 0
+                    ubicacion_estable = None
 
             except Exception:
                 pass
 
-            time.sleep(0.5)
+            time.sleep(0.3)
 
         print("⚠️ No encontrado en este intento, reintentando...")
 
-    print(f"❌ No se encontró el botón '{nombre}' tras {intentos} intentos "
-          f"({int(time.time() - inicio_total)}s).")
+    print(
+        f"❌ No se encontró el botón '{nombre}' tras {intentos} intentos "
+        f"({int(time.time() - inicio_total)}s)."
+    )
     return False
 
 # ============================================================
@@ -2278,7 +2301,7 @@ def iniciar_proceso():
 
         # Añadir factura
         time.sleep(6)
-        if not buscar_y_click("anadir.png", "anadir"):
+        if not buscar_y_click("anadir.png", "anadir", confianza=1, intentos=3):
             mostrar_toast("No se encontró el botón 'anadir.png'.", tipo="warning", titulo="Botón no encontrado")
             continue
         time.sleep(6)
@@ -2339,7 +2362,7 @@ def iniciar_proceso():
         pyautogui.press("backspace", presses=10)
         pyautogui.typewrite(fecha_formateada)
 
-        if not buscar_y_click("valor.png", "valor"):
+        if not buscar_y_click("valor.png", "valor", confianza=1, intentos=3):
             mostrar_toast("No se encontró 'valor.png'.", tipo="warning", titulo="Botón no encontrado")
             continue
 
@@ -2370,7 +2393,7 @@ def iniciar_proceso():
                 valor_unitario = str(producto["Precio"]).strip().replace(",", ".")
 
                 print(f"➕ Agregando producto {i+1}/{len(productos)}: {codigo_producto}")
-                if not buscar_y_click("anadir.png", "añadir"):
+                if not buscar_y_click("anadir.png", "añadir", confianza=1, intentos=3):
                     mostrar_toast("No se encontró 'anadir.png'.", tipo="warning", titulo="Botón no encontrado")
                     raise Exception("boton_anadir_no_encontrado")
                 time.sleep(11)

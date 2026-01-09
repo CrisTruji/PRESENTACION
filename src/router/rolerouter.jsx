@@ -7,6 +7,9 @@ import { useRouter } from "../context/roleroutercontext";
 // IMPORTS DE PANTALLAS POR ROL
 // ================================
 
+// CHEF (solo admin)
+import ArbolProductos from "../screens/chef/arbol_productos";
+
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
 import AdminRequests from "../screens/admin/admin_requests";
@@ -107,7 +110,9 @@ export default function RoleRouter() {
         return <AdminDashboard />;
       case "admin_requests":
         return <AdminRequests />;
-
+      // CHEF (ADMIN)
+      case "chef_arbol_productos":
+        return <ArbolProductos />;
       default:
         return (
           <div style={{ padding: 20, color: "red" }}>

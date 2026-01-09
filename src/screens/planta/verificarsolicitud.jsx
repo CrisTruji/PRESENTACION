@@ -6,7 +6,6 @@ import {
   getSolicitudById,
   actualizarItem,
   eliminarItem,
-  agregarItemsSolicitud,
   reenviarSolicitud
 } from "../../services/solicitudes";
 import { 

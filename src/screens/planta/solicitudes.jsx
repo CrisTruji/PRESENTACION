@@ -27,14 +27,16 @@ export default function SolicitudesPlanta() {
   const esJefeDePlanta = roleName === 'jefe_de_planta';
   const esAuxiliarDeCompras = roleName === 'auxiliar_de_compras';
   const esJefeDeCompras = roleName === 'jefe_de_compras';
+  const esAlmacenista = roleName === 'almacenista';
+  const esAdministrador = roleName === 'administrador';
 
   // Definir qué pestañas ve cada rol
   const pestanasDisponibles = {
-    jefe_de_planta: ['todas', 'pendientes', 'devueltas', 'aprobadas'],
+    jefe_de_planta: ['todas', 'pendientes', 'devueltas', 'aprobadas', 'compradas', 'finalizadas'],
     auxiliar_de_compras: ['todas', 'pendientes', 'aprobadas'],
-    jefe_de_compras: ['todas', 'pendientes', 'aprobadas'],
-    almacenista: ['todas', 'compradas'],
-    administrador: ['todas', 'pendientes', 'devueltas', 'aprobadas', 'compradas']
+    jefe_de_compras: ['todas', 'pendientes', 'aprobadas', 'compradas'],
+    almacenista: ['todas', 'compradas', 'finalizadas'],
+    administrador: ['todas', 'pendientes', 'devueltas', 'aprobadas', 'compradas', 'finalizadas']
   };
 
   const pestañasActuales = pestanasDisponibles[roleName] || ['todas'];
@@ -80,17 +82,16 @@ export default function SolicitudesPlanta() {
     if (tabActiva === 'aprobadas') {
       return [
         ESTADOS_SOLICITUD.APROBADO_AUXILIAR,
-        ESTADOS_SOLICITUD.APROBADO_COMPRAS,
-        ESTADOS_SOLICITUD.COMPRADO,
-        ESTADOS_SOLICITUD.FINALIZADO
+        ESTADOS_SOLICITUD.APROBADO_COMPRAS
       ].includes(sol.estado);
     }
     
     if (tabActiva === 'compradas') {
-      return [
-        ESTADOS_SOLICITUD.COMPRADO,
-        ESTADOS_SOLICITUD.FINALIZADO
-      ].includes(sol.estado);
+      return sol.estado === ESTADOS_SOLICITUD.COMPRADO;
+    }
+    
+    if (tabActiva === 'finalizadas') {
+      return sol.estado === ESTADOS_SOLICITUD.FINALIZADO;
     }
     
     return true;
@@ -112,7 +113,10 @@ export default function SolicitudesPlanta() {
       [ESTADOS_SOLICITUD.APROBADO_AUXILIAR, ESTADOS_SOLICITUD.APROBADO_COMPRAS].includes(s.estado)
     ).length,
     compradas: solicitudes.filter(s => 
-      [ESTADOS_SOLICITUD.COMPRADO, ESTADOS_SOLICITUD.FINALIZADO].includes(s.estado)
+      s.estado === ESTADOS_SOLICITUD.COMPRADO
+    ).length,
+    finalizadas: solicitudes.filter(s => 
+      s.estado === ESTADOS_SOLICITUD.FINALIZADO
     ).length
   };
 
@@ -154,7 +158,9 @@ export default function SolicitudesPlanta() {
               {esJefeDePlanta && 'Gestiona y revisa tus solicitudes enviadas'}
               {esAuxiliarDeCompras && 'Solicitudes pendientes de revisión'}
               {esJefeDeCompras && 'Solicitudes para gestionar compra'}
-              {!esJefeDePlanta && !esAuxiliarDeCompras && !esJefeDeCompras && 'Historial de solicitudes'}
+              {esAlmacenista && 'Solicitudes para gestión de almacén'}
+              {esAdministrador && 'Vista administrativa de todas las solicitudes'}
+              {!esJefeDePlanta && !esAuxiliarDeCompras && !esJefeDeCompras && !esAlmacenista && !esAdministrador && 'Historial de solicitudes'}
             </p>
           </div>
         </div>
@@ -230,6 +236,19 @@ export default function SolicitudesPlanta() {
               🛒 Compradas ({stats.compradas})
             </button>
           )}
+
+          {pestañasActuales.includes('finalizadas') && (
+            <button
+              onClick={() => setTabActiva('finalizadas')}
+              className={`px-4 py-2 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
+                tabActiva === 'finalizadas'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              }`}
+            >
+              🏁 Finalizadas ({stats.finalizadas})
+            </button>
+          )}
         </div>
 
         {/* Alerta para devueltas (solo jefe de planta) */}
@@ -249,19 +268,59 @@ export default function SolicitudesPlanta() {
             </div>
           </div>
         )}
+
+        {/* Info según pestaña activa */}
+        {tabActiva === 'compradas' && (
+          <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 mb-6">
+            <div className="flex gap-3">
+              <span className="text-2xl">🛒</span>
+              <div>
+                <h3 className="font-bold text-purple-900 mb-1">
+                  Solicitudes compradas
+                </h3>
+                <p className="text-sm text-purple-800">
+                  Estas solicitudes ya han sido procesadas en compras y están listas para ser recibidas en almacén.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tabActiva === 'finalizadas' && (
+          <div className="bg-indigo-50 border-2 border-indigo-200 rounded-lg p-4 mb-6">
+            <div className="flex gap-3">
+              <span className="text-2xl">🏁</span>
+              <div>
+                <h3 className="font-bold text-indigo-900 mb-1">
+                  Solicitudes finalizadas
+                </h3>
+                <p className="text-sm text-indigo-800">
+                  Estas solicitudes han completado todo el proceso y han sido recibidas en almacén.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Resto del código se mantiene igual */}
       {/* Lista de solicitudes */}
       {solicitudesFiltradas.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-gray-400 text-2xl">
-              {tabActiva === 'devueltas' ? '✅' : '📄'}
+              {tabActiva === 'devueltas' ? '✅' : 
+               tabActiva === 'compradas' ? '🛒' :
+               tabActiva === 'finalizadas' ? '🏁' : '📄'}
             </span>
           </div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">
             {tabActiva === 'devueltas' 
               ? '¡Excelente! No hay solicitudes devueltas' 
+              : tabActiva === 'compradas'
+              ? 'No hay solicitudes compradas'
+              : tabActiva === 'finalizadas'
+              ? 'No hay solicitudes finalizadas'
               : 'No hay solicitudes en esta categoría'}
           </h3>
           <p className="text-gray-500 max-w-md mx-auto">
@@ -269,6 +328,10 @@ export default function SolicitudesPlanta() {
               ? 'Todas tus solicitudes están siendo procesadas correctamente.'
               : tabActiva === 'pendientes'
               ? esJefeDePlanta ? 'Crea una nueva solicitud de compra para comenzar.' : 'No hay solicitudes pendientes de revisión.'
+              : tabActiva === 'compradas'
+              ? 'No hay solicitudes en estado de compra completada.'
+              : tabActiva === 'finalizadas'
+              ? 'No hay solicitudes completamente finalizadas en almacén.'
               : 'No tienes solicitudes en esta categoría aún.'}
           </p>
         </div>
@@ -316,10 +379,16 @@ export default function SolicitudesPlanta() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            esDevuelta ? 'bg-red-200' : 'bg-blue-100'
+                            esDevuelta ? 'bg-red-200' : 
+                            sol.estado === ESTADOS_SOLICITUD.COMPRADO ? 'bg-purple-200' :
+                            sol.estado === ESTADOS_SOLICITUD.FINALIZADO ? 'bg-indigo-200' :
+                            'bg-blue-100'
                           }`}>
                             <span className={`font-bold ${
-                              esDevuelta ? 'text-red-700' : 'text-blue-600'
+                              esDevuelta ? 'text-red-700' : 
+                              sol.estado === ESTADOS_SOLICITUD.COMPRADO ? 'text-purple-700' :
+                              sol.estado === ESTADOS_SOLICITUD.FINALIZADO ? 'text-indigo-700' :
+                              'text-blue-600'
                             }`}>
                               {esDevuelta ? '!' : '#'}
                             </span>

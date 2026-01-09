@@ -13,6 +13,8 @@ export default function Navbar() {
           { label: "🏠 Dashboard", name: "admin_dashboard" },
           { label: "📋 Solicitudes de Acceso", name: "admin_requests" },
           { label: "🧾 Facturas", name: "facturas" },
+              // 👨‍🍳 CHEF
+          { label: "🌳 Árbol de Productos", name: "chef_arbol_productos" },
         ];
 
       case "jefe_de_planta":

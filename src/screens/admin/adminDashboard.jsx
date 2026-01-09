@@ -25,13 +25,36 @@ export default function AdminDashboard() {
     today: 0
   });
   const [activeTab, setActiveTab] = useState('pending');
-  const [notification, setNotification] = useState(null);
+  
+  // NUEVO: Estados para sistema de notificaciones mejorado
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [notificacionActiva, setNotificacionActiva] = useState(null);
+  
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({
     nombre: '',
     email: '',
     rol: ''
   });
+
+  // NUEVO: Función mejorada para mostrar notificaciones
+  const mostrarNotificacion = (tipo, mensaje, duracion = 8000) => {
+    const id = Date.now();
+    const nuevaNotificacion = {
+      id,
+      tipo,
+      mensaje,
+      timestamp: new Date().toLocaleTimeString(),
+      duracion
+    };
+    
+    setNotificaciones(prev => [...prev, nuevaNotificacion]);
+    setNotificacionActiva(nuevaNotificacion);
+    
+    setTimeout(() => {
+      setNotificacionActiva(prev => prev?.id === id ? null : prev);
+    }, duracion);
+  };
 
   // Cargar datos iniciales
   const loadData = async () => {
@@ -49,9 +72,11 @@ export default function AdminDashboard() {
       setActiveUsers(active);
       setAllRoles(roles);
       if (userStats) setStats(userStats);
+      
+      mostrarNotificacion('success', "✅ Datos cargados correctamente", 5000);
     } catch (error) {
       console.error("Error cargando datos:", error);
-      showNotification("❌ Error cargando datos", "error");
+      mostrarNotificacion('error', "❌ Error cargando datos del sistema", 10000);
     } finally {
       setLoading(false);
     }
@@ -60,11 +85,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, []);
-
-  const showNotification = (message, type = "success") => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 5000);
-  };
 
   const handleAssignRole = async (userId, roleId) => {
     try {
@@ -89,12 +109,12 @@ export default function AdminDashboard() {
         active: prev.active + 1
       }));
       
-      // Mostrar feedback
-      showNotification(`✅ Rol "${roleName}" asignado correctamente`);
+      // Mostrar feedback con nuevo sistema
+      mostrarNotificacion('success', `✅ Rol "${roleName}" asignado correctamente`, 8000);
       
     } catch (error) {
       console.error("Error asignando rol:", error);
-      showNotification("❌ Error al asignar rol", "error");
+      mostrarNotificacion('error', "❌ Error al asignar rol al usuario", 10000);
     }
   };
 
@@ -115,11 +135,11 @@ export default function AdminDashboard() {
         rejected: prev.rejected + 1
       }));
       
-      showNotification("✅ Usuario rechazado correctamente");
+      mostrarNotificacion('success', "✅ Usuario rechazado correctamente", 8000);
       
     } catch (error) {
       console.error("Error rechazando usuario:", error);
-      showNotification("❌ Error al rechazar usuario", "error");
+      mostrarNotificacion('error', "❌ Error al rechazar usuario", 10000);
     }
   };
 
@@ -141,14 +161,14 @@ export default function AdminDashboard() {
       setStats(prev => ({
         ...prev,
         active: Math.max(0, prev.active - 1),
-        pending: updatedPendingUsers.length // Actualizar con el nuevo conteo
+        pending: updatedPendingUsers.length
       }));
       
-      showNotification("✅ Usuario desactivado correctamente");
+      mostrarNotificacion('success', "✅ Usuario desactivado correctamente", 8000);
       
     } catch (error) {
       console.error("Error desactivando usuario:", error);
-      showNotification("❌ Error al desactivar usuario", "error");
+      mostrarNotificacion('error', "❌ Error al desactivar usuario", 10000);
     }
   };
 
@@ -167,7 +187,7 @@ export default function AdminDashboard() {
     try {
       // Validar formulario
       if (!editForm.nombre.trim() || !editForm.email.trim()) {
-        showNotification("❌ Nombre y email son requeridos", "error");
+        mostrarNotificacion('error', "❌ Nombre y email son requeridos", 8000);
         return;
       }
 
@@ -182,11 +202,11 @@ export default function AdminDashboard() {
       setEditingUser(null);
       setEditForm({ nombre: '', email: '', rol: '' });
       
-      showNotification("✅ Usuario actualizado correctamente");
+      mostrarNotificacion('success', "✅ Usuario actualizado correctamente", 8000);
       
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      showNotification("❌ Error al actualizar usuario", "error");
+      mostrarNotificacion('error', "❌ Error al actualizar usuario", 10000);
     }
   };
 
@@ -226,7 +246,6 @@ export default function AdminDashboard() {
 
   const renderPendingUsers = () => (
     <>
-      {/* Users List */}
       {pendingUsers.map(user => (
         <div key={user.id} className="px-4 sm:px-6 py-5 hover:bg-gray-50 transition-colors">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -275,7 +294,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Actions - VERSIÓN RESPONSIVE */}
+            {/* Actions */}
             <div className="flex flex-col gap-3 w-full lg:w-80">
               {/* Role Selection */}
               <div>
@@ -305,7 +324,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
               
-              {/* Action Buttons - VERSIÓN RESPONSIVE */}
+              {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={() => handleRejectUser(user.id)}
@@ -315,7 +334,7 @@ export default function AdminDashboard() {
                   <span className="truncate">Rechazar</span>
                 </button>
                 
-                {/* Quick Role Buttons - Solo en pantallas medianas+ */}
+                {/* Quick Role Buttons */}
                 <div className="hidden sm:flex gap-1">
                   {allRoles.slice(0, 2).map(role => (
                     <button
@@ -338,7 +357,6 @@ export default function AdminDashboard() {
 
   const renderActiveUsers = () => (
     <>
-      {/* Users List */}
       {activeUsers.map(user => (
         <div key={user.id} className="px-4 sm:px-6 py-5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -394,7 +412,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Actions - VERSIÓN RESPONSIVE MEJORADA */}
+            {/* Actions */}
             <div className="flex flex-col gap-3 w-full sm:w-64">
               {/* Role Update */}
               <div>
@@ -425,7 +443,7 @@ export default function AdminDashboard() {
                 </select>
               </div>
               
-              {/* Action Buttons - DISEÑO COMPACTO Y RESPONSIVE */}
+              {/* Action Buttons */}
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEditUser(user)}
@@ -463,25 +481,80 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-4 md:p-6">
-      {/* Notificación */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          notification.type === 'error' 
-            ? 'bg-red-50 border-l-4 border-red-500' 
-            : 'bg-green-50 border-l-4 border-green-500'
-        }`}>
-          <div className="flex items-center gap-3">
-            <span className="text-lg">{notification.type === 'error' ? '❌' : '✅'}</span>
-            <span className="font-medium">{notification.message}</span>
-            <button 
-              onClick={() => setNotification(null)}
-              className="ml-4 text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
+      {/* NUEVO: Estilos CSS para animaciones de notificaciones */}
+      <style jsx>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes progress {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
+          }
+        }
+        
+        .animate-slide-in {
+          animation: slide-in 0.3s ease-out;
+        }
+        
+        .animate-progress {
+          animation: progress linear forwards;
+        }
+      `}</style>
+      
+      {/* NUEVO: Sistema de Notificaciones Mejorado */}
+      <div className="fixed top-4 right-4 z-50 space-y-3 max-w-md">
+        {notificacionActiva && (
+          <div className={`animate-slide-in p-4 rounded-lg shadow-lg border-l-4 ${
+            notificacionActiva.tipo === 'success' 
+              ? 'bg-green-50 border-green-500 text-green-800' 
+              : 'bg-red-50 border-red-500 text-red-800'
+          }`}>
+            <div className="flex justify-between items-start">
+              <div className="flex items-center">
+                {notificacionActiva.tipo === 'success' ? (
+                  <svg className="w-6 h-6 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 mr-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+                <div>
+                  <p className="font-semibold">{notificacionActiva.mensaje}</p>
+                  <p className="text-sm opacity-75 mt-1">{notificacionActiva.timestamp}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setNotificacionActiva(null)}
+                className="ml-4 opacity-50 hover:opacity-100 transition-opacity"
+              >
+                ✕
+              </button>
+            </div>
+            {/* Barra de progreso */}
+            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${
+                  notificacionActiva.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'
+                } animate-progress`}
+                style={{ animationDuration: `${notificacionActiva.duracion}ms` }}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modal de Edición */}
       {editingUser && (
@@ -583,7 +656,7 @@ export default function AdminDashboard() {
               >
                 {loading ? (
                   <>
-                    <div className="spinner-sm border-t-primary-500 w-4 h-4"></div>
+                    <div className="spinner-sm"></div>
                     <span>Cargando...</span>
                   </>
                 ) : (
@@ -795,8 +868,7 @@ export default function AdminDashboard() {
                         "¿Asignar rol por defecto a todos los usuarios pendientes?"
                       );
                       if (confirmAll) {
-                        // Implementar lógica de asignación masiva
-                        showNotification("Función de asignación masiva por implementar", "info");
+                        mostrarNotificacion('info', "Función de asignación masiva por implementar", 5000);
                       }
                     }}
                     className="text-xs sm:text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -804,25 +876,6 @@ export default function AdminDashboard() {
                     Asignar a todos
                   </button>
                 )}
-                
-                <button
-                  onClick={loadData}
-                  disabled={loading}
-                  className="btn-primary px-3 sm:px-4 py-2 text-sm flex items-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="spinner-sm border-t-white w-4 h-4"></div>
-                      <span>Actualizando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🔄</span>
-                      <span className="hidden xs:inline">Actualizar</span>
-                      <span className="xs:hidden">Refrescar</span>
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           </div>

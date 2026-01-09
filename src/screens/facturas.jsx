@@ -265,11 +265,6 @@ export default function Facturas() {
     }
   };
 
-  // Renderizado condicional
-  if (loading) {
-    return <LoadingState />;
-  }
-
   if (error && facturas.length === 0) {
     return <ErrorState error={error} onRetry={cargarDatos} />;
   }
@@ -315,6 +310,7 @@ export default function Facturas() {
       <FacturasTable
         facturas={facturas}
         sortField={sortField}
+        loading={loading}
         sortDirection={sortDirection}
         onSort={handleSort}
         getSortIcon={getSortIcon}
@@ -553,6 +549,7 @@ function FiltersSection({
 function FacturasTable({
   facturas,
   sortField,
+  loading,
   sortDirection,
   onSort,
   getSortIcon,
@@ -570,6 +567,18 @@ function FacturasTable({
   selectedProveedor,
   debouncedSearchTerm,
 }) {
+
+    if (loading) {
+    return (
+      <div className="card overflow-hidden mb-6">
+        <div className="px-6 py-12 text-center">
+          <div className="spinner mx-auto mb-4"></div>
+          <p className="text-gray-500">Cargando facturas...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (facturas.length === 0) {
     return (
       <div className="card overflow-hidden mb-6">
