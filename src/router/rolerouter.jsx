@@ -9,6 +9,7 @@ import { useRouter } from "../context/roleroutercontext";
 
 // CHEF (solo admin)
 import ArbolProductos from "../screens/chef/arbol_productos";
+import ArbolMateriaPrima from "../screens/chef/arbol_materia_prima";
 
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
@@ -113,6 +114,8 @@ export default function RoleRouter() {
       // CHEF (ADMIN)
       case "chef_arbol_productos":
         return <ArbolProductos />;
+      case "chef_arbol_materia_prima":
+        return <ArbolMateriaPrima />;
       default:
         return (
           <div style={{ padding: 20, color: "red" }}>
