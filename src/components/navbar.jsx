@@ -14,7 +14,7 @@ export default function Navbar() {
           { label: "📋 Solicitudes de Acceso", name: "admin_requests" },
           { label: "🧾 Facturas", name: "facturas" },
               // 👨‍🍳 CHEF
-          { label: "🌳 Árbol de Productos", name: "chef_arbol_productos" },
+          { label: "🌳 Árbol de Materia Prima", name: "chef_arbol_materia_prima" },
         ];
 
       case "jefe_de_planta":

@@ -8,7 +8,6 @@ import { useRouter } from "../context/roleroutercontext";
 // ================================
 
 // CHEF (solo admin)
-import ArbolProductos from "../screens/chef/arbol_productos";
 import ArbolMateriaPrima from "../screens/chef/arbol_materia_prima";
 
 // ADMIN
@@ -112,8 +111,6 @@ export default function RoleRouter() {
       case "admin_requests":
         return <AdminRequests />;
       // CHEF (ADMIN)
-      case "chef_arbol_productos":
-        return <ArbolProductos />;
       case "chef_arbol_materia_prima":
         return <ArbolMateriaPrima />;
       default:
