@@ -17,6 +17,7 @@ const ArbolMateriaPrima = () => {
   const [busqueda, setBusqueda] = useState('');
   const [filtros, setFiltros] = useState({});
   const [error, setError] = useState(null);
+  const [totalProductos, setTotalProductos] = useState(0);
 
   // Mapa de hijos por padre (para carga lazy)
   const [hijosMap, setHijosMap] = useState(new Map());
@@ -30,18 +31,23 @@ const ArbolMateriaPrima = () => {
 
   /**
    * Cargar datos del árbol según el tipo seleccionado
+   * Obtiene los nodos nivel 3 (categorías) del tipo de rama seleccionado
    */
   const cargarArbol = async () => {
     setCargando(true);
     setError(null);
 
     try {
-      // Obtener nodos de nivel 2 (produccion, entregable, desechable)
-      const { data, error: err } = await arbolMateriaPrimaService.getNodosPorTipo(2, tipoSeleccionado);
+      // Obtener categorías nivel 3 y contar productos en paralelo
+      const [categoriasRes, conteoRes] = await Promise.all([
+        arbolMateriaPrimaService.getCategoriasNivel3(tipoSeleccionado),
+        arbolMateriaPrimaService.contarProductosPorTipo(tipoSeleccionado)
+      ]);
 
-      if (err) throw err;
+      if (categoriasRes.error) throw categoriasRes.error;
 
-      setArbolData(data || []);
+      setArbolData(categoriasRes.data || []);
+      setTotalProductos(conteoRes.data || 0);
     } catch (err) {
       console.error('Error al cargar árbol:', err);
       setError('Error al cargar el árbol de materia prima');
@@ -222,7 +228,7 @@ const ArbolMateriaPrima = () => {
       <div className="border-t p-4 bg-gray-50">
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
-            Mostrando {arbolData.length} {arbolData.length === 1 ? 'elemento' : 'elementos'}
+            {arbolData.length} {arbolData.length === 1 ? 'categoria' : 'categorias'} | {totalProductos} productos
           </span>
           <button className="text-blue-600 hover:text-blue-700 font-medium">
             Exportar Excel

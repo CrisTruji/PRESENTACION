@@ -256,9 +256,43 @@ export const arbolMateriaPrimaService = {
       .select('*')
       .eq('tipo_rama', tipo_rama)
       .eq('activo', true)
+      .order('codigo')
+      .limit(5000);
+
+    return { data, error };
+  },
+
+  /**
+   * Obtener categorías nivel 3 de un tipo de rama
+   * @param {string} tipo_rama - produccion, entregable, desechable
+   * @returns {Promise<{data, error}>}
+   */
+  async getCategoriasNivel3(tipo_rama) {
+    const { data, error } = await supabase
+      .from('arbol_materia_prima')
+      .select('*')
+      .eq('tipo_rama', tipo_rama)
+      .eq('nivel_actual', 3)
+      .eq('activo', true)
       .order('codigo');
 
     return { data, error };
+  },
+
+  /**
+   * Contar productos nivel 5 por tipo de rama
+   * @param {string} tipo_rama - produccion, entregable, desechable
+   * @returns {Promise<{data, error}>}
+   */
+  async contarProductosPorTipo(tipo_rama) {
+    const { count, error } = await supabase
+      .from('arbol_materia_prima')
+      .select('*', { count: 'exact', head: true })
+      .eq('tipo_rama', tipo_rama)
+      .eq('nivel_actual', 5)
+      .eq('activo', true);
+
+    return { data: count, error };
   },
 
   /**
