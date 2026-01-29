@@ -192,24 +192,24 @@ export function getEstadoClasses(estado, tipo = 'solicitud') {
 export function getEstadoIcon(estado, tipo = 'solicitud') {
   const iconos = {
     solicitud: {
-      [ESTADOS_SOLICITUD.PENDIENTE]: '⏳',
-      [ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR]: '🔍',
-      [ESTADOS_SOLICITUD.APROBADO_AUXILIAR]: '✅',
-      [ESTADOS_SOLICITUD.DEVUELTA_JEFE_PLANTA]: '↩️',
-      [ESTADOS_SOLICITUD.RECHAZADO_AUXILIAR]: '❌',
-      [ESTADOS_SOLICITUD.APROBADO_COMPRAS]: '✅',
-      [ESTADOS_SOLICITUD.COMPRADO]: '🛒',
-      [ESTADOS_SOLICITUD.DEVUELTO]: '↩️',
-      [ESTADOS_SOLICITUD.FINALIZADO]: '🏁'
+      [ESTADOS_SOLICITUD.PENDIENTE]: '',
+      [ESTADOS_SOLICITUD.EN_REVISION_AUXILIAR]: '',
+      [ESTADOS_SOLICITUD.APROBADO_AUXILIAR]: '',
+      [ESTADOS_SOLICITUD.DEVUELTA_JEFE_PLANTA]: '',
+      [ESTADOS_SOLICITUD.RECHAZADO_AUXILIAR]: '',
+      [ESTADOS_SOLICITUD.APROBADO_COMPRAS]: '',
+      [ESTADOS_SOLICITUD.COMPRADO]: '',
+      [ESTADOS_SOLICITUD.DEVUELTO]: '',
+      [ESTADOS_SOLICITUD.FINALIZADO]: ''
     },
     item: {
-      [ESTADOS_ITEM.PENDIENTE]: '⏳',
-      [ESTADOS_ITEM.APROBADO_AUXILIAR]: '✅',
-      [ESTADOS_ITEM.RECHAZADO_AUXILIAR]: '❌',
-      [ESTADOS_ITEM.APROBADO_COMPRAS]: '✅',
-      [ESTADOS_ITEM.RECHAZADO_COMPRAS]: '❌'
+      [ESTADOS_ITEM.PENDIENTE]: '',
+      [ESTADOS_ITEM.APROBADO_AUXILIAR]: '',
+      [ESTADOS_ITEM.RECHAZADO_AUXILIAR]: '',
+      [ESTADOS_ITEM.APROBADO_COMPRAS]: '',
+      [ESTADOS_ITEM.RECHAZADO_COMPRAS]: ''
     }
   };
   
-  return iconos[tipo]?.[estado] || '📦';
+  return iconos[tipo]?.[estado] || '';
 }

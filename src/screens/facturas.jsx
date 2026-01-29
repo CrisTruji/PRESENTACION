@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/auth";
 import { supabase } from "../lib/supabase";
+import notify from "../utils/notifier";
 import {
   Search,
   Filter,
@@ -20,11 +21,16 @@ import {
   X,
   Edit,
   Save,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  FileDigit,
+  Hash,
 } from "lucide-react";
 
 export default function Facturas() {
   const { roleName } = useAuth();
-  
+
   // Estados principales
   const [facturas, setFacturas] = useState([]);
   const [proveedores, setProveedores] = useState([]);
@@ -53,14 +59,12 @@ export default function Facturas() {
   const [valorRomaneo, setValorRomaneo] = useState("");
   const [loadingRomaneo, setLoadingRomaneo] = useState(false);
 
-  // Notificación
-  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
-
   // Ref para el input de búsqueda
   const searchInputRef = useRef(null);
 
   // Permisos por rol
-  const puedeEditarRomaneo = roleName === 'almacenista' || roleName === 'administrador';
+  const puedeEditarRomaneo =
+    roleName === "almacenista" || roleName === "administrador";
 
   // Debounce para búsqueda (400ms)
   useEffect(() => {
@@ -75,7 +79,13 @@ export default function Facturas() {
   // Cargar datos
   useEffect(() => {
     cargarDatos();
-  }, [currentPage, debouncedSearchTerm, selectedProveedor, sortField, sortDirection]);
+  }, [
+    currentPage,
+    debouncedSearchTerm,
+    selectedProveedor,
+    sortField,
+    sortDirection,
+  ]);
 
   async function cargarDatos() {
     try {
@@ -83,9 +93,8 @@ export default function Facturas() {
       setError(null);
 
       // Construir consulta base
-      let query = supabase
-        .from("facturas")
-        .select(`
+      let query = supabase.from("facturas").select(
+        `
           id,
           numero_factura,
           fecha_factura,
@@ -111,20 +120,25 @@ export default function Facturas() {
               categoria
             )
           )
-        `, { count: 'exact' });
+        `,
+        { count: "exact" },
+      );
 
       // Aplicar filtros
       if (debouncedSearchTerm) {
-        query = query.ilike('numero_factura', `%${debouncedSearchTerm}%`);
+        query = query.ilike("numero_factura", `%${debouncedSearchTerm}%`);
       }
 
       if (selectedProveedor !== "todos") {
-        query = query.eq('solicitudes.proveedor_id', parseInt(selectedProveedor));
+        query = query.eq(
+          "solicitudes.proveedor_id",
+          parseInt(selectedProveedor),
+        );
       }
 
       // Aplicar ordenamiento
-      query = query.order(sortField, { 
-        ascending: sortDirection === 'asc' 
+      query = query.order(sortField, {
+        ascending: sortDirection === "asc",
       });
 
       // Aplicar paginación
@@ -143,7 +157,7 @@ export default function Facturas() {
       if (!debouncedSearchTerm && selectedProveedor === "todos") {
         const provsUnicos = [];
         const idsVistos = new Set();
-        data?.forEach(f => {
+        data?.forEach((f) => {
           const prov = f.solicitudes?.proveedores;
           if (prov && !idsVistos.has(prov.id)) {
             idsVistos.add(prov.id);
@@ -152,19 +166,13 @@ export default function Facturas() {
         });
         setProveedores(provsUnicos);
       }
-
     } catch (err) {
       console.error("Error al cargar facturas:", err);
       setError("Error al cargar facturas");
-      showNotification('error', 'Error al cargar facturas');
+      notify.error("Error al cargar facturas");
     } finally {
       setLoading(false);
     }
-  }
-
-  function showNotification(type, message) {
-    setNotification({ show: true, type, message });
-    setTimeout(() => setNotification({ show: false, type: '', message: '' }), 3000);
   }
 
   // Handlers de filtros
@@ -180,7 +188,11 @@ export default function Facturas() {
 
   const getSortIcon = (field) => {
     if (sortField !== field) return null;
-    return sortDirection === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
+    return sortDirection === "asc" ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
   };
 
   // Funciones para modal de productos
@@ -193,7 +205,7 @@ export default function Facturas() {
   // Funciones para edición de romaneo
   async function guardarRomaneo(facturaId) {
     if (!valorRomaneo.trim()) {
-      showNotification('warning', 'El número de romaneo no puede estar vacío');
+      notify.warning("El número de romaneo no puede estar vacío");
       return;
     }
 
@@ -206,17 +218,19 @@ export default function Facturas() {
 
       if (error) throw error;
 
-      setFacturas(prev =>
-        prev.map(f =>
-          f.id === facturaId ? { ...f, numero_romaneo: valorRomaneo.trim() } : f
-        )
+      setFacturas((prev) =>
+        prev.map((f) =>
+          f.id === facturaId
+            ? { ...f, numero_romaneo: valorRomaneo.trim() }
+            : f,
+        ),
       );
 
-      showNotification('success', 'Número de romaneo guardado exitosamente');
+      notify.success("Número de romaneo guardado exitosamente");
       setEditandoRomaneo(null);
       setValorRomaneo("");
     } catch (err) {
-      showNotification('error', 'Error al guardar el número de romaneo');
+      notify.error("Error al guardar el número de romaneo");
     } finally {
       setLoadingRomaneo(false);
     }
@@ -253,7 +267,10 @@ export default function Facturas() {
   };
 
   const calcularTotalPagina = () => {
-    return facturas.reduce((sum, factura) => sum + (factura.valor_total || 0), 0);
+    return facturas.reduce(
+      (sum, factura) => sum + (factura.valor_total || 0),
+      0,
+    );
   };
 
   const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -266,815 +283,668 @@ export default function Facturas() {
   };
 
   if (error && facturas.length === 0) {
-    return <ErrorState error={error} onRetry={cargarDatos} />;
-  }
-
-  return (
-    <div className="p-4 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      {/* Notificación */}
-      <Notification notification={notification} />
-
-      {/* Header */}
-      <Header totalCount={totalCount} currentPage={currentPage} totalPages={totalPages} />
-
-      {/* Estadísticas */}
-      <StatsSection 
-        facturasCount={facturas.length}
-        totalPagina={calcularTotalPagina()}
-        proveedoresCount={proveedores.length}
-        currentPage={currentPage}
-        totalPages={totalPages}
-      />
-
-      {/* Filtros */}
-      <FiltersSection
-        searchTerm={searchTerm}
-        onSearchChange={(e) => setSearchTerm(e.target.value)}
-        onClearSearch={() => {
-          setSearchTerm("");
-          setDebouncedSearchTerm("");
-          searchInputRef.current?.focus();
-        }}
-        selectedProveedor={selectedProveedor}
-        onProveedorChange={(e) => {
-          setSelectedProveedor(e.target.value);
-          setCurrentPage(1);
-        }}
-        proveedores={proveedores}
-        onRefresh={cargarDatos}
-        debouncedSearchTerm={debouncedSearchTerm}
-        searchInputRef={searchInputRef}
-      />
-
-      {/* Tabla de Facturas */}
-      <FacturasTable
-        facturas={facturas}
-        sortField={sortField}
-        loading={loading}
-        sortDirection={sortDirection}
-        onSort={handleSort}
-        getSortIcon={getSortIcon}
-        formatFecha={formatFecha}
-        formatValor={formatValor}
-        onVerProductos={verProductos}
-        puedeEditarRomaneo={puedeEditarRomaneo}
-        editandoRomaneo={editandoRomaneo}
-        valorRomaneo={valorRomaneo}
-        loadingRomaneo={loadingRomaneo}
-        onValorRomaneoChange={setValorRomaneo}
-        onGuardarRomaneo={guardarRomaneo}
-        onIniciarEdicionRomaneo={iniciarEdicionRomaneo}
-        onCancelarEdicionRomaneo={cancelarEdicionRomaneo}
-        selectedProveedor={selectedProveedor}
-        debouncedSearchTerm={debouncedSearchTerm}
-      />
-
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          itemsPerPage={itemsPerPage}
-          onPageChange={goToPage}
-        />
-      )}
-
-      {/* Modal de Productos */}
-      {modalAbierto && facturaSeleccionada && (
-        <ProductosModal
-          factura={facturaSeleccionada}
-          productos={productosModal}
-          onClose={() => setModalAbierto(false)}
-          formatFecha={formatFecha}
-          formatValor={formatValor}
-        />
-      )}
-    </div>
-  );
-}
-
-// Componentes auxiliares
-function LoadingState() {
-  return (
-    <div className="min-h-[400px] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-gray-600">Cargando facturas...</p>
-      </div>
-    </div>
-  );
-}
-
-function ErrorState({ error, onRetry }) {
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="card p-12 text-center border-2 border-dashed border-red-200">
-        <div className="text-5xl mb-6 text-red-500">❌</div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-          Error al cargar facturas
-        </h3>
-        <p className="text-gray-600 mb-6">{error}</p>
-        <button onClick={onRetry} className="btn-primary">
-          Reintentar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Notification({ notification }) {
-  if (!notification.show) return null;
-
-  const bgColor = {
-    success: 'bg-green-500',
-    error: 'bg-red-500',
-    warning: 'bg-yellow-500'
-  }[notification.type];
-
-  return (
-    <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${bgColor} text-white max-w-md`}>
-      {notification.message}
-    </div>
-  );
-}
-
-function Header({ totalCount}) {
-  return (
-    <div className="mb-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            📄 Facturas
-          </h1>
-          <p className="text-gray-600">
-            Consulta las facturas registradas en el sistema
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-sm">
-          <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg">
-            <span className="text-primary-600">📋</span>
-            Total: {totalCount}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatsSection({ facturasCount, totalPagina, proveedoresCount, currentPage, totalPages }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-      <StatCard
-        title="Esta página"
-        value={facturasCount}
-        icon={<FileText size={20} className="text-blue-600" />}
-        bgColor="bg-blue-50"
-      />
-      <StatCard
-        title="Total página"
-        value={new Intl.NumberFormat("es-CO", {
-          style: "currency",
-          currency: "COP",
-          minimumFractionDigits: 0,
-        }).format(totalPagina)}
-        icon={<DollarSign size={20} className="text-green-600" />}
-        bgColor="bg-green-50"
-      />
-      <StatCard
-        title="Proveedores"
-        value={proveedoresCount}
-        icon={<Building size={20} className="text-purple-600" />}
-        bgColor="bg-purple-50"
-      />
-      <StatCard
-        title="Página actual"
-        value={`${currentPage} / ${totalPages || 1}`}
-        icon={<Calendar size={20} className="text-orange-600" />}
-        bgColor="bg-orange-50"
-      />
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon, bgColor }) {
-  return (
-    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium text-gray-500 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-800">{value}</p>
-        </div>
-        <div className={`w-10 h-10 ${bgColor} rounded-lg flex items-center justify-center`}>
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FiltersSection({
-  searchTerm,
-  onSearchChange,
-  onClearSearch,
-  selectedProveedor,
-  onProveedorChange,
-  proveedores,
-  onRefresh,
-  debouncedSearchTerm,
-  searchInputRef,
-}) {
-  return (
-    <div className="card p-6 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={20}
-          />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Buscar por N° de factura..."
-            className="form-input pl-10 pr-10"
-            value={searchTerm}
-            onChange={onSearchChange}
-          />
-          {searchTerm && (
-            <button
-              onClick={onClearSearch}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              type="button"
-            >
-              ×
-            </button>
-          )}
-          {debouncedSearchTerm && searchTerm && (
-            <div className="absolute -bottom-6 left-0 text-xs text-gray-500">
-              Buscando: "{debouncedSearchTerm}"
-            </div>
-          )}
-        </div>
-
-        <div className="relative">
-          <Filter
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-            size={20}
-          />
-          <select
-            className="form-select pl-10"
-            value={selectedProveedor}
-            onChange={onProveedorChange}
-          >
-            <option value="todos">Todos los proveedores</option>
-            {proveedores.map((prov) => (
-              <option key={prov.id} value={prov.id}>
-                {prov.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex items-center justify-center md:justify-end gap-4">
-          <button onClick={onRefresh} className="btn-outline flex items-center gap-2">
-            <RefreshCw size={16} />
-            Actualizar
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FacturasTable({
-  facturas,
-  sortField,
-  loading,
-  sortDirection,
-  onSort,
-  getSortIcon,
-  formatFecha,
-  formatValor,
-  onVerProductos,
-  puedeEditarRomaneo,
-  editandoRomaneo,
-  valorRomaneo,
-  loadingRomaneo,
-  onValorRomaneoChange,
-  onGuardarRomaneo,
-  onIniciarEdicionRomaneo,
-  onCancelarEdicionRomaneo,
-  selectedProveedor,
-  debouncedSearchTerm,
-}) {
-
-    if (loading) {
     return (
-      <div className="card overflow-hidden mb-6">
-        <div className="px-6 py-12 text-center">
-          <div className="spinner mx-auto mb-4"></div>
-          <p className="text-gray-500">Cargando facturas...</p>
+      <div className="page-container">
+        <div className="card p-12 text-center border-2 border-dashed border-error/20">
+          <div className="w-20 h-20 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-10 h-10 text-error" />
+          </div>
+          <h3 className="text-xl font-semibold text-primary mb-2">
+            Error al cargar facturas
+          </h3>
+          <p className="text-muted mb-6">{error}</p>
+          <button onClick={cargarDatos} className="btn btn-primary">
+            Reintentar
+          </button>
         </div>
       </div>
     );
   }
 
-  if (facturas.length === 0) {
-    return (
-      <div className="card overflow-hidden mb-6">
-        <div className="px-6 py-12 text-center">
-          <div className="text-gray-500">
-            <FileText size={48} className="mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium mb-2">No se encontraron facturas</p>
-            <p className="text-gray-400">
-              {debouncedSearchTerm || selectedProveedor !== "todos"
-                ? "Prueba con otros filtros"
-                : "No hay facturas registradas"}
+  return (
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="section-header">
+            <h1 className="section-title">Facturas</h1>
+            <p className="section-subtitle">
+              Consulta las facturas registradas en el sistema
             </p>
           </div>
+          <div className="badge badge-primary flex items-center gap-1.5">
+            <FileDigit className="w-4 h-4" />
+            <span>Total: {totalCount}</span>
+          </div>
         </div>
-      </div>
-    );
-  }
+        {/* Estadísticas */}
+        <div className="grid-cards mb-6">
+          <div className="stats-card">
+            <div className="stats-icon bg-primary/10 text-primary">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div className="stats-content">
+              <div className="stats-value">{facturas.length}</div>
+              <div className="stats-label">Esta página</div>
+            </div>
+          </div>
 
-  return (
-    <div className="card overflow-hidden mb-6">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <TableHeader
-                field="solicitudes.proveedores.nombre"
-                label={
-                  <>
-                    <Building size={14} />
-                    Proveedor
-                  </>
-                }
-                sortField={sortField}
-                sortDirection={sortDirection}
-                getSortIcon={getSortIcon}
-                onSort={onSort}
+          <div className="stats-card">
+            <div className="stats-icon bg-success/10 text-success">
+              <DollarSign className="w-6 h-6" />
+            </div>
+            <div className="stats-content">
+              <div className="stats-value">
+                {new Intl.NumberFormat("es-CO", {
+                  style: "currency",
+                  currency: "COP",
+                  minimumFractionDigits: 0,
+                }).format(calcularTotalPagina())}
+              </div>
+              <div className="stats-label">Total página</div>
+            </div>
+          </div>
+
+          <div className="stats-card">
+            <div className="stats-icon bg-primary/10 text-primary">
+              <Building className="w-6 h-6" />
+            </div>
+            <div className="stats-content">
+              <div className="stats-value">{proveedores.length}</div>
+              <div className="stats-label">Proveedores</div>
+            </div>
+          </div>
+
+          <div className="stats-card">
+            <div className="stats-icon bg-primary/10 text-primary">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div className="stats-content">
+              <div className="stats-value">
+                {currentPage} / {totalPages || 1}
+              </div>
+              <div className="stats-label">Página actual</div>
+            </div>
+          </div>
+        </div>
+        {/* Filtros */}
+        <div className="card p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={20}
               />
-              <TableHeader
-                field="numero_factura"
-                label={
-                  <>
-                    <FileText size={14} />
-                    N° Factura
-                  </>
-                }
-                sortField={sortField}
-                sortDirection={sortDirection}
-                getSortIcon={getSortIcon}
-                onSort={onSort}
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Buscar por N° de factura..."
+                className="form-input pl-10 pr-10 !py-2.5"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <TableHeader
-                field="fecha_factura"
-                label={
-                  <>
-                    <Calendar size={14} />
-                    Fecha
-                  </>
-                }
-                sortField={sortField}
-                sortDirection={sortDirection}
-                getSortIcon={getSortIcon}
-                onSort={onSort}
-              />
-              <TableHeader
-                field="valor_total"
-                label={
-                  <>
-                    <DollarSign size={14} />
-                    Valor Total
-                  </>
-                }
-                sortField={sortField}
-                sortDirection={sortDirection}
-                getSortIcon={getSortIcon}
-                onSort={onSort}
-              />
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                N° Romaneo
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {facturas.map((factura) => (
-              <tr key={factura.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Building size={20} className="text-purple-600" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        {factura.solicitudes?.proveedores?.nombre || 'N/A'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        NIT: {factura.solicitudes?.proveedores?.nit || 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{factura.numero_factura}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-gray-400" />
-                    <span className="text-gray-700">{formatFecha(factura.fecha_factura)}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => onVerProductos(factura)}
-                    className="text-left hover:underline text-green-600 hover:text-green-700 font-semibold"
+              {searchTerm && (
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    setDebouncedSearchTerm("");
+                    searchInputRef.current?.focus();
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-secondary"
+                  type="button"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {debouncedSearchTerm && searchTerm && (
+                <div className="absolute -bottom-6 left-0 text-xs text-muted">
+                  Buscando: "{debouncedSearchTerm}"
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted">
+                <Filter size={20} />
+              </div>
+              <select
+                className="form-select pl-10 !py-2.5 appearance-none"
+                value={selectedProveedor}
+                onChange={(e) => {
+                  setSelectedProveedor(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  backgroundColor: "var(--color-bg-surface)",
+                  color: "var(--color-text-primary)",
+                  borderColor: "var(--color-border)",
+                }}
+              >
+                <option
+                  value="todos"
+                  style={{
+                    backgroundColor: "var(--color-bg-surface)",
+                    color: "var(--color-text-primary)",
+                  }}
+                >
+                  Todos los proveedores
+                </option>
+                {proveedores.map((prov) => (
+                  <option
+                    key={prov.id}
+                    value={prov.id}
+                    style={{
+                      backgroundColor: "var(--color-bg-surface)",
+                      color: "var(--color-text-primary)",
+                    }}
                   >
-                    {formatValor(factura.valor_total)}
-                  </button>
-                  <div className="text-xs text-gray-500">
-                    {factura.factura_items?.length || 0} productos
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  {puedeEditarRomaneo ? (
-                    editandoRomaneo === factura.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={valorRomaneo}
-                          onChange={(e) => onValorRomaneoChange(e.target.value)}
-                          className="form-input w-32 text-sm"
-                          placeholder="N° Romaneo"
-                          disabled={loadingRomaneo}
+                    {prov.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-center md:justify-end">
+              <button
+                onClick={cargarDatos}
+                className="btn btn-outline flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* Tabla de Facturas */}
+        <div className="card overflow-hidden mb-6">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead className="table-header">
+                <tr>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("solicitudes.proveedores.nombre")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Building className="w-4 h-4" />
+                      Proveedor
+                      {getSortIcon("solicitudes.proveedores.nombre")}
+                    </div>
+                  </th>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("numero_factura")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <FileText className="w-4 h-4" />
+                      N° Factura
+                      {getSortIcon("numero_factura")}
+                    </div>
+                  </th>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("fecha_factura")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      Fecha
+                      {getSortIcon("fecha_factura")}
+                    </div>
+                  </th>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("valor_total")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" />
+                      Valor Total
+                      {getSortIcon("valor_total")}
+                    </div>
+                  </th>
+                  <th className="table-header-cell">N° Romaneo</th>
+                  <th className="table-header-cell">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="spinner spinner-lg mx-auto mb-3"></div>
+                      <p className="text-muted">Cargando facturas...</p>
+                    </td>
+                  </tr>
+                ) : facturas.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="text-muted">
+                        <FileText
+                          size={48}
+                          className="mx-auto mb-4 text-border"
                         />
-                        <button
-                          onClick={() => onGuardarRomaneo(factura.id)}
-                          disabled={loadingRomaneo}
-                          className="p-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-                        >
-                          <Save size={16} />
-                        </button>
-                        <button
-                          onClick={onCancelarEdicionRomaneo}
-                          disabled={loadingRomaneo}
-                          className="p-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 disabled:opacity-50"
-                        >
-                          <X size={16} />
-                        </button>
+                        <p className="text-lg font-medium mb-2 text-primary">
+                          No se encontraron facturas
+                        </p>
+                        <p className="text-muted">
+                          {debouncedSearchTerm || selectedProveedor !== "todos"
+                            ? "Prueba con otros filtros"
+                            : "No hay facturas registradas"}
+                        </p>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() => onIniciarEdicionRomaneo(factura)}
-                        className="flex items-center gap-1 text-sm text-gray-700 hover:text-blue-600 group"
-                      >
-                        {factura.numero_romaneo ? (
-                          <>
-                            <span className="font-mono">{factura.numero_romaneo}</span>
-                            <Edit size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </>
+                    </td>
+                  </tr>
+                ) : (
+                  facturas.map((factura) => (
+                    <tr key={factura.id} className="table-row">
+                      <td className="table-cell">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
+                            <Building className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-primary">
+                              {factura.solicitudes?.proveedores?.nombre ||
+                                "N/A"}
+                            </div>
+                            <div className="text-xs text-muted">
+                              NIT:{" "}
+                              {factura.solicitudes?.proveedores?.nit || "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="font-medium text-primary">
+                          {factura.numero_factura}
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted" />
+                          <span className="text-secondary">
+                            {formatFecha(factura.fecha_factura)}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <button
+                          onClick={() => verProductos(factura)}
+                          className="text-left hover:underline text-primary hover:text-primary-hover font-semibold"
+                        >
+                          {formatValor(factura.valor_total)}
+                        </button>
+                        <div className="text-xs text-muted">
+                          {factura.factura_items?.length || 0} productos
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        {puedeEditarRomaneo ? (
+                          editandoRomaneo === factura.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={valorRomaneo}
+                                onChange={(e) =>
+                                  setValorRomaneo(e.target.value)
+                                }
+                                className="form-input w-32 text-sm !py-1.5 !px-2"
+                                placeholder="N° Romaneo"
+                                disabled={loadingRomaneo}
+                              />
+                              <button
+                                onClick={() => guardarRomaneo(factura.id)}
+                                disabled={loadingRomaneo}
+                                className="btn btn-icon !p-1 bg-success hover:bg-success/90"
+                              >
+                                <Save className="w-4 h-4 text-white" />
+                              </button>
+                              <button
+                                onClick={cancelarEdicionRomaneo}
+                                disabled={loadingRomaneo}
+                                className="btn btn-icon !p-1 bg-error hover:bg-error/90"
+                              >
+                                <X className="w-4 h-4 text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => iniciarEdicionRomaneo(factura)}
+                              className="flex items-center gap-1 text-sm text-secondary hover:text-primary group"
+                            >
+                              {factura.numero_romaneo ? (
+                                <>
+                                  <span className="font-mono">
+                                    {factura.numero_romaneo}
+                                  </span>
+                                  <Edit className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </>
+                              ) : (
+                                <span className="text-muted italic flex items-center gap-1">
+                                  <Edit className="w-3 h-3" />
+                                  Agregar
+                                </span>
+                              )}
+                            </button>
+                          )
                         ) : (
-                          <span className="text-gray-400 italic flex items-center gap-1">
-                            <Edit size={14} />
-                            Agregar
+                          <span className="text-sm text-secondary font-mono">
+                            {factura.numero_romaneo || (
+                              <span className="text-muted">—</span>
+                            )}
                           </span>
                         )}
-                      </button>
-                    )
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => verProductos(factura)}
+                            className="btn btn-icon btn-outline"
+                            title="Ver productos"
+                          >
+                            <Eye className="w-4 h-4 text-secondary" />
+                          </button>
+                          {factura.pdf_url && (
+                            <a
+                              href={factura.pdf_url}
+                              download
+                              className="btn btn-icon btn-outline"
+                              title="Descargar PDF"
+                            >
+                              <Download className="w-4 h-4 text-secondary" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-base">
+            <div className="text-sm text-muted">
+              Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
+              {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount}{" "}
+              facturas
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`btn btn-icon ${currentPage === 1 ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => goToPage(pageNum)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-base ${
+                      currentPage === pageNum
+                        ? "btn-primary"
+                        : "btn btn-outline"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`btn btn-icon ${currentPage === totalPages ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted">Ir a:</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                defaultValue={currentPage}
+                className="form-input w-16 !py-1.5 !px-2 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const page = parseInt(e.target.value);
+                    if (!isNaN(page)) goToPage(page);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {/* Modal de Productos */}
+        {modalAbierto && facturaSeleccionada && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-surface rounded-card shadow-card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="card-header">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-xl font-semibold text-primary">
+                      Detalles de Factura
+                    </h2>
+                    <p className="text-sm text-muted">
+                      {facturaSeleccionada.solicitudes?.proveedores?.nombre} -
+                      Factura #{facturaSeleccionada.numero_factura}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setModalAbierto(false)}
+                    className="text-muted hover:text-primary"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenido */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {/* Información general */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="card p-4">
+                    <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                      <Building className="w-4 h-4" />
+                      Información del Proveedor
+                    </h3>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-muted">Nombre</p>
+                        <p className="font-medium text-primary">
+                          {facturaSeleccionada.solicitudes?.proveedores?.nombre}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">NIT</p>
+                        <p className="font-mono text-secondary">
+                          {facturaSeleccionada.solicitudes?.proveedores?.nit}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="card p-4">
+                    <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Información de la Factura
+                    </h3>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-muted">Número de Factura</p>
+                        <p className="font-medium text-primary">
+                          {facturaSeleccionada.numero_factura}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Número de Romaneo</p>
+                        <p className="font-medium text-primary">
+                          {facturaSeleccionada.numero_romaneo || "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted">Valor Total</p>
+                        <p className="font-bold text-lg text-success">
+                          {formatValor(facturaSeleccionada.valor_total)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Productos */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Productos ({productosModal.length})
+                  </h3>
+
+                  {productosModal.length === 0 ? (
+                    <div className="card p-8 text-center">
+                      <Package className="w-12 h-12 text-muted mx-auto mb-4" />
+                      <p className="text-muted">
+                        No hay productos registrados para esta factura
+                      </p>
+                    </div>
                   ) : (
-                    <span className="text-sm text-gray-700 font-mono">
-                      {factura.numero_romaneo || <span className="text-gray-400">—</span>}
-                    </span>
+                    <div className="card overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="table">
+                          <thead className="table-header">
+                            <tr>
+                              <th className="table-header-cell">Producto</th>
+                              <th className="table-header-cell">Cantidad</th>
+                              <th className="table-header-cell">
+                                Precio Unitario
+                              </th>
+                              <th className="table-header-cell">Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {productosModal.map((item, index) => (
+                              <tr key={index} className="table-row">
+                                <td className="table-cell">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-primary/10 rounded-base flex items-center justify-center">
+                                      <Package className="w-4 h-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-primary">
+                                        {item.catalogo_productos?.nombre ||
+                                          "Producto sin nombre"}
+                                      </div>
+                                      {item.catalogo_productos
+                                        ?.codigo_arbol && (
+                                        <div className="text-xs text-muted font-mono">
+                                          {item.catalogo_productos.codigo_arbol}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="table-cell">
+                                  <div className="text-center">
+                                    <span className="font-medium text-primary">
+                                      {item.cantidad}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="table-cell">
+                                  <div className="text-success font-medium">
+                                    {formatValor(item.precio_unitario)}
+                                  </div>
+                                </td>
+                                <td className="table-cell">
+                                  <div className="text-success font-bold">
+                                    {formatValor(item.subtotal)}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="table-header">
+                            <tr>
+                              <td
+                                colSpan="3"
+                                className="table-cell text-right font-medium"
+                              >
+                                Total:
+                              </td>
+                              <td className="table-cell">
+                                <div className="text-success font-bold text-lg">
+                                  {formatValor(
+                                    productosModal.reduce(
+                                      (sum, item) => sum + (item.subtotal || 0),
+                                      0,
+                                    ),
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
                   )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => onVerProductos(factura)}
-                      className="p-2 hover:bg-gray-100 rounded-lg text-blue-600"
-                      title="Ver productos"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    {factura.pdf_url && (
-                      <a
-                        href={factura.pdf_url}
-                        download
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                        title="Descargar PDF"
-                      >
-                        <Download size={18} />
-                      </a>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="card-footer">
+                <div className="flex flex-col sm:flex-row justify-between gap-3">
+                  <div className="flex items-center gap-4">
+                    {facturaSeleccionada.pdf_url && (
+                      <>
+                        <a
+                          href={facturaSeleccionada.pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline flex items-center gap-2"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver PDF
+                        </a>
+                        <a
+                          href={facturaSeleccionada.pdf_url}
+                          download
+                          className="btn btn-primary flex items-center gap-2"
+                        >
+                          <Download className="w-4 h-4" />
+                          Descargar PDF
+                        </a>
+                      </>
                     )}
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function TableHeader({ field, label, getSortIcon, onSort }) {
-  return (
-    <th
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-      onClick={() => onSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label} {getSortIcon(field)}
-      </div>
-    </th>
-  );
-}
-
-function Pagination({ currentPage, totalPages, totalCount, itemsPerPage, onPageChange }) {
-  const renderPageNumbers = () => {
-    const pages = [];
-    const maxVisible = 5;
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      const leftOffset = Math.floor(maxVisible / 2);
-      let start = Math.max(currentPage - leftOffset, 1);
-      let end = Math.min(start + maxVisible - 1, totalPages);
-
-      if (end - start + 1 < maxVisible) {
-        start = Math.max(end - maxVisible + 1, 1);
-      }
-
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-    }
-
-    return pages.map((page) => (
-      <button
-        key={page}
-        onClick={() => onPageChange(page)}
-        className={`w-10 h-10 flex items-center justify-center rounded-lg ${
-          currentPage === page
-            ? "bg-primary-500 text-white"
-            : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-        }`}
-      >
-        {page}
-      </button>
-    ));
-  };
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200">
-      <div className="text-sm text-gray-600">
-        Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-        {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount} facturas
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className={`p-2 rounded-lg ${
-            currentPage === 1
-              ? "text-gray-400 cursor-not-allowed"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          <ChevronLeft size={20} />
-        </button>
-
-        {renderPageNumbers()}
-
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className={`p-2 rounded-lg ${
-            currentPage === totalPages
-              ? "text-gray-400 cursor-not-allowed"
-              : "text-gray-700 hover:bg-gray-100"
-          }`}
-        >
-          <ChevronRight size={20} />
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600">Ir a:</span>
-        <input
-          type="number"
-          min="1"
-          max={totalPages}
-          defaultValue={currentPage}
-          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              const page = parseInt(e.target.value);
-              if (!isNaN(page)) onPageChange(page);
-            }
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ProductosModal({ factura, productos, onClose, formatFecha, formatValor }) {
-  const total = productos.reduce((sum, item) => sum + (item.subtotal || 0), 0);
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Detalles de Factura</h2>
-              <p className="text-gray-600">
-                {factura.solicitudes?.proveedores?.nombre} - Factura #{factura.numero_factura}
-              </p>
-              <p className="text-sm text-gray-500">
-                {formatFecha(factura.fecha_factura)}
-              </p>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <X size={24} />
-            </button>
-          </div>
-        </div>
-
-        {/* Contenido */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Información general */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="card p-4">
-              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Building size={18} />
-                Información del Proveedor
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="text-sm text-gray-500">Nombre</p>
-                  <p className="font-medium">{factura.solicitudes?.proveedores?.nombre}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">NIT</p>
-                  <p className="font-mono">{factura.solicitudes?.proveedores?.nit}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="card p-4">
-              <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <FileText size={18} />
-                Información de la Factura
-              </h3>
-              <div className="space-y-2">
-                <div>
-                  <p className="text-sm text-gray-500">Número de Factura</p>
-                  <p className="font-medium">{factura.numero_factura}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Número de Romaneo</p>
-                  <p className="font-medium">{factura.numero_romaneo || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Valor Total</p>
-                  <p className="font-bold text-lg text-green-700">
-                    {formatValor(factura.valor_total)}
-                  </p>
+                  <button
+                    onClick={() => setModalAbierto(false)}
+                    className="btn btn-outline"
+                  >
+                    Cerrar
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Productos */}
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Package size={18} />
-              Productos ({productos.length})
-            </h3>
-
-            {productos.length === 0 ? (
-              <div className="card p-8 text-center">
-                <Package size={48} className="mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-600">No hay productos registrados para esta factura</p>
-              </div>
-            ) : (
-              <div className="card overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Producto
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Cantidad
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Precio Unitario
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Subtotal
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {productos.map((item, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <Package size={20} className="text-orange-600" />
-                              </div>
-                              <div>
-                                <div className="font-medium text-gray-900">
-                                  {item.catalogo_productos?.nombre || 'Producto sin nombre'}
-                                </div>
-                                {item.catalogo_productos?.codigo_arbol && (
-                                  <div className="text-xs text-gray-500 font-mono">
-                                    {item.catalogo_productos.codigo_arbol}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-center">
-                              <span className="font-medium text-gray-900">{item.cantidad}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-green-700 font-medium">
-                              {formatValor(item.precio_unitario)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-green-700 font-bold">
-                              {formatValor(item.subtotal)}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="bg-gray-50">
-                      <tr>
-                        <td colSpan="3" className="px-6 py-4 text-right font-medium">
-                          Total:
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-green-700 font-bold text-lg">
-                            {formatValor(total)}
-                          </div>
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-between">
-          <div className="flex items-center gap-4">
-            {factura.pdf_url && (
-              <>
-                <a
-                  href={factura.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn-outline flex items-center gap-2"
-                >
-                  <Eye size={16} />
-                  Ver PDF
-                </a>
-                <a
-                  href={factura.pdf_url}
-                  download
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <Download size={16} />
-                  Descargar PDF
-                </a>
-              </>
-            )}
-          </div>
-          <button onClick={onClose} className="btn-secondary">
-            Cerrar
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

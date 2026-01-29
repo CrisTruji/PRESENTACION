@@ -7,6 +7,27 @@ import {
   registrarRecepcionFactura,
   subirPDFFactura
 } from "../../services/facturas";
+import notify from "../../utils/notifier";
+import {
+  Search,
+  Filter,
+  ChevronUp,
+  ChevronDown,
+  FileText,
+  Calendar,
+  Building,
+  User,
+  RefreshCw,
+  Package,
+  X,
+  Loader2,
+  AlertCircle,
+  Receipt,
+  Upload,
+  DollarSign,
+  AlertTriangle,
+  Save
+} from "lucide-react";
 
 export default function RecepcionFactura() {
   const { navigate } = useRouter();
@@ -15,7 +36,15 @@ export default function RecepcionFactura() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tableLoading, setTableLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [proveedorFiltro, setProveedorFiltro] = useState("todos");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  // Estados para ordenamiento
+  const [sortField, setSortField] = useState("fecha_solicitud");
+  const [sortDirection, setSortDirection] = useState("desc");
 
   // Modal de registro
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -27,40 +56,147 @@ export default function RecepcionFactura() {
   const [fechaFactura, setFechaFactura] = useState("");
   const [archivoPDF, setArchivoPDF] = useState(null);
   const [itemsRecepcion, setItemsRecepcion] = useState([]);
-
-  // Notificaciones
-  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
-
+  
   // Cargar datos iniciales
   useEffect(() => {
-    cargarDatos();
+    cargarDatosIniciales();
   }, []);
 
-  async function cargarDatos() {
+  // Debounce para búsqueda
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+
+    return () => clearTimeout(timerId);
+  }, [searchTerm]);
+
+  async function cargarDatosIniciales() {
     setLoading(true);
     try {
       const [sols, provs] = await Promise.all([
         getSolicitudesCompradas(),
         getProveedoresConSolicitudesPendientes()
       ]);
-      setSolicitudes(sols);
+      
       setProveedores(provs);
+      // Ordenar solicitudes
+      const sorted = [...(sols || [])].sort((a, b) => {
+        let aVal = a[sortField];
+        let bVal = b[sortField];
+        
+        if (sortField === "fecha_solicitud") {
+          aVal = new Date(aVal).getTime();
+          bVal = new Date(bVal).getTime();
+        }
+        
+        if (sortDirection === "asc") {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+
+      setSolicitudes(sorted);
+      notify.success(`Cargadas ${sorted.length} solicitudes compradas`);
     } catch (error) {
-      showNotification('error', 'Error al cargar datos');
+      notify.error('Error al cargar datos iniciales');
     } finally {
       setLoading(false);
     }
   }
 
-  function showNotification(type, message) {
-    setNotification({ show: true, type, message });
-    setTimeout(() => setNotification({ show: false, type: '', message: '' }), 4000);
+  // Función para actualizar solo las solicitudes (sin recargar todo)
+  async function actualizarSolicitudes() {
+    setUpdating(true);
+    setTableLoading(true);
+    try {
+      const sols = await getSolicitudesCompradas();
+      
+      // Ordenar solicitudes
+      const sorted = [...(sols || [])].sort((a, b) => {
+        let aVal = a[sortField];
+        let bVal = b[sortField];
+        
+        if (sortField === "fecha_solicitud") {
+          aVal = new Date(aVal).getTime();
+          bVal = new Date(bVal).getTime();
+        }
+        
+        if (sortDirection === "asc") {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+
+      setSolicitudes(sorted);
+      notify.success(`Actualizadas ${sorted.length} solicitudes`);
+    } catch (error) {
+      notify.error('Error al actualizar solicitudes');
+    } finally {
+      setUpdating(false);
+      setTableLoading(false);
+    }
   }
 
-  // Filtrar solicitudes por proveedor
-  const solicitudesFiltradas = proveedorFiltro === "todos"
-    ? solicitudes
-    : solicitudes.filter(s => s.proveedores?.id === parseInt(proveedorFiltro));
+  // Handlers para ordenamiento
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+    
+    // Ordenar localmente sin recargar
+    const sorted = [...solicitudes].sort((a, b) => {
+      let aVal = a[field];
+      let bVal = b[field];
+      
+      if (field === "fecha_solicitud") {
+        aVal = new Date(aVal).getTime();
+        bVal = new Date(bVal).getTime();
+      }
+      
+      if (sortDirection === "asc") {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+    
+    setSolicitudes(sorted);
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
+  };
+
+  // Filtrar solicitudes por proveedor y búsqueda
+  const solicitudesFiltradas = solicitudes.filter(s => {
+    // Filtro por proveedor
+    if (proveedorFiltro !== "todos" && s.proveedores?.id !== parseInt(proveedorFiltro)) {
+      return false;
+    }
+    
+    // Filtro por búsqueda
+    if (debouncedSearchTerm) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      return (
+        s.id.toString().includes(searchLower) ||
+        (s.proveedores?.nombre || "").toLowerCase().includes(searchLower) ||
+        (s.email_creador || "").toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return true;
+  });
 
   // ============================================================
   // ABRIR MODAL DE REGISTRO
@@ -119,18 +255,18 @@ export default function RecepcionFactura() {
   async function guardarRecepcion() {
     // Validaciones
     if (!numeroFactura.trim()) {
-      showNotification('warning', 'El número de factura es obligatorio');
+      notify.warning('El número de factura es obligatorio');
       return;
     }
 
     if (!fechaFactura) {
-      showNotification('warning', 'La fecha de factura es obligatoria');
+      notify.warning('La fecha de factura es obligatoria');
       return;
     }
 
     const todosConPrecio = itemsRecepcion.every(item => item.precio_unitario > 0);
     if (!todosConPrecio) {
-      showNotification('warning', 'Todos los productos deben tener precio');
+      notify.warning('Todos los productos deben tener precio');
       return;
     }
 
@@ -140,7 +276,7 @@ export default function RecepcionFactura() {
     );
 
     if (faltantesSinMotivo.length > 0) {
-      showNotification('warning', 'Los productos con faltante deben tener un motivo');
+      notify.warning('Los productos con faltante deben tener un motivo');
       return;
     }
 
@@ -166,13 +302,14 @@ export default function RecepcionFactura() {
         total_factura: totalFactura
       });
 
-      showNotification('success', 'Recepción registrada correctamente');
+      notify.success('Recepción registrada correctamente');
       
       setModalAbierto(false);
-      cargarDatos();
+      // Actualizar solo las solicitudes después de guardar
+      actualizarSolicitudes();
 
     } catch (error) {
-      showNotification('error', error.message || 'Error al guardar');
+      notify.error(error.message || 'Error al guardar');
     } finally {
       setGuardando(false);
     }
@@ -186,11 +323,11 @@ export default function RecepcionFactura() {
     const file = e.target.files[0];
     if (file) {
       if (file.type !== 'application/pdf') {
-        showNotification('error', 'Solo se permiten archivos PDF');
+        notify.error('Solo se permiten archivos PDF');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        showNotification('error', 'El archivo no debe superar 5MB');
+        notify.error('El archivo no debe superar 5MB');
         return;
       }
       setArchivoPDF(file);
@@ -203,10 +340,14 @@ export default function RecepcionFactura() {
 
   if (loading) {
     return (
-      <div className="min-h-[400px] flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner-lg mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando solicitudes...</p>
+      <div className="min-h-content bg-app">
+        <div className="page-container">
+          <div className="min-h-[400px] flex items-center justify-center">
+            <div className="text-center">
+              <div className="spinner spinner-lg mx-auto mb-4"></div>
+              <p className="text-secondary font-medium">Cargando solicitudes...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -217,523 +358,604 @@ export default function RecepcionFactura() {
   // ============================================================
 
   return (
-    <div className="p-4 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
-      {/* Notificación */}
-      {notification.show && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-hard transition-all duration-300 ${
-          notification.type === 'success' ? 'alert-success' : 
-          notification.type === 'error' ? 'alert-error' : 'alert-warning'
-        } max-w-md`}>
-          <div className="flex items-center gap-3">
-            {notification.type === 'success' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            )}
-            {notification.type === 'error' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            )}
-            {notification.type === 'warning' && (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.998-.833-2.732 0L4.347 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            )}
-            <span className="flex-1">{notification.message}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-              📦 Recepción de Facturas
-            </h1>
-            <p className="text-gray-600">
-              Registra las facturas de las solicitudes compradas
-            </p>
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+        {/* Header */}
+        <div className="section-header">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-6">
+            <div>
+              <h1 className="section-title">Recepción de Facturas</h1>
+              <p className="section-subtitle">
+                Registra las facturas de las solicitudes compradas
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="badge badge-primary">
+                <Receipt size={14} className="mr-1" />
+                Total: {solicitudesFiltradas.length}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Filtro por proveedor */}
-        <div className="card p-4 md:p-6 mb-6">
-          <label className="form-label">
-            Filtrar por proveedor:
-          </label>
-          <select
-            value={proveedorFiltro}
-            onChange={(e) => setProveedorFiltro(e.target.value)}
-            className="form-select w-full md:w-64"
-          >
-            <option value="todos">Todos los proveedores</option>
-            {proveedores.map(prov => (
-              <option key={prov.id} value={prov.id}>
-                {prov.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+        {/* Filtros */}
+        <div className="card p-compact mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Búsqueda */}
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Buscar por ID, proveedor o creador..."
+                className="form-input pl-10 pr-10 !py-2.5"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-primary"
+                  type="button"
+                >
+                  <X size={20} />
+                </button>
+              )}
+            </div>
 
-      {/* Lista de solicitudes */}
-      {solicitudesFiltradas.length === 0 ? (
-        <div className="card p-8 md:p-12 text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-gray-400 text-3xl">✅</span>
+            {/* Filtro por proveedor */}
+            <div className="relative">
+              <Filter
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={20}
+              />
+              <select
+                className="form-input pl-10 !py-2.5 appearance-none"
+                value={proveedorFiltro}
+                onChange={(e) => setProveedorFiltro(e.target.value)}
+              >
+                <option value="todos">Todos los proveedores</option>
+                {proveedores.map((proveedor, index) => (
+                  <option key={index} value={proveedor.id}>
+                    {proveedor.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Botón actualizar alineado a la derecha */}
+            <div className="flex items-center justify-end">
+              <button 
+                onClick={actualizarSolicitudes}
+                disabled={updating}
+                className="btn btn-outline flex items-center gap-2"
+              >
+                {updating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Actualizar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">
-            No hay solicitudes pendientes
-          </h3>
-          <p className="text-gray-500">
-            {proveedorFiltro === "todos" 
-              ? "Todas las facturas han sido registradas."
-              : "Este proveedor no tiene solicitudes pendientes."}
-          </p>
         </div>
-      ) : (
-        <div className="card overflow-hidden">
+
+        {/* Tabla de Solicitudes */}
+        <div className="card overflow-hidden mb-6">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="table">
+              <thead className="table-header">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Solicitud
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("id")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <FileText className="w-4 h-4" />
+                      Solicitud {getSortIcon("id")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Fecha
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("fecha_solicitud")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Calendar className="w-4 h-4" />
+                      Fecha y Hora {getSortIcon("fecha_solicitud")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Proveedor
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("proveedores.nombre")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Building className="w-4 h-4" />
+                      Proveedor {getSortIcon("proveedores.nombre")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Creada por
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("email_creador")}
+                  >
+                    <div className="flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      Creada por {getSortIcon("email_creador")}
+                    </div>
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Productos
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
+                  <th className="table-header-cell">Productos</th>
+                  <th className="table-header-cell">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {solicitudesFiltradas.map(sol => (
-                  <tr
-                    key={sol.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    {/* ID - HE MODIFICADO ESTO: Eliminada redundancia */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                          <span className="font-bold text-blue-600 text-sm">#{sol.id}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Fecha */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {new Date(sol.fecha_solicitud).toLocaleDateString('es-ES', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(sol.fecha_solicitud).toLocaleTimeString('es-ES', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    </td>
-
-                    {/* Proveedor */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {sol.proveedores?.nombre || 'No especificado'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        ID: {sol.proveedores?.id || 'N/A'}
-                      </div>
-                    </td>
-
-                    {/* Creada por */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">
-                        {sol.email_creador || 'N/A'}
-                      </div>
-                    </td>
-
-                    {/* Items */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="badge-primary text-sm">
-                        {sol.solicitud_items?.length || 0} productos
-                      </span>
-                    </td>
-
-                    {/* Acciones */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => abrirModalRegistro(sol)}
-                        className="btn-primary flex items-center gap-2 px-4 py-2 text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Registrar
-                      </button>
+              <tbody>
+                {tableLoading ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="spinner spinner-lg mx-auto mb-3"></div>
+                      <p className="text-muted">Actualizando solicitudes...</p>
                     </td>
                   </tr>
-                ))}
+                ) : solicitudesFiltradas.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="text-muted">
+                        <Package
+                          size={48}
+                          className="mx-auto mb-4 text-border"
+                        />
+                        <p className="text-lg font-medium mb-2 text-primary">
+                          No se encontraron solicitudes
+                        </p>
+                        <p className="text-muted">
+                          {debouncedSearchTerm || proveedorFiltro !== "todos"
+                            ? "Prueba con otros filtros"
+                            : "No hay solicitudes compradas pendientes"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  solicitudesFiltradas.map((sol) => (
+                    <tr key={sol.id} className="table-row">
+                      {/* ID */}
+                      <td className="table-cell">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-app rounded-base flex items-center justify-center mr-3 border border-light">
+                            <span className="font-bold text-primary">#{sol.id}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Fecha */}
+                      <td className="table-cell">
+                        <div className="flex flex-col">
+                          <span className="text-sm">
+                            {new Date(sol.fecha_solicitud).toLocaleDateString('es-ES', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric'
+                            })}
+                          </span>
+                          <span className="text-xs text-secondary">
+                            {new Date(sol.fecha_solicitud).toLocaleTimeString('es-ES', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Proveedor */}
+                      <td className="table-cell">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-primary/10 rounded-base flex items-center justify-center">
+                            <Building size={16} className="text-primary" />
+                          </div>
+                          <div>
+                            <div className="text-sm truncate max-w-[150px]">
+                              {sol.proveedores?.nombre || 'No especificado'}
+                            </div>
+                            <div className="text-xs text-secondary">
+                              ID: {sol.proveedores?.id || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Creada por */}
+                      <td className="table-cell">
+                        <div className="text-sm truncate max-w-[150px]">
+                          {sol.email_creador || 'N/A'}
+                        </div>
+                      </td>
+
+                      {/* Items */}
+                      <td className="table-cell">
+                        <span className="badge badge-primary text-sm">
+                          {sol.solicitud_items?.length || 0} productos
+                        </span>
+                      </td>
+
+                      {/* Acciones */}
+                      <td className="table-cell">
+                        <button
+                          onClick={() => abrirModalRegistro(sol)}
+                          className="btn btn-primary flex items-center gap-2"
+                        >
+                          <FileText size={16} />
+                          Registrar
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
-      )}
 
-      {/* Modal de registro - HE MODIFICADO COMPLETAMENTE ESTA SECCIÓN */}
-      {modalAbierto && solicitudSeleccionada && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
-          <div className="card max-w-6xl w-full my-8">
-            {/* Header del modal - HE MODIFICADO ESTO: Header más suave */}
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-                    <span className="text-blue-600">📄</span>
-                    Registrar Recepción
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-sm text-gray-600">
-                      Solicitud <span className="font-medium">#{solicitudSeleccionada.id}</span>
-                    </span>
-                    <span className="text-gray-300">•</span>
-                    <span className="text-sm text-gray-600">
-                      Proveedor: <span className="font-medium">{solicitudSeleccionada.proveedores?.nombre}</span>
-                    </span>
-                    <span className="text-gray-300">•</span>
-                    <span className="text-sm text-gray-600">
-                      {solicitudSeleccionada.solicitud_items?.length || 0} productos
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setModalAbierto(false)}
-                  className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-                  disabled={guardando}
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+        {/* Modal de registro */}
+        {modalAbierto && solicitudSeleccionada && (
+          <DetalleModal
+            solicitudSeleccionada={solicitudSeleccionada}
+            numeroFactura={numeroFactura}
+            setNumeroFactura={setNumeroFactura}
+            fechaFactura={fechaFactura}
+            setFechaFactura={setFechaFactura}
+            archivoPDF={archivoPDF}
+            handleFileChange={handleFileChange}
+            setArchivoPDF={setArchivoPDF}
+            itemsRecepcion={itemsRecepcion}
+            actualizarItem={actualizarItem}
+            totalFactura={totalFactura}
+            hayFaltantes={hayFaltantes}
+            guardando={guardando}
+            guardarRecepcion={guardarRecepcion}
+            onClose={() => setModalAbierto(false)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Componente Modal separado (se mantiene igual que antes)
+function DetalleModal({
+  solicitudSeleccionada,
+  numeroFactura,
+  setNumeroFactura,
+  fechaFactura,
+  setFechaFactura,
+  archivoPDF,
+  handleFileChange,
+  setArchivoPDF,
+  itemsRecepcion,
+  actualizarItem,
+  totalFactura,
+  hayFaltantes,
+  guardando,
+  guardarRecepcion,
+  onClose
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-surface rounded-card shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="card-header">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Receipt size={24} className="text-primary" />
+                Registrar Recepción
+              </h2>
+              <p className="text-secondary">
+                Solicitud #{solicitudSeleccionada.id} • Proveedor: {solicitudSeleccionada.proveedores?.nombre}
+              </p>
             </div>
+            <button 
+              onClick={onClose}
+              className="btn btn-icon btn-outline"
+              disabled={guardando}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
 
-            <div className="p-6">
-              {/* Datos de la factura */}
-              <div className="mb-8">
-                <h3 className="text-lg font-medium text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                  📋 Información de la Factura
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="form-group">
-                    <label className="form-label">
-                      Número de factura <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={numeroFactura}
-                      onChange={(e) => setNumeroFactura(e.target.value)}
-                      className="form-input"
-                      placeholder="Ej: F-2023-00123"
-                      disabled={guardando}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Fecha de factura <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={fechaFactura}
-                      onChange={(e) => setFechaFactura(e.target.value)}
-                      className="form-input"
-                      disabled={guardando}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Subir PDF de factura
-                    </label>
-                    <div className="relative">
-                      <label className="flex items-center gap-3 p-3 border border-gray-300 rounded-lg hover:border-blue-500 cursor-pointer transition-colors">
-                        <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg">
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <span className="text-sm text-gray-700">
-                            {archivoPDF ? archivoPDF.name : 'Seleccionar archivo PDF'}
-                          </span>
-                          <span className="text-xs text-gray-500 block">
-                            {archivoPDF ? `${(archivoPDF.size / 1024).toFixed(0)} KB` : 'Máx. 5MB'}
-                          </span>
-                        </div>
-                        <input
-                          type="file"
-                          accept="application/pdf"
-                          onChange={handleFileChange}
-                          className="hidden"
-                          disabled={guardando}
-                        />
-                      </label>
-                      {archivoPDF && (
-                        <button
-                          type="button"
-                          onClick={() => setArchivoPDF(null)}
-                          className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* Contenido */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Información de la factura */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium mb-4 pb-2 border-b border-light">
+              Información de la Factura
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="form-label">
+                  Número de factura <span className="text-error">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={numeroFactura}
+                  onChange={(e) => setNumeroFactura(e.target.value)}
+                  className="form-input"
+                  placeholder="Ej: F-2023-00123"
+                  disabled={guardando}
+                />
               </div>
 
-              {/* Productos - HE MODIFICADO ESTO: Diseño más compacto */}
-              <div className="mb-8">
-                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-800">
-                    📦 Detalle de Productos Recibidos
-                  </h3>
-                  <div className="text-sm text-gray-600">
-                    Total: <span className="font-semibold text-blue-600">{itemsRecepcion.length}</span> productos
-                  </div>
-                </div>
-                
-                {/* Tabla de productos más compacta */}
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Producto
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Solicitado
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Recibido
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Precio Unit.
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Subtotal
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Diferencia
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Observación
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {itemsRecepcion.map((item, index) => {
-                        const esFaltante = item.cantidad_recibida < item.cantidad_solicitada;
-                        const subtotal = item.cantidad_recibida * item.precio_unitario;
-                        const diferencia = item.cantidad_solicitada - item.cantidad_recibida;
-                        
-                        return (
-                          <tr key={index} className={esFaltante ? 'bg-red-50' : ''}>
-                            <td className="px-4 py-3">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{item.nombre}</div>
-                                <div className="text-xs text-gray-500 flex items-center gap-2">
-                                  <span>Unidad: {item.unidad}</span>
-                                  <span>•</span>
-                                  <span>ID: {item.catalogo_producto_id}</span>
-                                </div>
-                              </div>
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              <div className="text-sm text-gray-900 font-medium">
-                                {item.cantidad_solicitada}
-                              </div>
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                value={item.cantidad_recibida}
-                                onChange={(e) => actualizarItem(index, 'cantidad_recibida', parseFloat(e.target.value) || 0)}
-                                className="form-input text-sm w-24"
-                                min="0"
-                                max={item.cantidad_solicitada}
-                                step="0.01"
-                                disabled={guardando}
-                              />
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                                <input
-                                  type="number"
-                                  value={item.precio_unitario}
-                                  onChange={(e) => actualizarItem(index, 'precio_unitario', parseFloat(e.target.value) || 0)}
-                                  className="form-input text-sm pl-8 w-32"
-                                  min="0"
-                                  step="0.01"
-                                  placeholder="0.00"
-                                  disabled={guardando}
-                                />
-                              </div>
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              <div className={`px-3 py-2 rounded ${
-                                subtotal > 0 ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                              }`}>
-                                <div className="text-sm font-semibold text-green-700">
-                                  ${subtotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                                </div>
-                              </div>
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              <div className={`px-3 py-2 rounded text-center ${
-                                diferencia === 0 
-                                  ? 'bg-gray-100 text-gray-600' 
-                                  : 'bg-red-50 border border-red-200 text-red-700'
-                              }`}>
-                                <div className="text-sm font-medium">
-                                  {diferencia}
-                                  {diferencia !== 0 && (
-                                    <span className="text-xs ml-1">({item.unidad})</span>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            
-                            <td className="px-4 py-3">
-                              {esFaltante ? (
-                                <input
-                                  type="text"
-                                  value={item.observacion}
-                                  onChange={(e) => actualizarItem(index, 'observacion', e.target.value)}
-                                  className="form-input text-sm w-full border-red-300"
-                                  placeholder="Motivo del faltante..."
-                                  disabled={guardando}
-                                />
-                              ) : (
-                                <span className="text-sm text-gray-400">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div>
+                <label className="form-label">
+                  Fecha de factura <span className="text-error">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={fechaFactura}
+                  onChange={(e) => setFechaFactura(e.target.value)}
+                  className="form-input"
+                  disabled={guardando}
+                />
               </div>
 
-              {/* Resumen y totales */}
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h4 className="font-medium text-gray-700 mb-3">Resumen</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Productos procesados:</span>
-                        <span className="font-medium">{itemsRecepcion.length}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Productos con faltante:</span>
-                        <span className={`font-medium ${
-                          hayFaltantes ? 'text-red-600' : 'text-gray-700'
-                        }`}>
-                          {itemsRecepcion.filter(item => item.cantidad_recibida < item.cantidad_solicitada).length}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Estado de recepción:</span>
-                        <span className={`badge ${
-                          hayFaltantes ? 'badge-warning' : 'badge-success'
-                        }`}>
-                          {hayFaltantes ? '⚠️ Parcial' : '✅ Completa'}
-                        </span>
-                      </div>
+              <div>
+                <label className="form-label">
+                  Subir PDF de factura
+                </label>
+                <div className="relative">
+                  <label className={`flex items-center gap-3 p-3 border rounded-base cursor-pointer transition-colors ${
+                    archivoPDF ? 'border-primary bg-primary/5' : 'border-base hover:border-primary'
+                  }`}>
+                    <div className="flex items-center justify-center w-10 h-10 bg-surface rounded-base">
+                      <Upload size={20} className="text-primary" />
                     </div>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-lg font-semibold text-gray-800">Total Factura:</span>
-                      <span className="text-2xl font-bold text-green-600">
-                        ${totalFactura.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                    <div className="flex-1">
+                      <span className="text-sm">
+                        {archivoPDF ? archivoPDF.name : 'Seleccionar archivo PDF'}
+                      </span>
+                      <span className="text-xs text-secondary block">
+                        {archivoPDF ? `${(archivoPDF.size / 1024).toFixed(0)} KB` : 'Máx. 5MB'}
                       </span>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      Incluye {itemsRecepcion.length} productos
-                    </div>
-                    {hayFaltantes && (
-                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-100 rounded text-sm text-yellow-700">
-                        ⚠️ Esta recepción será registrada como parcial debido a productos faltantes.
-                      </div>
-                    )}
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={guardando}
+                    />
+                  </label>
+                  {archivoPDF && (
+                    <button
+                      type="button"
+                      onClick={() => setArchivoPDF(null)}
+                      className="absolute top-2 right-2 p-1 text-muted hover:text-error"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabla de productos */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-light">
+              <h3 className="text-lg font-medium">
+                Detalle de Productos Recibidos
+              </h3>
+              <div className="text-sm text-secondary">
+                Total: <span className="font-semibold text-primary">{itemsRecepcion.length}</span> productos
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead className="table-header">
+                  <tr>
+                    <th className="table-header-cell">Producto</th>
+                    <th className="table-header-cell">Solicitado</th>
+                    <th className="table-header-cell">Recibido</th>
+                    <th className="table-header-cell">Precio Unit.</th>
+                    <th className="table-header-cell">Subtotal</th>
+                    <th className="table-header-cell">Diferencia</th>
+                    <th className="table-header-cell">Observación</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemsRecepcion.map((item, index) => {
+                    const esFaltante = item.cantidad_recibida < item.cantidad_solicitada;
+                    const subtotal = item.cantidad_recibida * item.precio_unitario;
+                    const diferencia = item.cantidad_solicitada - item.cantidad_recibida;
+                    
+                    return (
+                      <tr key={index} className={`table-row ${esFaltante ? 'bg-error/5' : ''}`}>
+                        <td className="table-cell">
+                          <div>
+                            <div className="text-sm font-medium">{item.nombre}</div>
+                            <div className="text-xs text-secondary flex items-center gap-2">
+                              <span>Unidad: {item.unidad}</span>
+                              <span className="text-border">•</span>
+                              <span>ID: {item.catalogo_producto_id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="table-cell">
+                          <div className="text-sm font-medium">
+                            {item.cantidad_solicitada}
+                          </div>
+                        </td>
+                        
+                        <td className="table-cell">
+                          <input
+                            type="number"
+                            value={item.cantidad_recibida}
+                            onChange={(e) => actualizarItem(index, 'cantidad_recibida', parseFloat(e.target.value) || 0)}
+                            className="form-input text-sm w-24"
+                            min="0"
+                            max={item.cantidad_solicitada}
+                            step="0.01"
+                            disabled={guardando}
+                          />
+                        </td>
+                        
+                        <td className="table-cell">
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted">
+                              <DollarSign size={14} />
+                            </span>
+                            <input
+                              type="number"
+                              value={item.precio_unitario}
+                              onChange={(e) => actualizarItem(index, 'precio_unitario', parseFloat(e.target.value) || 0)}
+                              className="form-input text-sm pl-8 w-32"
+                              min="0"
+                              step="0.01"
+                              placeholder="0.00"
+                              disabled={guardando}
+                            />
+                          </div>
+                        </td>
+                        
+                        <td className="table-cell">
+                          <div className={`px-3 py-2 rounded-base ${
+                            subtotal > 0 ? 'bg-success/10 border border-success/20' : 'bg-surface'
+                          }`}>
+                            <div className="text-sm font-semibold text-success">
+                              ${subtotal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="table-cell">
+                          <div className={`px-3 py-2 rounded-base text-center ${
+                            diferencia === 0 
+                              ? 'bg-surface' 
+                              : 'bg-error/10 border border-error/20 text-error'
+                          }`}>
+                            <div className="text-sm font-medium">
+                              {diferencia}
+                              {diferencia !== 0 && (
+                                <span className="text-xs ml-1">({item.unidad})</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="table-cell">
+                          {esFaltante ? (
+                            <input
+                              type="text"
+                              value={item.observacion}
+                              onChange={(e) => actualizarItem(index, 'observacion', e.target.value)}
+                              className="form-input text-sm w-full border-error/50"
+                              placeholder="Motivo del faltante..."
+                              disabled={guardando}
+                            />
+                          ) : (
+                            <span className="text-sm text-muted">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Resumen */}
+          <div className="bg-surface rounded-card p-6 mb-6 border border-light">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-medium mb-3">Resumen</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">Productos procesados:</span>
+                    <span className="font-medium">{itemsRecepcion.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">Productos con faltante:</span>
+                    <span className={`font-medium ${hayFaltantes ? 'text-error' : ''}`}>
+                      {itemsRecepcion.filter(item => item.cantidad_recibida < item.cantidad_solicitada).length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">Estado de recepción:</span>
+                    <span className={`badge ${hayFaltantes ? 'badge-warning' : 'badge-success'}`}>
+                      {hayFaltantes ? 'Parcial' : 'Completa'}
+                    </span>
                   </div>
                 </div>
               </div>
-
-              {/* Botones - HE MODIFICADO ESTO: Diseño más limpio */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => setModalAbierto(false)}
-                  className="btn-outline flex-1 py-3"
-                  disabled={guardando}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={guardarRecepcion}
-                  disabled={guardando}
-                  className={`btn-primary flex-1 py-3 flex items-center justify-center gap-2 ${
-                    guardando ? 'opacity-75' : ''
-                  }`}
-                >
-                  {guardando ? (
-                    <>
-                      <div className="spinner-sm"></div>
-                      Procesando...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                      </svg>
-                      Guardar Recepción
-                    </>
-                  )}
-                </button>
+              
+              <div className="bg-app rounded-base p-4 border border-light">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-lg font-semibold">Total Factura:</span>
+                  <span className="text-2xl font-bold text-success">
+                    ${totalFactura.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="text-sm text-secondary">
+                  Incluye {itemsRecepcion.length} productos
+                </div>
+                {hayFaltantes && (
+                  <div className="mt-3 p-2 bg-warning/10 border border-warning/20 rounded-base text-sm text-warning">
+                    <AlertTriangle size={16} className="inline mr-1" />
+                    Esta recepción será registrada como parcial debido a productos faltantes.
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="card-footer flex justify-between items-center">
+          <div className="text-sm text-secondary">
+            {hayFaltantes 
+              ? "Recepción parcial con productos faltantes" 
+              : "Recepción completa"}
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={onClose}
+              className="btn btn-outline"
+              disabled={guardando}
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={guardarRecepcion}
+              disabled={guardando}
+              className={`btn btn-primary flex items-center gap-2 ${
+                guardando ? 'opacity-75' : ''
+              }`}
+            >
+              {guardando ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Guardar Recepción
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

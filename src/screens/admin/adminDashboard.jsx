@@ -10,6 +10,29 @@ import {
   updateUserProfile,
   deactivateUser
 } from "../../services/profiles";
+import notify from "../../utils/notifier";
+import {
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Calendar,
+  Edit,
+  Pause,
+  Trash2,
+  Save,
+  UserPlus,
+  RefreshCw,
+  Mail,
+  Key,
+  Shield,
+  AlertCircle,
+  MoreVertical,
+  ChevronDown,
+  Search,
+  Download,
+  Filter
+} from "lucide-react";
 
 export default function AdminDashboard() {
   const [pendingUsers, setPendingUsers] = useState([]);
@@ -25,42 +48,19 @@ export default function AdminDashboard() {
     today: 0
   });
   const [activeTab, setActiveTab] = useState('pending');
-  
-  // NUEVO: Estados para sistema de notificaciones mejorado
-  const [notificaciones, setNotificaciones] = useState([]);
-  const [notificacionActiva, setNotificacionActiva] = useState(null);
-  
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({
     nombre: '',
     email: '',
     rol: ''
   });
-
-  // NUEVO: Función mejorada para mostrar notificaciones
-  const mostrarNotificacion = (tipo, mensaje, duracion = 8000) => {
-    const id = Date.now();
-    const nuevaNotificacion = {
-      id,
-      tipo,
-      mensaje,
-      timestamp: new Date().toLocaleTimeString(),
-      duracion
-    };
-    
-    setNotificaciones(prev => [...prev, nuevaNotificacion]);
-    setNotificacionActiva(nuevaNotificacion);
-    
-    setTimeout(() => {
-      setNotificacionActiva(prev => prev?.id === id ? null : prev);
-    }, duracion);
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
 
   // Cargar datos iniciales
   const loadData = async () => {
     setLoading(true);
     try {
-      // Cargar en paralelo
       const [pending, active, roles, userStats] = await Promise.all([
         getPendingUsers(),
         getActiveUsers(),
@@ -73,10 +73,10 @@ export default function AdminDashboard() {
       setAllRoles(roles);
       if (userStats) setStats(userStats);
       
-      mostrarNotificacion('success', "✅ Datos cargados correctamente", 5000);
+      notify.success("Datos cargados correctamente");
     } catch (error) {
       console.error("Error cargando datos:", error);
-      mostrarNotificacion('error', "❌ Error cargando datos del sistema", 10000);
+      notify.error("Error cargando datos del sistema");
     } finally {
       setLoading(false);
     }
@@ -88,33 +88,27 @@ export default function AdminDashboard() {
 
   const handleAssignRole = async (userId, roleId) => {
     try {
-      // Encontrar el nombre del rol
       const role = allRoles.find(r => r.id === roleId);
       const roleName = role ? role.nombre : roleId;
 
-      // Asignar rol
       await assignRole(userId, roleId);
       
-      // Actualizar estado local inmediatamente
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
       
-      // Recargar usuarios activos
       const updatedActiveUsers = await getActiveUsers();
       setActiveUsers(updatedActiveUsers);
       
-      // Actualizar estadísticas
       setStats(prev => ({
         ...prev,
         pending: Math.max(0, prev.pending - 1),
         active: prev.active + 1
       }));
       
-      // Mostrar feedback con nuevo sistema
-      mostrarNotificacion('success', `✅ Rol "${roleName}" asignado correctamente`, 8000);
+      notify.success(`Rol "${roleName}" asignado correctamente`);
       
     } catch (error) {
       console.error("Error asignando rol:", error);
-      mostrarNotificacion('error', "❌ Error al asignar rol al usuario", 10000);
+      notify.error("Error al asignar rol al usuario");
     }
   };
 
@@ -125,21 +119,19 @@ export default function AdminDashboard() {
     try {
       await rejectUser(userId);
       
-      // Actualizar estado local
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
       
-      // Actualizar estadísticas
       setStats(prev => ({
         ...prev,
         pending: Math.max(0, prev.pending - 1),
         rejected: prev.rejected + 1
       }));
       
-      mostrarNotificacion('success', "✅ Usuario rechazado correctamente", 8000);
+      notify.success("Usuario rechazado correctamente");
       
     } catch (error) {
       console.error("Error rechazando usuario:", error);
-      mostrarNotificacion('error', "❌ Error al rechazar usuario", 10000);
+      notify.error("Error al rechazar usuario");
     }
   };
 
@@ -150,25 +142,22 @@ export default function AdminDashboard() {
     try {
       await deactivateUser(userId);
       
-      // Actualizar estado local
       setActiveUsers(prev => prev.filter(user => user.id !== userId));
       
-      // Recargar usuarios pendientes (por si vuelve a estar pendiente)
       const updatedPendingUsers = await getPendingUsers();
       setPendingUsers(updatedPendingUsers);
       
-      // Actualizar estadísticas
       setStats(prev => ({
         ...prev,
         active: Math.max(0, prev.active - 1),
         pending: updatedPendingUsers.length
       }));
       
-      mostrarNotificacion('success', "✅ Usuario desactivado correctamente", 8000);
+      notify.success("Usuario desactivado correctamente");
       
     } catch (error) {
       console.error("Error desactivando usuario:", error);
-      mostrarNotificacion('error', "❌ Error al desactivar usuario", 10000);
+      notify.error("Error al desactivar usuario");
     }
   };
 
@@ -185,28 +174,24 @@ export default function AdminDashboard() {
     if (!editingUser) return;
 
     try {
-      // Validar formulario
       if (!editForm.nombre.trim() || !editForm.email.trim()) {
-        mostrarNotificacion('error', "❌ Nombre y email son requeridos", 8000);
+        notify.error("Nombre y email son requeridos");
         return;
       }
 
-      // Actualizar usuario
       await updateUserProfile(editingUser.id, editForm);
       
-      // Actualizar lista de usuarios activos
       const updatedActiveUsers = await getActiveUsers();
       setActiveUsers(updatedActiveUsers);
       
-      // Cerrar modal
       setEditingUser(null);
       setEditForm({ nombre: '', email: '', rol: '' });
       
-      mostrarNotificacion('success', "✅ Usuario actualizado correctamente", 8000);
+      notify.success("Usuario actualizado correctamente");
       
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      mostrarNotificacion('error', "❌ Error al actualizar usuario", 10000);
+      notify.error("Error al actualizar usuario");
     }
   };
 
@@ -231,91 +216,154 @@ export default function AdminDashboard() {
     });
   };
 
-  // Mapear colores a roles comunes
-  const getRoleColor = (roleName) => {
-    const colors = {
-      'administrador': 'bg-red-500',
-      'jefe_de_planta': 'bg-blue-500',
-      'jefe_de_compras': 'bg-purple-500',
-      'auxiliar_de_compras': 'bg-green-500',
-      'almacenista': 'bg-amber-500',
-      'usuario': 'bg-gray-500',
-    };
-    return colors[roleName?.toLowerCase()] || 'bg-indigo-500';
-  };
+  // Filtrar usuarios según búsqueda y filtro
+  const filteredPendingUsers = pendingUsers.filter(user => {
+    const matchesSearch = user.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === 'all' || user.rol === filterRole;
+    return matchesSearch && matchesRole;
+  });
 
-  const renderPendingUsers = () => (
-    <>
-      {pendingUsers.map(user => (
-        <div key={user.id} className="px-4 sm:px-6 py-5 hover:bg-gray-50 transition-colors">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            {/* User Info */}
-            <div className="flex-1">
-              <div className="flex items-start gap-4">
-                {/* Avatar */}
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-base sm:text-lg font-semibold text-primary-700">
-                    {getInitials(user.nombre)}
-                  </span>
-                </div>
-                
-                {/* User Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                      {user.nombre || 'Usuario sin nombre'}
-                    </h4>
-                    <span className="badge-warning text-xs whitespace-nowrap">
-                      Pendiente
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 text-sm">📧</span>
-                      <span className="text-sm text-gray-600 truncate">{user.email}</span>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
-                      {user.created_at && (
-                        <div className="flex items-center gap-1">
-                          <span>📅</span>
-                          <span>{formatDate(user.created_at)}</span>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center gap-1">
-                        <span>🆔</span>
-                        <span className="font-mono text-xs">{user.id.substring(0, 8)}...</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+  const filteredActiveUsers = activeUsers.filter(user => {
+    const matchesSearch = user.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === 'all' || user.rol === filterRole;
+    return matchesSearch && matchesRole;
+  });
+
+  const currentUsers = activeTab === 'pending' ? filteredPendingUsers : filteredActiveUsers;
+
+  return (
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div className="section-header">
+              <h1 className="section-title">Panel de Administración</h1>
+              <p className="section-subtitle">
+                Gestión de usuarios y asignación de roles
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadData}
+                disabled={loading}
+                className="btn btn-outline flex items-center gap-2 text-sm !py-1.5"
+              >
+                {loading ? (
+                  <>
+                    <div className="spinner spinner-sm"></div>
+                    <span>Cargando...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Actualizar</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid-cards mb-6">
+            <div className="stats-card">
+              <div className="stats-icon bg-primary/10 text-primary">
+                <Users className="w-6 h-6" />
+              </div>
+              <div className="stats-content">
+                <div className="stats-value">{stats.total}</div>
+                <div className="stats-label">Total usuarios</div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col gap-3 w-full lg:w-80">
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Asignar rol
-                </label>
-                <select
-                  value={selectedRole[user.id] || ''}
-                  onChange={(e) => {
-                    const roleId = e.target.value;
-                    if (roleId) {
-                      setSelectedRole(prev => ({
-                        ...prev,
-                        [user.id]: roleId
-                      }));
-                      handleAssignRole(user.id, roleId);
-                    }
-                  }}
-                  className="form-select w-full text-sm"
+            <div className="stats-card">
+              <div className="stats-icon bg-warning/10 text-warning">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div className="stats-content">
+                <div className="stats-value">{stats.pending}</div>
+                <div className="stats-label">Pendientes</div>
+              </div>
+            </div>
+
+            <div className="stats-card">
+              <div className="stats-icon bg-success/10 text-success">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div className="stats-content">
+                <div className="stats-value">{stats.active}</div>
+                <div className="stats-label">Activos</div>
+              </div>
+            </div>
+
+            <div className="stats-card">
+              <div className="stats-icon bg-error/10 text-error">
+                <XCircle className="w-6 h-6" />
+              </div>
+              <div className="stats-content">
+                <div className="stats-value">{stats.rejected}</div>
+                <div className="stats-label">Rechazados</div>
+              </div>
+            </div>
+
+            <div className="stats-card">
+              <div className="stats-icon bg-primary/10 text-primary">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div className="stats-content">
+                <div className="stats-value">{stats.today}</div>
+                <div className="stats-label">Hoy</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs y Filtros */}
+          <div className="mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+              <div className="flex border-b border-base">
+                <button
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === 'pending'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted hover:text-secondary'
+                  }`}
+                  onClick={() => setActiveTab('pending')}
                 >
-                  <option value="">Seleccionar rol…</option>
+                  Pendientes ({stats.pending})
+                </button>
+                <button
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === 'active'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted hover:text-secondary'
+                  }`}
+                  onClick={() => setActiveTab('active')}
+                >
+                  Activos ({stats.active})
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Buscar usuarios..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="form-input pl-9 pr-4 text-sm !py-1.5"
+                  />
+                </div>
+                
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="form-input text-sm !py-1.5"
+                >
+                  <option value="all">Todos los roles</option>
                   {allRoles.map(role => (
                     <option key={role.id} value={role.id}>
                       {role.nombre}
@@ -323,254 +371,296 @@ export default function AdminDashboard() {
                   ))}
                 </select>
               </div>
-              
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => handleRejectUser(user.id)}
-                  className="flex-1 px-3 py-2.5 border border-red-300 text-red-600 hover:bg-red-50 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                >
-                  <span className="text-base">✕</span>
-                  <span className="truncate">Rechazar</span>
-                </button>
-                
-                {/* Quick Role Buttons */}
-                <div className="hidden sm:flex gap-1">
-                  {allRoles.slice(0, 2).map(role => (
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="card">
+            {/* Header */}
+            <div className="card-header">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-primary">
+                    {activeTab === 'pending' ? 'Usuarios pendientes' : 'Usuarios activos'}
+                  </h3>
+                  <p className="text-sm text-muted mt-0.5">
+                    {activeTab === 'pending' 
+                      ? 'Asigna roles a los usuarios recién registrados' 
+                      : 'Gestiona los usuarios activos del sistema'}
+                  </p>
+                </div>
+                <div className="text-sm text-muted">
+                  {currentUsers.length} usuarios encontrados
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {loading && (
+              <div className="p-12 text-center">
+                <div className="inline-flex flex-col items-center">
+                  <div className="spinner spinner-lg mx-auto"></div>
+                  <p className="mt-4 text-muted">Cargando usuarios...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!loading && currentUsers.length === 0 && (
+              <div className="p-12 text-center">
+                <div className="max-w-md mx-auto">
+                  <div className="w-20 h-20 bg-app rounded-card flex items-center justify-center mx-auto mb-4">
+                    {activeTab === 'pending' ? (
+                      <CheckCircle className="w-10 h-10 text-success" />
+                    ) : (
+                      <Users className="w-10 h-10 text-muted" />
+                    )}
+                  </div>
+                  <h4 className="text-xl font-semibold text-primary mb-2">
+                    {activeTab === 'pending' ? '¡Todo al día!' : 'No hay usuarios activos'}
+                  </h4>
+                  <p className="text-muted mb-6">
+                    {activeTab === 'pending' 
+                      ? 'No hay usuarios pendientes de asignación de rol.'
+                      : 'Todos los usuarios están pendientes o rechazados.'}
+                  </p>
+                  {activeTab === 'pending' ? (
                     <button
-                      key={role.id}
-                      onClick={() => handleAssignRole(user.id, role.id)}
-                      className={`px-3 py-2.5 text-xs rounded-lg font-medium text-white ${getRoleColor(role.nombre)} hover:opacity-90 transition-opacity`}
-                      title={`Asignar ${role.nombre}`}
+                      onClick={loadData}
+                      className="btn btn-outline"
                     >
-                      {role.nombre.substring(0, 3)}
+                      Verificar nuevamente
                     </button>
+                  ) : (
+                    <button
+                      onClick={() => setActiveTab('pending')}
+                      className="btn btn-primary"
+                    >
+                      Ver usuarios pendientes
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Users List */}
+            {!loading && currentUsers.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="table-header-cell">Usuario</th>
+                      <th className="table-header-cell">Correo</th>
+                      <th className="table-header-cell">Fecha</th>
+                      <th className="table-header-cell">Rol</th>
+                      <th className="table-header-cell">Estado</th>
+                      <th className="table-header-cell">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentUsers.map((user) => (
+                      <tr key={user.id} className="table-row">
+                        <td className="table-cell">
+                          <div className="flex items-center gap-3">
+                            <div className="user-avatar">
+                              {getInitials(user.nombre)}
+                            </div>
+                            <div>
+                              <div className="font-medium text-primary">
+                                {user.nombre || 'Usuario sin nombre'}
+                              </div>
+                              <div className="text-xs text-muted">
+                                ID: {user.id?.substring(0, 8)}...
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-muted" />
+                            <span className="text-secondary truncate max-w-[200px]">
+                              {user.email}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted" />
+                            <span>{formatDate(user.created_at)}</span>
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Shield className="w-4 h-4 text-muted" />
+                              <span>{user.roles?.nombre || 'Sin rol'}</span>
+                            </div>
+                            {activeTab === 'pending' && (
+                              <select
+                                value={selectedRole[user.id] || ''}
+                                onChange={(e) => {
+                                  const roleId = e.target.value;
+                                  if (roleId) {
+                                    setSelectedRole(prev => ({
+                                      ...prev,
+                                      [user.id]: roleId
+                                    }));
+                                    handleAssignRole(user.id, roleId);
+                                  }
+                                }}
+                                className="form-input text-xs !py-1 !px-2 mt-1"
+                              >
+                                <option value="">Asignar rol...</option>
+                                {allRoles.map(role => (
+                                  <option key={role.id} value={role.id}>
+                                    {role.nombre}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <span className={`badge ${
+                            activeTab === 'pending' 
+                              ? 'badge-warning' 
+                              : 'badge-success'
+                          }`}>
+                            {activeTab === 'pending' ? 'Pendiente' : 'Activo'}
+                          </span>
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex gap-2">
+                            {activeTab === 'pending' ? (
+                              <>
+                                <button
+                                  onClick={() => handleRejectUser(user.id)}
+                                  className="btn btn-outline !py-1.5 text-sm flex items-center gap-2"
+                                  style={{
+                                    borderColor: 'var(--color-error)',
+                                    color: 'var(--color-error)',
+                                  }}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Rechazar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const defaultRole = allRoles[0]?.id;
+                                    if (defaultRole) {
+                                      handleAssignRole(user.id, defaultRole);
+                                    }
+                                  }}
+                                  className="btn btn-primary !py-1.5 text-sm flex items-center gap-2"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  Aprobar
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => handleEditUser(user)}
+                                  className="btn btn-outline !py-1.5 text-sm flex items-center gap-2"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => handleDeactivateUser(user.id, user.nombre)}
+                                  className="btn btn-outline !py-1.5 text-sm flex items-center gap-2"
+                                  style={{
+                                    borderColor: 'var(--color-warning)',
+                                    color: 'var(--color-warning)',
+                                  }}
+                                >
+                                  <Pause className="w-4 h-4" />
+                                  Bloquear
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="card-footer">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="text-sm text-muted">
+                  Mostrando <span className="font-semibold text-primary">{currentUsers.length}</span> usuarios
+                  {filterRole !== 'all' && ` • Filtrado por rol`}
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => {
+                      notify.info("Función de exportación por implementar");
+                    }}
+                    className="text-sm text-muted hover:text-secondary font-medium flex items-center gap-1"
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Roles Summary */}
+          {allRoles.length > 0 && (
+            <div className="mt-6 card">
+              <div className="card-header">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-primary">Roles disponibles</h4>
+                  <span className="text-sm text-muted">{allRoles.length} roles</span>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allRoles.map(role => (
+                    <div 
+                      key={role.id} 
+                      className="p-4 rounded-base bg-app hover:bg-app/50 transition-colors border border-base"
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-3 h-3 rounded-full bg-primary"></div>
+                        <span className="font-medium text-primary">{role.nombre}</span>
+                      </div>
+                      {role.descripcion && (
+                        <p className="text-sm text-muted mt-1">{role.descripcion}</p>
+                      )}
+                      <div className="mt-3 text-xs text-muted">
+                        ID: {role.id}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
-      ))}
-    </>
-  );
-
-  const renderActiveUsers = () => (
-    <>
-      {activeUsers.map(user => (
-        <div key={user.id} className="px-4 sm:px-6 py-5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            {/* User Info */}
-            <div className="flex-1">
-              <div className="flex items-start gap-4">
-                {/* Avatar */}
-                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-base sm:text-lg font-semibold text-green-700">
-                    {getInitials(user.nombre)}
-                  </span>
-                </div>
-                
-                {/* User Details */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                      {user.nombre || 'Usuario sin nombre'}
-                    </h4>
-                    <span className="badge-success text-xs whitespace-nowrap">
-                      Activo
-                    </span>
-                    {user.roles && (
-                      <span className={`px-2 py-1 text-xs rounded-full text-white ${getRoleColor(user.roles.nombre)}`}>
-                        {user.roles.nombre}
-                      </span>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-400 text-sm">📧</span>
-                      <span className="text-sm text-gray-600 truncate">{user.email}</span>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
-                      {user.created_at && (
-                        <div className="flex items-center gap-1">
-                          <span>📅</span>
-                          <span>Registrado: {formatDate(user.created_at)}</span>
-                        </div>
-                      )}
-                      
-                      {user.updated_at && (
-                        <div className="flex items-center gap-1">
-                          <span>🔄</span>
-                          <span>Actualizado: {formatDate(user.updated_at)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex flex-col gap-3 w-full sm:w-64">
-              {/* Role Update */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <span className="hidden sm:inline">Cambiar rol</span>
-                  <span className="sm:hidden">Rol</span>
-                </label>
-                <select
-                  value={selectedRole[user.id] || user.rol || ''}
-                  onChange={(e) => {
-                    const roleId = e.target.value;
-                    if (roleId && roleId !== user.rol) {
-                      handleAssignRole(user.id, roleId);
-                    }
-                  }}
-                  className="form-select w-full text-sm"
-                >
-                  <option value={user.rol || ''}>
-                    {user.roles?.nombre || 'Sin rol'}
-                  </option>
-                  {allRoles
-                    .filter(role => role.id !== user.rol)
-                    .map(role => (
-                      <option key={role.id} value={role.id}>
-                        {role.nombre}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleEditUser(user)}
-                  className="flex-1 px-3 py-2.5 border border-blue-300 text-blue-600 hover:bg-blue-50 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                  title="Editar usuario"
-                >
-                  <span className="text-sm">✏️</span>
-                  <span className="hidden xs:inline text-xs">Editar</span>
-                </button>
-                
-                <button
-                  onClick={() => handleDeactivateUser(user.id, user.nombre)}
-                  className="flex-1 px-3 py-2.5 border border-amber-300 text-amber-600 hover:bg-amber-50 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                  title="Bloquear usuario"
-                >
-                  <span className="text-sm">⏸️</span>
-                  <span className="hidden xs:inline text-xs">Bloquear</span>
-                </button>
-                
-                <button
-                  onClick={() => handleRejectUser(user.id)}
-                  className="flex-1 px-3 py-2.5 border border-red-300 text-red-600 hover:bg-red-50 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2"
-                  title="Eliminar usuario"
-                >
-                  <span className="text-sm">🗑️</span>
-                  <span className="hidden xs:inline text-xs">Eliminar</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
-    </>
-  );
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-3 sm:p-4 md:p-6">
-      {/* NUEVO: Estilos CSS para animaciones de notificaciones */}
-      <style jsx>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes progress {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
-        }
-        
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-        
-        .animate-progress {
-          animation: progress linear forwards;
-        }
-      `}</style>
-      
-      {/* NUEVO: Sistema de Notificaciones Mejorado */}
-      <div className="fixed top-4 right-4 z-50 space-y-3 max-w-md">
-        {notificacionActiva && (
-          <div className={`animate-slide-in p-4 rounded-lg shadow-lg border-l-4 ${
-            notificacionActiva.tipo === 'success' 
-              ? 'bg-green-50 border-green-500 text-green-800' 
-              : 'bg-red-50 border-red-500 text-red-800'
-          }`}>
-            <div className="flex justify-between items-start">
-              <div className="flex items-center">
-                {notificacionActiva.tipo === 'success' ? (
-                  <svg className="w-6 h-6 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6 mr-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                )}
-                <div>
-                  <p className="font-semibold">{notificacionActiva.mensaje}</p>
-                  <p className="text-sm opacity-75 mt-1">{notificacionActiva.timestamp}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setNotificacionActiva(null)}
-                className="ml-4 opacity-50 hover:opacity-100 transition-opacity"
-              >
-                ✕
-              </button>
-            </div>
-            {/* Barra de progreso */}
-            <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${
-                  notificacionActiva.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'
-                } animate-progress`}
-                style={{ animationDuration: `${notificacionActiva.duracion}ms` }}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Modal de Edición */}
+      {/* Modal de Edición - Fuera del flujo principal */}
       {editingUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="p-4 sm:p-6">
+          <div className="bg-surface rounded-card shadow-card w-full max-w-md">
+            <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Editar Usuario</h3>
+                <h3 className="text-xl font-bold text-primary">Editar Usuario</h3>
                 <button
                   onClick={() => {
                     setEditingUser(null);
                     setEditForm({ nombre: '', email: '', rol: '' });
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-muted hover:text-primary"
                 >
-                  ✕
+                  <XCircle className="w-5 h-5" />
                 </button>
               </div>
               
@@ -620,15 +710,15 @@ export default function AdminDashboard() {
                     setEditingUser(null);
                     setEditForm({ nombre: '', email: '', rol: '' });
                   }}
-                  className="btn-outline flex-1"
+                  className="btn btn-outline flex-1"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSaveEdit}
-                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                  className="btn btn-primary flex-1 flex items-center justify-center gap-2"
                 >
-                  <span>💾</span>
+                  <Save className="w-4 h-4" />
                   Guardar cambios
                 </button>
               </div>
@@ -636,277 +726,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Panel de Administración</h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                Gestión de usuarios y asignación de roles
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button
-                onClick={loadData}
-                disabled={loading}
-                className="btn-outline flex items-center gap-2 px-3 sm:px-4 py-2 text-sm"
-              >
-                {loading ? (
-                  <>
-                    <div className="spinner-sm"></div>
-                    <span>Cargando...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>🔄</span>
-                    <span>Actualizar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <div className="card-hover bg-white p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Total</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <span className="text-lg sm:text-xl text-blue-600">👥</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-hover bg-white p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Pendientes</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stats.pending}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-amber-50 rounded-lg flex items-center justify-center">
-                  <span className="text-lg sm:text-xl text-amber-600">⏳</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-hover bg-white p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Activos</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stats.active}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-50 rounded-lg flex items-center justify-center">
-                  <span className="text-lg sm:text-xl text-green-600">✅</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-hover bg-white p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Rechazados</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stats.rejected}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-50 rounded-lg flex items-center justify-center">
-                  <span className="text-lg sm:text-xl text-red-600">❌</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-hover bg-white p-3 sm:p-4 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Hoy</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900 mt-1">{stats.today}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                  <span className="text-lg sm:text-xl text-indigo-600">📅</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200 mb-6">
-            <button
-              className={`px-3 sm:px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activeTab === 'pending'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('pending')}
-            >
-              Pendientes ({stats.pending})
-            </button>
-            <button
-              className={`px-3 sm:px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                activeTab === 'active'
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-              onClick={() => setActiveTab('active')}
-            >
-              Activos ({stats.active})
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-          {/* Header */}
-          <div className="border-b border-gray-200 px-4 sm:px-6 py-4 bg-gray-50">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {activeTab === 'pending' ? 'Usuarios pendientes de asignación' : 'Usuarios activos del sistema'}
-                </h3>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">
-                  {activeTab === 'pending' 
-                    ? 'Asigna roles a los usuarios recién registrados' 
-                    : 'Gestiona los usuarios activos del sistema'}
-                </p>
-              </div>
-              <div className="text-xs sm:text-sm text-gray-500">
-                {activeTab === 'pending' 
-                  ? `${pendingUsers.length} usuarios encontrados` 
-                  : `${activeUsers.length} usuarios encontrados`}
-              </div>
-            </div>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="p-8 sm:p-12 text-center">
-              <div className="inline-flex flex-col items-center">
-                <div className="spinner-lg mx-auto"></div>
-                <p className="mt-4 text-gray-600">Cargando usuarios...</p>
-              </div>
-            </div>
-          )}
-
-          {/* Empty State */}
-          {!loading && (
-            <>
-              {activeTab === 'pending' && pendingUsers.length === 0 && (
-                <div className="p-8 sm:p-12 text-center">
-                  <div className="max-w-md mx-auto">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <span className="text-2xl sm:text-3xl">👍</span>
-                    </div>
-                    <h4 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                      ¡Todo al día!
-                    </h4>
-                    <p className="text-gray-600 mb-6 text-sm sm:text-base">
-                      No hay usuarios pendientes de asignación de rol.
-                    </p>
-                    <button
-                      onClick={loadData}
-                      className="btn-outline px-4 sm:px-5 py-2 sm:py-2.5 text-sm"
-                    >
-                      Verificar nuevamente
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'active' && activeUsers.length === 0 && (
-                <div className="p-8 sm:p-12 text-center">
-                  <div className="max-w-md mx-auto">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <span className="text-2xl sm:text-3xl">👥</span>
-                    </div>
-                    <h4 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                      No hay usuarios activos
-                    </h4>
-                    <p className="text-gray-600 mb-6 text-sm sm:text-base">
-                      Todos los usuarios están pendientes o rechazados.
-                    </p>
-                    <button
-                      onClick={() => setActiveTab('pending')}
-                      className="btn-primary px-4 sm:px-5 py-2 sm:py-2.5 text-sm"
-                    >
-                      Ver usuarios pendientes
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Users List */}
-          {!loading && (
-            <div className="divide-y divide-gray-100">
-              {activeTab === 'pending' && pendingUsers.length > 0 && renderPendingUsers()}
-              {activeTab === 'active' && activeUsers.length > 0 && renderActiveUsers()}
-            </div>
-          )}
-
-          {/* Footer */}
-          <div className="border-t border-gray-200 px-4 sm:px-6 py-4 bg-gray-50">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="text-xs sm:text-sm text-gray-600">
-                <p>
-                  {activeTab === 'pending' 
-                    ? `Mostrando ${pendingUsers.length} usuarios pendientes` 
-                    : `Mostrando ${activeUsers.length} usuarios activos`}
-                  {' • '}
-                  Total roles disponibles: <span className="font-semibold">{allRoles.length}</span>
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                {activeTab === 'pending' && (
-                  <button
-                    onClick={() => {
-                      const confirmAll = window.confirm(
-                        "¿Asignar rol por defecto a todos los usuarios pendientes?"
-                      );
-                      if (confirmAll) {
-                        mostrarNotificacion('info', "Función de asignación masiva por implementar", 5000);
-                      }
-                    }}
-                    className="text-xs sm:text-sm text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    Asignar a todos
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Roles Summary */}
-        {allRoles.length > 0 && (
-          <div className="mt-4 sm:mt-6 p-4 sm:p-5 bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900 text-sm sm:text-base">Roles disponibles</h4>
-              <span className="text-xs sm:text-sm text-gray-500">{allRoles.length} roles</span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {allRoles.map(role => (
-                <div 
-                  key={role.id} 
-                  className="p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full ${getRoleColor(role.nombre)}`}></div>
-                    <span className="font-medium text-gray-900 text-xs sm:text-sm">{role.nombre}</span>
-                  </div>
-                  {role.descripcion && (
-                    <p className="text-xs text-gray-600 mt-1 line-clamp-2">{role.descripcion}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

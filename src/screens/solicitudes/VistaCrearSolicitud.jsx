@@ -1,6 +1,18 @@
 // src/screens/solicitudes/VistaCrearSolicitud.jsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth";
+import {
+  ArrowLeft,
+  Search,
+  Check,
+  Package,
+  Hash,
+  Tag,
+  FileText,
+  Building,
+  ShoppingCart,
+  ChevronRight
+} from "lucide-react";
 
 export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
   const { session } = useAuth();
@@ -11,7 +23,6 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
   const [productos, setProductos] = useState([]);
   const [items, setItems] = useState([]);
   const [cargando, setCargando] = useState(false);
-
   const [nombre, setNombre] = useState("");
 
   useEffect(() => {
@@ -99,16 +110,15 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
       }));
 
       await createSolicitudItems(itemsData);
-      alert("✅ Solicitud creada exitosamente");
+      alert("Solicitud creada exitosamente");
       onSolicitudCreada();
     } catch (error) {
-      alert("❌ Error: " + error.message);
+      alert("Error: " + error.message);
     } finally {
       setCargando(false);
     }
   };
 
-  // Handler del P front (para compatibilidad)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCargando(true);
@@ -123,337 +133,280 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
   };
 
   return (
-    <div className={`max-w-4xl mx-auto px-4 py-8 ${styles.container}`}>
-      {/* Header */}
-      <div
-        className={`flex items-center justify-between mb-8 ${styles.header}`}
-      >
-        <div>
-          <button
-            onClick={onVolver}
-            className={`flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium ${styles.botonSecundario}`}
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <button
+              onClick={onVolver}
+              className="btn btn-outline flex items-center gap-2 mb-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Volver a solicitudes
-          </button>
-          <h1
-            className={`text-3xl font-bold text-gray-900 mt-2 ${styles.titulo}`}
-          >
-            {paso === 1 ? "Seleccionar Proveedor" : "Nueva Solicitud"}
-          </h1>
-        </div>
-      </div>
-
-      <div className={styles.progreso}>
-        <div className={styles.paso}>
-          <div
-            className={styles.circuloPaso}
-            style={{
-              backgroundColor: paso >= 1 ? "#FF6B00" : "#E5E7EB",
-              color: paso >= 1 ? "#fff" : "#9CA3AF",
-            }}
-          >
-            1
+              <ArrowLeft className="w-4 h-4" />
+              Volver a solicitudes
+            </button>
+            <h1 className="section-title">
+              {paso === 1 ? "Seleccionar Proveedor" : "Nueva Solicitud"}
+            </h1>
           </div>
-          <span className={paso >= 1 ? styles.pasoActivo : styles.pasoInactivo}>
-            Proveedor
-          </span>
         </div>
 
-        <div className={styles.linea} />
-
-        <div className={styles.paso}>
-          <div
-            className={styles.circuloPaso}
-            style={{
-              backgroundColor: paso >= 2 ? "#FF6B00" : "#E5E7EB",
-              color: paso >= 2 ? "#fff" : "#9CA3AF",
-            }}
-          >
-            2
+        {/* Progreso */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${paso >= 1 ? 'bg-primary text-white' : 'bg-app border border-base text-muted'}`}>
+                1
+              </div>
+              <span className={`mt-2 text-sm ${paso >= 1 ? 'text-primary font-medium' : 'text-muted'}`}>
+                Proveedor
+              </span>
+            </div>
+            
+            <div className={`w-16 h-0.5 mx-2 ${paso >= 2 ? 'bg-primary' : 'bg-base'}`} />
+            
+            <div className="flex flex-col items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${paso >= 2 ? 'bg-primary text-white' : 'bg-app border border-base text-muted'}`}>
+                2
+              </div>
+              <span className={`mt-2 text-sm ${paso >= 2 ? 'text-primary font-medium' : 'text-muted'}`}>
+                Productos
+              </span>
+            </div>
           </div>
-          <span className={paso >= 2 ? styles.pasoActivo : styles.pasoInactivo}>
-            Productos
-          </span>
         </div>
-      </div>
 
-      {/* Contenido por paso */}
-      {paso === 1 ? (
-        <div>
-          {/* Búsqueda de proveedores */}
-          <div className={`${styles.busquedaContainer} form-group mb-6`}>
-            <div className="relative">
-              <svg
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+        {/* Contenido por paso */}
+        {paso === 1 ? (
+          <div>
+            {/* Búsqueda de proveedores */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Buscar proveedor por nombre o NIT..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="form-input pl-10 !py-2.5"
                 />
-              </svg>
+              </div>
+            </div>
+
+            {/* Lista de proveedores */}
+            <div className="space-y-3">
+              {proveedoresFiltrados.map((proveedor) => (
+                <div
+                  key={proveedor.id}
+                  className="card card-hover p-4 cursor-pointer"
+                  onClick={() => seleccionarProveedor(proveedor)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
+                        <Building className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-semibold text-primary">
+                          {proveedor.nombre}
+                        </h3>
+                        <p className="text-sm text-muted">
+                          NIT: {proveedor.nit || "No registrado"}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Información del proveedor seleccionado */}
+            <div className="card p-4 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setPaso(1)}
+                    className="btn btn-outline flex items-center gap-2 text-sm"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Cambiar proveedor
+                  </button>
+                </div>
+                <div className="text-right">
+                  <h3 className="text-lg font-semibold text-primary">
+                    {proveedorSeleccionado?.nombre}
+                  </h3>
+                  <p className="text-sm text-muted">
+                    NIT: {proveedorSeleccionado?.nit || "No registrado"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="nombre">
+                Nombre de la solicitud
+              </label>
               <input
+                id="nombre"
                 type="text"
-                placeholder="Buscar proveedor por nombre o NIT..."
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                className={`form-input pl-10 ${styles.busquedaInput}`}
+                className="form-input"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej: Materiales para proyecto X"
+                required
               />
             </div>
-          </div>
 
-          {/* Lista de proveedores */}
-          <div className={`${styles.listaProveedores} space-y-4`}>
-            {proveedoresFiltrados.map((proveedor) => (
-              <div
-                key={proveedor.id}
-                className={`card hover-lift cursor-pointer p-4 ${styles.tarjetaProveedor}`}
-                onClick={() => seleccionarProveedor(proveedor)}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3
-                      className={`text-lg font-semibold text-gray-900 ${styles.nombreProveedorLista}`}
-                    >
-                      {proveedor.nombre}
-                    </h3>
-                    <p className={`text-sm text-gray-600 ${styles.nit}`}>
-                      NIT: {proveedor.nit || "No registrado"}
-                    </p>
-                  </div>
-                  <div className={`text-primary-600 text-xl ${styles.flecha}`}>
-                    →
-                  </div>
+            <div className="form-group">
+              <label className="form-label">Productos solicitados</label>
+
+              {productos.length === 0 ? (
+                <div className="card p-8 text-center border-2 border-dashed border-base">
+                  <Package className="w-12 h-12 text-muted mx-auto mb-4" />
+                  <p className="text-muted mb-4">
+                    No hay productos disponibles para este proveedor
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setPaso(1)}
+                  >
+                    Seleccionar otro proveedor
+                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Información del proveedor seleccionado */}
-          <div className="card p-6 mb-6">
-            <div
-              className={`${styles.infoProveedor} flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4`}
-            >
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setPaso(1)}
-                  className={`btn-outline flex items-center gap-2 ${styles.botonSecundario}`}
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                    />
-                  </svg>
-                  Cambiar proveedor
-                </button>
-              </div>
-              <div className={`${styles.datosProveedor}`}>
-                <h3 className="text-xl font-bold text-gray-900">
-                  {proveedorSeleccionado?.nombre}
-                </h3>
-                <p className="text-gray-600">
-                  NIT: {proveedorSeleccionado?.nit || "No registrado"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="nombre">
-              Nombre de la solicitud
-            </label>
-            <input
-              id="nombre"
-              type="text"
-              className="form-input"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Materiales para proyecto X"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Productos solicitados</label>
-
-            {productos.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
-                <p className="text-gray-500 mb-4">
-                  No hay productos disponibles para este proveedor
-                </p>
-                <button
-                  type="button"
-                  className="btn-outline"
-                  onClick={() => setPaso(1)}
-                >
-                  Seleccionar otro proveedor
-                </button>
-              </div>
-            ) : (
-              <div className={`${styles.tablaContainer} card overflow-hidden`}>
-                <div className="overflow-x-auto">
-                  <table
-                    className={`min-w-full divide-y divide-gray-200 ${styles.tabla}`}
-                  >
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase ${styles.th}`}
-                        >
-                          Producto
-                        </th>
-                        <th
-                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase ${styles.th}`}
-                        >
-                          Código
-                        </th>
-                        <th
-                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase ${styles.th}`}
-                        >
-                          Categoría
-                        </th>
-                        <th
-                          className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase ${styles.th}`}
-                        >
-                          Cantidad
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {productos.map((producto) => (
-                        <tr
-                          key={producto.id}
-                          className={`hover:bg-gray-50 ${styles.tr}`}
-                        >
-                          <td className={`px-6 py-4 ${styles.td}`}>
-                            <strong className="font-medium text-gray-900">
-                              {producto.nombre}
-                            </strong>
-                          </td>
-                          <td className={`px-6 py-4 ${styles.td}`}>
-                            <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono">
-                              {producto.codigo_arbol}
-                            </code>
-                          </td>
-                          <td className={`px-6 py-4 ${styles.td}`}>
-                            {producto.categoria ? (
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                {producto.categoria}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className={`px-6 py-4 ${styles.td}`}>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={
-                                items.find((i) => i.producto_id === producto.id)
-                                  ?.cantidad || ""
-                              }
-                              onChange={(e) =>
-                                manejarCantidad(producto.id, e.target.value)
-                              }
-                              className={`form-input w-32 ${styles.inputCantidad}`}
-                            />
-                          </td>
+              ) : (
+                <div className="card overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="table">
+                      <thead className="table-header">
+                        <tr>
+                          <th className="table-header-cell">Producto</th>
+                          <th className="table-header-cell">Código</th>
+                          <th className="table-header-cell">Categoría</th>
+                          <th className="table-header-cell">Cantidad</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {items.length > 0 && (
-              <div className={`mt-8 ${styles.resumen}`}>
-                <div className={`card p-6 ${styles.tarjetaResumen}`}>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    Resumen de Pedido
-                  </h3>
-                  <div
-                    className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 ${styles.datosResumen}`}
-                  >
-                    <div
-                      className={`flex justify-between items-center p-3 bg-gray-50 rounded-lg ${styles.datoResumen}`}
-                    >
-                      <span className="text-gray-700">
-                        Productos seleccionados:
-                      </span>
-                      <strong className="text-lg text-primary-600">
-                        {items.length}
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between items-center p-3 bg-gray-50 rounded-lg ${styles.datoResumen}`}
-                    >
-                      <span className="text-gray-700">Total unidades:</span>
-                      <strong className="text-lg text-primary-600">
-                        {items.reduce((sum, item) => sum + item.cantidad, 0)}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex gap-4 pt-6 border-t">
-                    <button
-                      type="button"
-                      onClick={onVolver}
-                      className="btn-outline flex-1"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={cargando || !nombre || items.length === 0}
-                      className="btn-primary flex-1"
-                    >
-                      {cargando ? (
-                        <>
-                          <span className="spinner-sm mr-2"></span>
-                          Creando...
-                        </>
-                      ) : (
-                        "Crear Solicitud"
-                      )}
-                    </button>
+                      </thead>
+                      <tbody>
+                        {productos.map((producto) => (
+                          <tr key={producto.id} className="table-row">
+                            <td className="table-cell">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-primary/10 rounded-base flex items-center justify-center">
+                                  <Package className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <div className="font-medium text-primary">
+                                    {producto.nombre}
+                                  </div>
+                                  <div className="text-xs text-muted mt-0.5">
+                                    {producto.descripcion || "Sin descripción"}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="table-cell">
+                              <code className="text-sm bg-app px-2 py-1 rounded-base font-mono text-muted">
+                                {producto.codigo_arbol}
+                              </code>
+                            </td>
+                            <td className="table-cell">
+                              {producto.categoria ? (
+                                <span className="badge badge-primary">
+                                  {producto.categoria}
+                                </span>
+                              ) : (
+                                <span className="text-muted text-sm">-</span>
+                              )}
+                            </td>
+                            <td className="table-cell">
+                              <input
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value={
+                                  items.find((i) => i.producto_id === producto.id)
+                                    ?.cantidad || ""
+                                }
+                                onChange={(e) =>
+                                  manejarCantidad(producto.id, e.target.value)
+                                }
+                                className="form-input w-24 !py-1.5 !px-3 text-center"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </form>
-      )}
+              )}
+
+              {items.length > 0 && (
+                <div className="mt-6">
+                  <div className="card p-4">
+                    <h3 className="text-lg font-semibold text-primary mb-4">
+                      Resumen de Pedido
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                      <div className="flex justify-between items-center p-3 bg-app rounded-base">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-muted" />
+                          <span className="text-sm text-muted">Productos seleccionados:</span>
+                        </div>
+                        <strong className="text-base text-primary">
+                          {items.length}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center p-3 bg-app rounded-base">
+                        <div className="flex items-center gap-2">
+                          <ShoppingCart className="w-4 h-4 text-muted" />
+                          <span className="text-sm text-muted">Total unidades:</span>
+                        </div>
+                        <strong className="text-base text-primary">
+                          {items.reduce((sum, item) => sum + item.cantidad, 0)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-base">
+                      <button
+                        type="button"
+                        onClick={onVolver}
+                        className="btn btn-outline flex-1"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={cargando || !nombre || items.length === 0}
+                        className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                      >
+                        {cargando ? (
+                          <>
+                            <div className="spinner spinner-sm"></div>
+                            Creando...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4" />
+                            Crear Solicitud
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

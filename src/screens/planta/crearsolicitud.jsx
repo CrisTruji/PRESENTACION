@@ -1,61 +1,95 @@
 // src/pages/jefe-planta/crearsolicitud.jsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth";
+import { useTheme } from "../hooks/useTheme";
 import { getProveedores } from "../../services/proveedores";
 import { getProductosByProveedor } from "../../services/productos";
 import {
   crearSolicitud,
   agregarItemsSolicitud,
 } from "../../services/solicitudes";
+import notify from "../../utils/notifier"; // ✅ Usar sistema de notificaciones global
 
-// Paleta de colores para categorías
+// Íconos de Lucide React (reemplazan emojis)
+import {
+  Building,
+  Package,
+  Wrench,
+  Cpu,
+  Zap,
+  FlaskConical,
+  Box,
+  CheckCircle,
+  XCircle,
+  Search,
+  Trash2,
+  Send,
+  RefreshCw,
+  Users,
+  HelpCircle,
+  Plus,
+  Store,
+  ClipboardList,
+  Hospital,
+  ChevronRight,
+  ArrowRight
+} from "lucide-react";
+
+// Paleta de colores para categorías usando variables CSS del sistema
 const categoryColors = {
   Materiales: {
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-200",
+    light: "var(--color-primary)",
+    dark: "var(--color-primary)",
+    bgLight: "rgba(15, 118, 110, 0.1)",
+    bgDark: "rgba(45, 212, 191, 0.1)"
   },
   Herramientas: {
-    bg: "bg-amber-50",
-    text: "text-amber-600",
-    border: "border-amber-200",
+    light: "var(--color-warning)",
+    dark: "var(--color-warning)",
+    bgLight: "rgba(245, 158, 11, 0.1)",
+    bgDark: "rgba(251, 191, 36, 0.1)"
   },
   Equipos: {
-    bg: "bg-purple-50",
-    text: "text-purple-600",
-    border: "border-purple-200",
+    light: "var(--color-text-secondary)",
+    dark: "var(--color-text-secondary)",
+    bgLight: "rgba(100, 116, 139, 0.1)",
+    bgDark: "rgba(203, 213, 225, 0.1)"
   },
   Eléctricos: {
-    bg: "bg-yellow-50",
-    text: "text-yellow-600",
-    border: "border-yellow-200",
+    light: "#F59E0B",
+    dark: "#FBBF24",
+    bgLight: "rgba(245, 158, 11, 0.1)",
+    bgDark: "rgba(251, 191, 36, 0.1)"
   },
   Químicos: {
-    bg: "bg-green-50",
-    text: "text-green-600",
-    border: "border-green-200",
+    light: "var(--color-success)",
+    dark: "var(--color-success)",
+    bgLight: "rgba(5, 150, 105, 0.1)",
+    bgDark: "rgba(16, 185, 129, 0.1)"
   },
   Insumos: {
-    bg: "bg-indigo-50",
-    text: "text-indigo-600",
-    border: "border-indigo-200",
+    light: "#8B5CF6",
+    dark: "#A78BFA",
+    bgLight: "rgba(139, 92, 246, 0.1)",
+    bgDark: "rgba(167, 139, 250, 0.1)"
   },
   default: {
-    bg: "bg-gray-50",
-    text: "text-gray-600",
-    border: "border-gray-200",
+    light: "var(--color-text-muted)",
+    dark: "var(--color-text-muted)",
+    bgLight: "rgba(148, 163, 184, 0.1)",
+    bgDark: "rgba(148, 163, 184, 0.1)"
   },
 };
 
-// Íconos por categoría
+// Íconos por categoría usando Lucide React
 const categoryIcons = {
-  Materiales: "🏗️",
-  Herramientas: "🛠️",
-  Equipos: "⚙️",
-  Eléctricos: "⚡",
-  Químicos: "🧪",
-  Insumos: "📦",
-  default: "📋",
+  Materiales: Building,
+  Herramientas: Wrench,
+  Equipos: Cpu,
+  Eléctricos: Zap,
+  Químicos: FlaskConical,
+  Insumos: Package,
+  default: Box,
 };
 
 // Lista de unidades médicas
@@ -94,6 +128,7 @@ const unidadesMedicas = [
 
 export default function CrearSolicitudPlanta() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [proveedores, setProveedores] = useState([]);
   const [proveedoresFiltrados, setProveedoresFiltrados] = useState([]);
   const [busquedaProveedor, setBusquedaProveedor] = useState("");
@@ -102,32 +137,23 @@ export default function CrearSolicitudPlanta() {
   const [itemsSeleccionados, setItemsSeleccionados] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [cargandoProductos, setCargandoProductos] = useState(false);
-  
-  // Nuevos estados para sistema de notificaciones mejorado
-  const [notificaciones, setNotificaciones] = useState([]);
-  const [notificacionActiva, setNotificacionActiva] = useState(null);
-  
   const [proveedorNombre, setProveedorNombre] = useState("");
   const [codigoUnidad, setCodigoUnidad] = useState("");
 
-  // Función mejorada para mostrar notificaciones
-  const mostrarNotificacion = (tipo, mensaje, duracion = 8000) => {
-    const id = Date.now();
-    const nuevaNotificacion = {
-      id,
-      tipo,
-      mensaje,
-      timestamp: new Date().toLocaleTimeString(),
-      duracion
+  // Función para obtener estilos de categoría según el tema
+  const getCategoryStyle = (categoria) => {
+    const cat = categoryColors[categoria] || categoryColors.default;
+    return {
+      color: theme === 'dark' ? cat.dark : cat.light,
+      backgroundColor: theme === 'dark' ? cat.bgDark : cat.bgLight,
+      borderColor: theme === 'dark' ? cat.dark + '40' : cat.light + '40'
     };
-    
-    setNotificaciones(prev => [...prev, nuevaNotificacion]);
-    setNotificacionActiva(nuevaNotificacion);
-    
-    // Duración aumentada a 8 segundos (antes 3-5)
-    setTimeout(() => {
-      setNotificacionActiva(prev => prev?.id === id ? null : prev);
-    }, duracion);
+  };
+
+  // Función para obtener ícono de categoría
+  const getCategoryIcon = (categoria) => {
+    const IconComponent = categoryIcons[categoria] || categoryIcons.default;
+    return <IconComponent size={16} />;
   };
 
   useEffect(() => {
@@ -139,7 +165,7 @@ export default function CrearSolicitudPlanta() {
         setProveedoresFiltrados(provs);
       } catch (err) {
         console.error(err);
-        mostrarNotificacion('error', "Error cargando proveedores", 10000);
+        notify.error("Error cargando proveedores"); // ✅ Usar sistema global
       } finally {
         setCargando(false);
       }
@@ -177,19 +203,15 @@ export default function CrearSolicitudPlanta() {
       setProductos(prods);
     } catch (err) {
       console.error(err);
-      mostrarNotificacion('error', "Error cargando productos del proveedor", 10000);
+      notify.error("Error cargando productos del proveedor"); // ✅ Usar sistema global
     } finally {
       setCargandoProductos(false);
     }
   };
 
-  const agregarProducto = (
-    producto,
-    cantidad,
-    unidad = "und",
-  ) => {
+  const agregarProducto = (producto, cantidad, unidad = "und") => {
     if (!producto || !cantidad || Number(cantidad) <= 0) {
-      mostrarNotificacion('error', "Ingrese una cantidad válida", 8000);
+      notify.error("Ingrese una cantidad válida"); // ✅ Usar sistema global
       return;
     }
 
@@ -198,7 +220,7 @@ export default function CrearSolicitudPlanta() {
         (i) => Number(i.catalogo_producto_id) === producto.id
       )
     ) {
-      mostrarNotificacion('error', "Este producto ya fue agregado", 8000);
+      notify.error("Este producto ya fue agregado"); // ✅ Usar sistema global
       return;
     }
 
@@ -213,7 +235,7 @@ export default function CrearSolicitudPlanta() {
       },
     ]);
 
-    mostrarNotificacion('success', `"${producto.nombre}" agregado a la solicitud`, 8000);
+    notify.success(`"${producto.nombre}" agregado a la solicitud`); // ✅ Usar sistema global
   };
 
   const eliminarItem = (id) => {
@@ -221,22 +243,22 @@ export default function CrearSolicitudPlanta() {
     setItemsSeleccionados((prev) =>
       prev.filter((p) => p.catalogo_producto_id !== id)
     );
-    mostrarNotificacion('success', `"${item?.nombre}" eliminado de la solicitud`, 8000);
+    notify.success(`"${item?.nombre}" eliminado de la solicitud`); // ✅ Usar sistema global
   };
 
   const handleEnviarSolicitud = async () => {
     if (!proveedorSeleccionado) {
-      mostrarNotificacion('error', "Seleccione un proveedor.", 8000);
+      notify.error("Seleccione un proveedor."); // ✅ Usar sistema global
       return;
     }
 
     if (!codigoUnidad) {
-      mostrarNotificacion('error', "Seleccione una unidad.", 8000);
+      notify.error("Seleccione una unidad."); // ✅ Usar sistema global
       return;
     }
 
     if (itemsSeleccionados.length === 0) {
-      mostrarNotificacion('error', "Debe agregar al menos un producto.", 8000);
+      notify.error("Debe agregar al menos un producto."); // ✅ Usar sistema global
       return;
     }
 
@@ -252,9 +274,9 @@ export default function CrearSolicitudPlanta() {
 
       await agregarItemsSolicitud(solicitud.id, itemsSeleccionados);
 
-      mostrarNotificacion('success', `✅ Solicitud creada correctamente. ID: ${solicitud.id}`, 10000);
+      notify.success(`Solicitud creada correctamente. ID: ${solicitud.id}`); // ✅ Usar sistema global
 
-      // Limpiar después de 8 segundos
+      // Limpiar después de 3 segundos
       setTimeout(() => {
         setProveedorSeleccionado("");
         setProveedorNombre("");
@@ -262,10 +284,10 @@ export default function CrearSolicitudPlanta() {
         setProductos([]);
         setItemsSeleccionados([]);
         setCodigoUnidad("");
-      }, 8000);
+      }, 3000);
     } catch (err) {
       console.error(err);
-      mostrarNotificacion('error', "Error creando la solicitud: " + (err.message || "Intente nuevamente"), 10000);
+      notify.error("Error creando la solicitud: " + (err.message || "Intente nuevamente")); // ✅ Usar sistema global
     } finally {
       setCargando(false);
     }
@@ -280,132 +302,34 @@ export default function CrearSolicitudPlanta() {
     setCodigoUnidad("");
   };
 
-  // Función para obtener estilos de categoría
-  const getCategoryStyle = (categoria) => {
-    return categoryColors[categoria] || categoryColors.default;
-  };
-
-  // Función para obtener ícono de categoría
-  const getCategoryIcon = (categoria) => {
-    return categoryIcons[categoria] || categoryIcons.default;
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-6">
-      {/* Estilos CSS para animaciones */}
-      <style jsx>{`
-        @keyframes slide-in {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        
-        @keyframes progress {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
-        }
-        
-        .animate-slide-in {
-          animation: slide-in 0.3s ease-out;
-        }
-        
-        .animate-progress {
-          animation: progress linear forwards;
-        }
-      `}</style>
-      
+    <div className="min-h-content p-compact">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Nueva Solicitud de Compra
-          </h1>
-          <p className="text-gray-600">
+        <div className="section-header">
+          <h1 className="section-title">Nueva Solicitud de Compra</h1>
+          <p className="section-subtitle">
             Complete los detalles para crear una nueva solicitud de compra
           </p>
-        </div>
-
-        {/* Sistema de Notificaciones Mejorado */}
-        <div className="fixed top-4 right-4 z-50 space-y-3 max-w-md">
-          {/* Notificación activa */}
-          {notificacionActiva && (
-            <div className={`animate-slide-in p-4 rounded-lg shadow-lg border-l-4 ${
-              notificacionActiva.tipo === 'success' 
-                ? 'bg-green-50 border-green-500 text-green-800' 
-                : 'bg-red-50 border-red-500 text-red-800'
-            }`}>
-              <div className="flex justify-between items-start">
-                <div className="flex items-center">
-                  {notificacionActiva.tipo === 'success' ? (
-                    <svg className="w-6 h-6 mr-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="w-6 h-6 mr-3 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  <div>
-                    <p className="font-semibold">{notificacionActiva.mensaje}</p>
-                    <p className="text-sm opacity-75 mt-1">{notificacionActiva.timestamp}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => setNotificacionActiva(null)}
-                  className="ml-4 opacity-50 hover:opacity-100 transition-opacity"
-                >
-                  ✕
-                </button>
-              </div>
-              {/* Barra de progreso */}
-              <div className="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full ${
-                    notificacionActiva.tipo === 'success' ? 'bg-green-500' : 'bg-red-500'
-                  } animate-progress`}
-                  style={{ animationDuration: `${notificacionActiva.duracion}ms` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Columna izquierda - Formularios */}
           <div className="lg:col-span-2 space-y-6">
             {/* Card Selección de Proveedor */}
-            <div className="card-hover">
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center mr-3">
-                    <svg
-                      className="w-5 h-5 text-primary-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
+            <div className="card card-hover">
+              <div className="card-header">
+                <div className="flex items-center">
+                  <div className="stats-icon">
+                    <Store size={20} />
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-800">
+                  <h2 className="text-xl font-semibold">
                     Seleccionar Proveedor
                   </h2>
                 </div>
+              </div>
 
+              <div className="card-body">
                 <div className="form-group">
                   <label className="form-label">Buscar Proveedor</label>
                   
@@ -413,37 +337,35 @@ export default function CrearSolicitudPlanta() {
                   <div className="relative mb-3">
                     <input
                       type="text"
-                      className="form-input w-full pl-4 pr-10 py-3"
+                      className="form-input w-full pl-10 py-2"
                       placeholder="Escribe el nombre del proveedor..."
                       value={busquedaProveedor}
                       onChange={handleBusquedaProveedor}
                       disabled={cargando}
                     />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                      <Search size={18} className="text-muted" />
                     </div>
                   </div>
                   
                   {/* Lista de proveedores filtrados */}
                   {busquedaProveedor && (
-                    <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto mb-3">
+                    <div className="border border-base rounded-base max-h-60 overflow-y-auto mb-3 bg-surface">
                       {proveedoresFiltrados.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
+                        <div className="p-4 text-center text-muted">
                           No se encontraron proveedores que coincidan con "{busquedaProveedor}"
                         </div>
                       ) : (
                         proveedoresFiltrados.map((proveedor) => (
                           <div
                             key={proveedor.id}
-                            className={`p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${
-                              proveedorSeleccionado === proveedor.id.toString() ? 'bg-primary-50' : ''
+                            className={`p-3 border-b border-base last:border-b-0 hover:bg-hover cursor-pointer transition-colors ${
+                              proveedorSeleccionado === proveedor.id.toString() ? 'bg-hover' : ''
                             }`}
                             onClick={() => onProveedorChange(proveedor.id.toString())}
                           >
-                            <div className="font-medium text-gray-800">{proveedor.nombre}</div>
-                            <div className="text-xs text-gray-500 mt-1">ID: {proveedor.id}</div>
+                            <div className="font-medium">{proveedor.nombre}</div>
+                            <div className="text-xs text-muted mt-1">ID: {proveedor.id}</div>
                           </div>
                         ))
                       )}
@@ -452,21 +374,19 @@ export default function CrearSolicitudPlanta() {
                   
                   {/* Información del proveedor seleccionado */}
                   {proveedorNombre && (
-                    <div className="mt-4 p-3 bg-primary-50 border border-primary-200 rounded-lg">
+                    <div className="mt-4 p-3 alert alert-success">
                       <div className="flex items-center gap-2 mb-1">
-                        <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-sm font-medium text-primary-600">
+                        <CheckCircle size={16} className="text-success" />
+                        <span className="text-sm font-medium text-success">
                           Proveedor seleccionado:
                         </span>
                       </div>
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold">
                         {proveedorNombre}
                       </p>
                       <button
                         type="button"
-                        className="text-xs text-primary-600 hover:text-primary-800 mt-2 transition-colors"
+                        className="text-xs text-primary hover:text-primary-hover mt-2 transition-colors"
                         onClick={() => {
                           setProveedorSeleccionado("");
                           setProveedorNombre("");
@@ -480,7 +400,7 @@ export default function CrearSolicitudPlanta() {
                   
                   {/* Mensaje cuando no hay búsqueda pero tampoco proveedor seleccionado */}
                   {!busquedaProveedor && !proveedorNombre && (
-                    <div className="text-sm text-gray-500 mt-2">
+                    <div className="text-sm text-muted mt-2">
                       Escribe el nombre del proveedor para buscarlo. Hay {proveedores.length} proveedores disponibles.
                     </div>
                   )}
@@ -489,29 +409,19 @@ export default function CrearSolicitudPlanta() {
             </div>
 
             {/* Card: Selección de Unidad Médica */}
-            <div className="card-hover">
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                    <svg
-                      className="w-5 h-5 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
+            <div className="card card-hover">
+              <div className="card-header">
+                <div className="flex items-center">
+                  <div className="stats-icon">
+                    <Hospital size={20} />
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-800">
+                  <h2 className="text-xl font-semibold">
                     Seleccionar Unidad Médica
                   </h2>
                 </div>
+              </div>
 
+              <div className="card-body">
                 <div className="form-group">
                   <label htmlFor="codigo_unidad" className="form-label">
                     Unidad Médica
@@ -523,24 +433,23 @@ export default function CrearSolicitudPlanta() {
                     required
                     value={codigoUnidad}
                     onChange={(e) => setCodigoUnidad(e.target.value)}
-                    className="form-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 hover:border-gray-400"
+                    className="form-input w-full"
                   >
-                    <option value="" disabled className="text-gray-400">
+                    <option value="" disabled className="text-muted">
                       Seleccione una unidad...
                     </option>
                     {unidadesMedicas.map((unidad) => (
                       <option 
                         key={unidad.codigo} 
                         value={unidad.codigo}
-                        className="text-gray-700"
                       >
                         {unidad.codigo} - {unidad.nombre}
                       </option>
                     ))}
                   </select>
                   
-                  <p className="mt-2 text-sm text-gray-500">
-                    Se enviará el código a la columna <code className="text-primary-600 font-medium">codigo_unidad</code>
+                  <p className="form-hint">
+                    Se enviará el código a la columna <code className="text-primary font-medium">codigo_unidad</code>
                   </p>
                 </div>
               </div>
@@ -548,54 +457,32 @@ export default function CrearSolicitudPlanta() {
 
             {/* Card Productos del Proveedor */}
             {proveedorSeleccionado && (
-              <div className="card-hover">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+              <div className="card card-hover">
+                <div className="card-header">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className="w-8 h-8 bg-secondary-100 rounded-lg flex items-center justify-center mr-3">
-                        <svg
-                          className="w-5 h-5 text-secondary-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                          />
-                        </svg>
+                      <div className="stats-icon">
+                        <Package size={20} />
                       </div>
-                      <h2 className="text-xl font-semibold text-gray-800">
+                      <h2 className="text-xl font-semibold">
                         Productos Disponibles
                       </h2>
                     </div>
-                    <span className="badge-secondary">
+                    <span className="badge badge-primary">
                       {productos.length} productos
                     </span>
                   </div>
+                </div>
 
+                <div className="card-body">
                   {cargandoProductos ? (
                     <div className="flex justify-center py-8">
                       <div className="spinner"></div>
                     </div>
                   ) : productos.length === 0 ? (
                     <div className="text-center py-6">
-                      <svg
-                        className="w-12 h-12 text-gray-300 mx-auto mb-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      <p className="text-gray-500">
+                      <HelpCircle size={48} className="text-muted mx-auto mb-3" />
+                      <p className="text-muted">
                         Este proveedor no tiene productos asociados.
                       </p>
                     </div>
@@ -606,8 +493,8 @@ export default function CrearSolicitudPlanta() {
                           key={prod.id}
                           producto={prod}
                           onAgregar={agregarProducto}
-                          categoryStyle={getCategoryStyle(prod.categoria)}
-                          categoryIcon={getCategoryIcon(prod.categoria)}
+                          getCategoryStyle={getCategoryStyle}
+                          getCategoryIcon={getCategoryIcon}
                         />
                       ))}
                     </div>
@@ -620,54 +507,29 @@ export default function CrearSolicitudPlanta() {
           {/* Columna derecha - Resumen */}
           <div className="lg:col-span-1">
             {/* Card Resumen de Solicitud */}
-            <div className="card-glass mb-6">
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="w-8 h-8 bg-accent-100 rounded-lg flex items-center justify-center mr-3">
-                    <svg
-                      className="w-5 h-5 text-accent-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
+            <div className="card card-hover mb-6">
+              <div className="card-header">
+                <div className="flex items-center">
+                  <div className="stats-icon">
+                    <ClipboardList size={20} />
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-800">
+                  <h2 className="text-xl font-semibold">
                     Resumen de Solicitud
                   </h2>
                 </div>
+              </div>
 
+              <div className="card-body">
                 {/* Información del proveedor */}
                 {proveedorNombre && (
-                  <div className="mb-3 p-3 bg-primary-50 rounded-lg">
+                  <div className="mb-3 p-3 alert alert-success">
                     <div className="flex items-center gap-2 mb-1">
-                      <svg
-                        className="w-4 h-4 text-primary-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                        />
-                      </svg>
-                      <span className="text-sm font-medium text-primary-600">
+                      <CheckCircle size={16} className="text-success" />
+                      <span className="text-sm font-medium text-success">
                         Proveedor:
                       </span>
                     </div>
-                    <p
-                      className="font-semibold text-gray-800 truncate"
-                      title={proveedorNombre}
-                    >
+                    <p className="font-semibold truncate" title={proveedorNombre}>
                       {proveedorNombre}
                     </p>
                   </div>
@@ -675,29 +537,17 @@ export default function CrearSolicitudPlanta() {
 
                 {/* Información de la unidad seleccionada */}
                 {codigoUnidad && (
-                  <div className="mb-3 p-3 bg-blue-50 rounded-lg">
+                  <div className="mb-3 p-3 bg-hover rounded-base">
                     <div className="flex items-center gap-2 mb-1">
-                      <svg
-                        className="w-4 h-4 text-blue-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      <span className="text-sm font-medium text-blue-600">
+                      <Hospital size={16} className="text-primary" />
+                      <span className="text-sm font-medium text-primary">
                         Unidad Médica:
                       </span>
                     </div>
-                    <p className="font-semibold text-gray-800">
+                    <p className="font-semibold">
                       {unidadesMedicas.find(u => u.codigo === codigoUnidad)?.nombre}
                     </p>
-                    <div className="text-xs text-blue-600 font-mono mt-1">
+                    <div className="text-xs text-primary font-mono mt-1">
                       Código: {codigoUnidad}
                     </div>
                   </div>
@@ -706,16 +556,16 @@ export default function CrearSolicitudPlanta() {
                 {/* Contador de items */}
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-600">
+                    <span className="text-muted">
                       Productos seleccionados:
                     </span>
                     <span className="font-semibold text-lg">
                       {itemsSeleccionados.length}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-border rounded-full h-2">
                     <div
-                      className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
                       style={{
                         width: `${Math.min(
                           itemsSeleccionados.length * 10,
@@ -725,30 +575,18 @@ export default function CrearSolicitudPlanta() {
                     ></div>
                   </div>
                   {itemsSeleccionados.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-muted mt-2">
                       Agregue productos para continuar
                     </p>
                   )}
                 </div>
 
                 {/* Lista de items seleccionados */}
-                <div className="space-y-4 max-h-96 overflow-y-auto pr-2 mb-6">
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-2 mb-6">
                   {itemsSeleccionados.length === 0 ? (
                     <div className="text-center py-4">
-                      <svg
-                        className="w-12 h-12 text-gray-300 mx-auto mb-2"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                        />
-                      </svg>
-                      <p className="text-gray-500 text-sm">
+                      <Package size={48} className="text-muted mx-auto mb-2" />
+                      <p className="text-muted text-sm">
                         No hay productos seleccionados
                       </p>
                     </div>
@@ -756,51 +594,39 @@ export default function CrearSolicitudPlanta() {
                     itemsSeleccionados.map((item, index) => (
                       <div
                         key={item.catalogo_producto_id}
-                        className="bg-white border border-gray-200 rounded-lg p-4 hover-scale"
+                        className="bg-surface border border-base rounded-base p-3 hover:bg-hover transition-colors"
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div className="min-w-0">
-                            <h4
-                              className="font-medium text-gray-800 truncate"
-                              title={item.nombre}
-                            >
+                            <h4 className="font-medium truncate" title={item.nombre}>
                               {item.nombre}
                             </h4>
                             {item.categoria && (
-                              <span className="badge-primary text-xs mt-1">
-                                {item.categoria}
-                              </span>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="badge text-xs px-2 py-1 border" style={getCategoryStyle(item.categoria)}>
+                                  <span className="flex items-center gap-1">
+                                    {getCategoryIcon(item.categoria)}
+                                    {item.categoria}
+                                  </span>
+                                </span>
+                              </div>
                             )}
                           </div>
                           <button
-                            onClick={() =>
-                              eliminarItem(item.catalogo_producto_id)
-                            }
-                            className="text-red-500 hover:text-red-700 transition-colors flex-shrink-0 ml-2"
+                            onClick={() => eliminarItem(item.catalogo_producto_id)}
+                            className="text-error hover:text-error-hover transition-colors flex-shrink-0 ml-2"
                             title="Eliminar"
                           >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
+                            <Trash2 size={18} />
                           </button>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="text-gray-600">Cantidad:</div>
+                          <div className="text-muted">Cantidad:</div>
                           <div className="font-medium text-right">
                             {item.cantidad_solicitada} {item.unidad}
                           </div>
                         </div>
-                        <div className="text-xs text-gray-400 text-right mt-2">
+                        <div className="text-xs text-muted text-right mt-2">
                           #{index + 1}
                         </div>
                       </div>
@@ -810,15 +636,15 @@ export default function CrearSolicitudPlanta() {
 
                 {/* Totales */}
                 {itemsSeleccionados.length > 0 && (
-                  <div className="mb-6 p-3 bg-gray-50 rounded-lg">
+                  <div className="mb-6 p-3 bg-hover rounded-base">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-gray-600">Total productos:</span>
+                      <span className="text-muted">Total productos:</span>
                       <span className="font-bold text-lg">
                         {itemsSeleccionados.length}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Cantidad total:</span>
+                      <span className="text-muted">Cantidad total:</span>
                       <span className="font-semibold">
                         {itemsSeleccionados.reduce(
                           (sum, item) => sum + item.cantidad_solicitada,
@@ -833,7 +659,7 @@ export default function CrearSolicitudPlanta() {
                 {/* Botones de acción */}
                 <div className="space-y-3">
                   <button
-                    className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn btn-primary w-full flex items-center justify-center gap-2"
                     disabled={
                       cargando ||
                       itemsSeleccionados.length === 0 ||
@@ -849,42 +675,18 @@ export default function CrearSolicitudPlanta() {
                       </>
                     ) : (
                       <>
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                          />
-                        </svg>
+                        <Send size={18} />
                         <span>Enviar Solicitud</span>
                       </>
                     )}
                   </button>
 
                   <button
-                    className="btn-outline w-full flex items-center justify-center gap-2"
+                    className="btn btn-outline w-full flex items-center justify-center gap-2"
                     onClick={limpiarTodo}
                     disabled={cargando}
                   >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
+                    <RefreshCw size={18} />
                     <span>Limpiar Todo</span>
                   </button>
                 </div>
@@ -892,31 +694,19 @@ export default function CrearSolicitudPlanta() {
             </div>
 
             {/* Stats Card */}
-            <div className="card mt-4">
+            <div className="card">
               <div className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted">
                       Proveedores disponibles
                     </p>
-                    <p className="text-2xl font-bold text-gray-800">
+                    <p className="text-2xl font-bold">
                       {proveedores.length}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-primary-50 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-primary-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
+                  <div className="stats-icon">
+                    <Users size={20} />
                   </div>
                 </div>
               </div>
@@ -929,42 +719,30 @@ export default function CrearSolicitudPlanta() {
           <div className="card">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-3">
-                <svg
-                  className="w-5 h-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <h3 className="font-medium text-gray-700">Instrucciones</h3>
+                <HelpCircle size={20} className="text-muted" />
+                <h3 className="font-medium text-muted">Instrucciones</h3>
               </div>
-              <ul className="text-sm text-gray-600 space-y-2">
+              <ul className="text-sm text-muted space-y-2">
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">1.</span>
+                  <span className="text-primary font-medium">1.</span>
                   <span>Busque y seleccione un proveedor escribiendo su nombre</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">2.</span>
+                  <span className="text-primary font-medium">2.</span>
                   <span>Seleccione la unidad médica desde el listado</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">3.</span>
+                  <span className="text-primary font-medium">3.</span>
                   <span>
                     Agregue productos con sus cantidades
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">4.</span>
+                  <span className="text-primary font-medium">4.</span>
                   <span>Revise el resumen en el panel derecho</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-primary-600 font-medium">5.</span>
+                  <span className="text-primary font-medium">5.</span>
                   <span>Presione "Enviar Solicitud" cuando esté listo</span>
                 </li>
               </ul>
@@ -977,106 +755,74 @@ export default function CrearSolicitudPlanta() {
 }
 
 // Componente ProductoFila
-function ProductoFila({ producto, onAgregar, categoryStyle, categoryIcon }) {
+function ProductoFila({ producto, onAgregar, getCategoryStyle, getCategoryIcon }) {
   const [cantidad, setCantidad] = useState("");
-  const [unidad, setUnidad] = useState("und");
 
   const handleAgregar = () => {
     if (!cantidad || Number(cantidad) <= 0) return;
-    onAgregar(producto, cantidad, unidad);
+    onAgregar(producto, cantidad);
     setCantidad("");
-    setUnidad("und");
   };
 
   return (
-    <div className="card hover-lift border border-gray-200 mb-3">
-      <div className="p-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Sección izquierda: Información del producto */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start gap-3">
-              <div
-                className={`w-12 h-12 ${categoryStyle.bg} ${categoryStyle.border} border rounded-lg flex items-center justify-center flex-shrink-0 mt-1`}
+    <div className="bg-surface border border-base rounded-base p-4 hover:bg-hover transition-colors">
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Sección izquierda: Información del producto */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 border rounded-base flex items-center justify-center flex-shrink-0"
+              style={getCategoryStyle(producto.categoria)}
+            >
+              {getCategoryIcon(producto.categoria)}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h3
+                className="font-medium text-base mb-2 line-clamp-2"
+                title={producto.nombre}
               >
-                <span className="text-xl">{categoryIcon}</span>
-              </div>
+                {producto.nombre}
+              </h3>
 
-              <div className="flex-1 min-w-0">
-                <h3
-                  className="font-medium text-gray-800 text-base mb-2 line-clamp-2"
-                  title={producto.nombre}
-                >
-                  {producto.nombre}
-                </h3>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
-                    ID: {producto.id}
-                  </span>
-                </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="badge badge-primary text-xs">
+                  ID: {producto.id}
+                </span>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Sección derecha: Controles de agregar */}
-          <div className="lg:w-2/3">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
-              {/* Cantidad */}
-              <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cantidad
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="Ej: 10"
-                    className="form-input w-full pl-4 pr-1 py-3 text-base"
-                    value={cantidad}
-                    onChange={(e) => setCantidad(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && handleAgregar()}
-                  />
-                </div>
+        {/* Sección derecha: Controles de agregar */}
+        <div className="lg:w-64">
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1">
+                Cantidad
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Ej: 10"
+                  className="form-input w-full text-base"
+                  value={cantidad}
+                  onChange={(e) => setCantidad(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleAgregar()}
+                />
               </div>
-              {/* Unidad */}
-              <div className="md:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1 px-5">
-                  Unidad
-                </label>
-                <div className="relative">
-                  {producto.categoria && (
-                    <span
-                      className={`inline-flex items-center mx-4 px-5 py-4 rounded-full text-xs font-large ${categoryStyle.bg} ${categoryStyle.text} ${categoryStyle.border} border`}
-                    >
-                      {producto.categoria}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {/* Botón Agregar */}
-              <div className="md:col-span-2 flex items-end">
-                <button
-                  className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-base font-medium min-h-[48px] whitespace-nowrap"
-                  onClick={handleAgregar}
-                  disabled={!cantidad || Number(cantidad) <= 0}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                  Agregar
-                </button>
-              </div>
+            </div>
+            <div className="flex items-end">
+              <button
+                className="btn btn-primary flex items-center justify-center gap-2 h-[42px]"
+                onClick={handleAgregar}
+                disabled={!cantidad || Number(cantidad) <= 0}
+              >
+                <Plus size={18} />
+                Agregar
+              </button>
             </div>
           </div>
         </div>

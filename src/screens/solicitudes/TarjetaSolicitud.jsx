@@ -1,5 +1,19 @@
 // src/screens/solicitudes/TarjetaSolicitud.jsx
 import React from "react";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  FileText,
+  Calendar,
+  User,
+  Package,
+  ChevronDown,
+  Eye,
+  DollarSign,
+  Check,
+  X
+} from "lucide-react";
 
 export default function TarjetaSolicitud({
   solicitud,
@@ -9,33 +23,43 @@ export default function TarjetaSolicitud({
   const { id, nombre, estado, productos, fecha_creacion, creado_por } =
     solicitud;
 
-  const getEstadoColor = (estado) => {
+  const getEstadoConfig = (estado) => {
     switch (estado) {
       case "aprobada":
-        return "badge-success";
+        return {
+          badgeClass: "badge-success",
+          text: "Aprobada",
+          color: "var(--color-success)",
+          icon: <CheckCircle className="w-4 h-4" />
+        };
       case "pendiente":
-        return "badge-warning";
+        return {
+          badgeClass: "badge-warning",
+          text: "Pendiente",
+          color: "var(--color-warning)",
+          icon: <Clock className="w-4 h-4" />
+        };
       case "rechazada":
-        return "badge-error";
+        return {
+          badgeClass: "badge-error",
+          text: "Rechazada",
+          color: "var(--color-error)",
+          icon: <XCircle className="w-4 h-4" />
+        };
       default:
-        return "badge";
+        return {
+          badgeClass: "badge",
+          text: estado || "Desconocido",
+          color: "var(--color-muted)",
+          icon: <FileText className="w-4 h-4" />
+        };
     }
   };
 
-  const getEstadoText = (estado) => {
-    switch (estado) {
-      case "aprobada":
-        return "Aprobada";
-      case "pendiente":
-        return "Pendiente";
-      case "rechazada":
-        return "Rechazada";
-      default:
-        return estado;
-    }
-  };
+  const estadoConfig = getEstadoConfig(estado);
 
   const getFechaFormateada = (fecha) => {
+    if (!fecha) return "Fecha no disponible";
     return new Date(fecha).toLocaleDateString("es-ES", {
       day: "2-digit",
       month: "short",
@@ -45,132 +69,102 @@ export default function TarjetaSolicitud({
     });
   };
 
-  const getColorEstado = (estado) => {
-    switch (estado) {
-      case "aprobada":
-        return "#10B981";
-      case "rechazada":
-        return "#EF4444";
-      case "pendiente":
-        return "#F59E0B";
-      default:
-        return "#6B7280";
-    }
-  };
-
-  const getIconoEstado = (estado) => {
-    switch (estado) {
-      case "aprobada":
-        return "✅";
-      case "rechazada":
-        return "❌";
-      case "pendiente":
-        return "⏳";
-      default:
-        return "📄";
-    }
-  };
-
   return (
-    <div className={`${styles.tarjeta} card card-hover p-6`}>
-      <div
-        className={`${styles.contenidoTarjeta} flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4`}
-      >
+    <div className="card card-hover p-4">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         {/* Información principal */}
-        <div className={`${styles.infoPrincipal} flex-1`}>
-          <div
-            className={`${styles.encabezado} flex flex-col sm:flex-row sm:items-center gap-3 mb-4`}
-          >
-            <h3
-              className={`${styles.nombreProveedor} text-lg font-semibold text-gray-900`}
-            >
-              {solicitud.proveedor?.nombre || `Solicitud #${id}`}
-            </h3>
+        <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-primary">
+                  {solicitud.proveedor?.nombre || `Solicitud #${id}`}
+                </h3>
+                <p className="text-xs text-muted mt-0.5">
+                  ID: {id.substring(0, 8)}...
+                </p>
+              </div>
+            </div>
 
             <div className="flex items-center gap-2">
-              <span
-                className={styles.estado}
-                style={{ backgroundColor: getColorEstado(solicitud.estado) }}
-              >
-                {getIconoEstado(solicitud.estado)}{" "}
-                {String(solicitud.estado).toUpperCase()}
-              </span>
-
-              <div className={`badge ${getEstadoColor(estado)}`}>
-                {getEstadoText(estado)}
+              <div className={`badge ${estadoConfig.badgeClass} flex items-center gap-1.5`}>
+                {estadoConfig.icon}
+                <span className="font-medium">{estadoConfig.text}</span>
               </div>
             </div>
           </div>
 
           {/* Detalles */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Fecha</p>
-              <p className="font-medium text-gray-900">
-                {solicitud.created_at
-                  ? new Date(solicitud.created_at).toLocaleDateString()
-                  : getFechaFormateada(fecha_creacion)}
-              </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted flex-shrink-0" />
+              <div>
+                <p className="text-xs text-muted">Fecha</p>
+                <p className="text-sm font-medium text-primary">
+                  {solicitud.created_at
+                    ? new Date(solicitud.created_at).toLocaleDateString('es-ES')
+                    : getFechaFormateada(fecha_creacion)}
+                </p>
+              </div>
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Creado por</p>
-              <p className={`${styles.creador} font-medium text-gray-900`}>
-                Solicitado por:{" "}
-                <strong>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted flex-shrink-0" />
+              <div>
+                <p className="text-xs text-muted">Creado por</p>
+                <p className="text-sm font-medium text-primary truncate">
                   {solicitud.created_by_user?.nombre ||
                     creado_por?.nombre ||
                     "Usuario"}
-                </strong>
-              </p>
+                </p>
+              </div>
             </div>
 
-            <div>
-              <p className="text-sm text-gray-500 mb-1">Productos</p>
-              <p className="font-medium text-gray-900">
-                {productos?.length || 0} items
-              </p>
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-muted flex-shrink-0" />
+              <div>
+                <p className="text-xs text-muted">Productos</p>
+                <p className="text-sm font-medium text-primary">
+                  {productos?.length || 0} items
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Lista de productos (opcional - colapsable) */}
           {productos && productos.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-3">
               <details className="group">
-                <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 list-none">
-                  <span>Ver productos ({productos.length})</span>
-                  <svg
-                    className="w-5 h-5 text-gray-400 group-open:rotate-180 transition-transform"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
+                <summary className="flex items-center justify-between cursor-pointer text-sm font-medium text-primary list-none p-2 hover:bg-app rounded-base">
+                  <span className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-muted group-open:rotate-180 transition-transform" />
+                    <span>Ver productos ({productos.length})</span>
+                  </span>
                 </summary>
-                <div className="mt-3 space-y-2">
+                <div className="mt-2 space-y-1.5">
                   {productos.map((producto, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between py-2 px-3 bg-app rounded-base border border-base"
                     >
-                      <span className="font-medium text-gray-900">
-                        {producto.nombre}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-600">
-                          Cantidad: {producto.cantidad} {producto.unidad}
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-primary truncate block">
+                          {producto.nombre}
                         </span>
-                        {producto.precio_unitario && (
-                          <span className="text-sm font-medium text-primary-600">
-                            ${producto.precio_unitario.toLocaleString()}
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-xs text-muted">
+                            Cantidad: {producto.cantidad} {producto.unidad}
                           </span>
-                        )}
+                          {producto.precio_unitario && (
+                            <span className="text-xs font-medium text-primary flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" />
+                              {producto.precio_unitario.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -181,28 +175,34 @@ export default function TarjetaSolicitud({
         </div>
 
         {/* Acciones */}
-        <div
-          className={`${styles.acciones} flex flex-col sm:flex-row lg:flex-col gap-2`}
-        >
+        <div className="flex flex-col gap-2 min-w-[200px]">
           {(roleName === "administrador" || roleName === "jefe bodega") &&
             estado === "pendiente" && (
-              <div className={styles.botonesAccion}>
+              <div className="flex flex-col sm:flex-row lg:flex-col gap-2">
                 <button
-                  className={`${styles.botonAprobar} px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors`}
+                  className="btn btn-primary flex items-center justify-center gap-2 !py-2 text-sm"
                   onClick={() => onEstadoChange(solicitud.id, "aprobada")}
                 >
+                  <Check className="w-4 h-4" />
                   Aprobar
                 </button>
                 <button
-                  className={`${styles.botonRechazar} px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors`}
+                  className="btn flex items-center justify-center gap-2 !py-2 text-sm"
+                  style={{
+                    backgroundColor: 'var(--color-error)',
+                    color: 'white',
+                    borderColor: 'var(--color-error)',
+                  }}
                   onClick={() => onEstadoChange(solicitud.id, "rechazada")}
                 >
+                  <X className="w-4 h-4" />
                   Rechazar
                 </button>
               </div>
             )}
 
-          <button className="px-4 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors">
+          <button className="btn btn-outline flex items-center justify-center gap-2 !py-2 text-sm">
+            <Eye className="w-4 h-4" />
             Ver detalles
           </button>
         </div>

@@ -12,7 +12,10 @@ import {
   ChevronUp,
   ChevronDown,
   Hash,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
+import notify from "../utils/notifier";
 
 export default function ProveedoresScreen() {
   const { navigate } = useRouter();
@@ -93,6 +96,7 @@ export default function ProveedoresScreen() {
     } catch (err) {
       console.error("Error cargando proveedores:", err);
       setError("No se pudieron cargar los proveedores.");
+      notify.error("Error al cargar proveedores");
     } finally {
       setLoading(false);
     }
@@ -111,9 +115,9 @@ export default function ProveedoresScreen() {
   const getSortIcon = (field) => {
     if (sortField !== field) return null;
     return sortDirection === "asc" ? (
-      <ChevronUp size={16} />
+      <ChevronUp className="w-4 h-4" />
     ) : (
-      <ChevronDown size={16} />
+      <ChevronDown className="w-4 h-4" />
     );
   };
 
@@ -135,14 +139,16 @@ export default function ProveedoresScreen() {
 
   if (error) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="card p-12 text-center border-2 border-dashed border-red-200">
-          <div className="text-5xl mb-6 text-red-500">❌</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+      <div className="page-container">
+        <div className="card p-12 text-center border-2 border-dashed border-error/20">
+          <div className="w-20 h-20 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="w-10 h-10 text-error" />
+          </div>
+          <h3 className="text-xl font-semibold text-primary mb-2">
             Error al cargar proveedores
           </h3>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <button onClick={loadProveedores} className="btn-primary">
+          <p className="text-muted mb-6">{error}</p>
+          <button onClick={loadProveedores} className="btn btn-primary">
             Reintentar
           </button>
         </div>
@@ -151,279 +157,292 @@ export default function ProveedoresScreen() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Proveedores</h1>
-          <p className="text-gray-600">
-            {totalCount} proveedores registrados • Página {currentPage} de{" "}
-            {totalPages}
-          </p>
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-6 mb-6">
+          <div className="section-header">
+            <h1 className="section-title">Proveedores</h1>
+            <p className="section-subtitle">
+              {totalCount} proveedores registrados • Página {currentPage} de{" "}
+              {totalPages}
+            </p>
+          </div>
         </div>
 
-        <button
-          onClick={handleViewProducts}
-          className="btn-primary flex items-center gap-2"
-        >
-          <ChevronRight size={18} />
-          Ver productos
-        </button>
-      </div>
-
-      {/* Búsqueda */}
-      <div className="card p-6 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative md:col-span-2">
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-              size={20}
-            />
-            <input
-              type="text"
-              placeholder="Buscar proveedor por nombre, NIT o ID..."
-              className="form-input pl-10"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-
-          <div className="flex items-center justify-center md:justify-end gap-6">
-            <div className="text-center">
-              <div className="text-xl font-bold text-primary-600">
-                {proveedores.length}
-              </div>
-              <div className="text-sm text-gray-500">En esta página</div>
+        {/* Búsqueda */}
+        <div className="card p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative md:col-span-2">
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Buscar proveedor por nombre, NIT o ID..."
+                className="form-input pl-10 !py-2.5"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
             </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-gray-700">
-                {totalCount}
+
+            <div className="flex items-center justify-center md:justify-end gap-4">
+              <div className="text-center">
+                <div className="text-xl font-bold text-primary">
+                  {proveedores.length}
+                </div>
+                <div className="text-sm text-muted">En esta página</div>
               </div>
-              <div className="text-sm text-gray-500">Total</div>
+              <div className="text-center">
+                <div className="text-xl font-bold text-primary">
+                  {totalCount}
+                </div>
+                <div className="text-sm text-muted">Total</div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabla de proveedores - CON COLUMNA NIT */}
-      <div className="card overflow-hidden mb-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("id")}
-                >
-                  <div className="flex items-center gap-1">
-                    ID {getSortIcon("id")}
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("nombre")}
-                >
-                  <div className="flex items-center gap-1">
-                    Nombre del Proveedor {getSortIcon("nombre")}
-                  </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort("nit")}
-                >
-                  <div className="flex items-center gap-1">
-                    NIT {getSortIcon("nit")}
-                  </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
+        {/* Tabla de proveedores - CON COLUMNA NIT */}
+        <div className="card overflow-hidden mb-6">
+          <div className="overflow-x-auto">
+            <table className="table">
+              <thead className="table-header">
                 <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center">
-                    <div className="spinner mx-auto mb-3"></div>
-                    <p className="text-gray-500">Cargando proveedores...</p>
-                  </td>
-                </tr>
-              ) : proveedores.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-12 text-center">
-                    <div className="text-gray-500">
-                      <Building
-                        size={48}
-                        className="mx-auto mb-4 text-gray-300"
-                      />
-                      <p className="text-lg font-medium mb-2">
-                        No se encontraron proveedores
-                      </p>
-                      <p className="text-gray-400">
-                        {searchTerm
-                          ? "Prueba con otros términos de búsqueda"
-                          : "No hay proveedores registrados"}
-                      </p>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("id")}
+                  >
+                    <div className="flex items-center gap-1">
+                      ID {getSortIcon("id")}
                     </div>
-                  </td>
+                  </th>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("nombre")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Nombre del Proveedor {getSortIcon("nombre")}
+                    </div>
+                  </th>
+                  <th
+                    className="table-header-cell cursor-pointer hover:bg-app"
+                    onClick={() => handleSort("nit")}
+                  >
+                    <div className="flex items-center gap-1">
+                      NIT {getSortIcon("nit")}
+                    </div>
+                  </th>
+                  <th className="table-header-cell">Acciones</th>
                 </tr>
-              ) : (
-                proveedores.map((proveedor) => (
-                  <tr key={proveedor.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono">
-                        {proveedor.id}
-                      </code>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center">
+                      <div className="spinner spinner-lg mx-auto mb-3"></div>
+                      <p className="text-muted">Cargando proveedores...</p>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                          <Building size={20} className="text-blue-600" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {proveedor.nombre}
+                  </tr>
+                ) : proveedores.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-12 text-center">
+                      <div className="text-muted">
+                        <Building
+                          size={48}
+                          className="mx-auto mb-4 text-border"
+                        />
+                        <p className="text-lg font-medium mb-2 text-primary">
+                          No se encontraron proveedores
+                        </p>
+                        <p className="text-muted">
+                          {searchTerm
+                            ? "Prueba con otros términos de búsqueda"
+                            : "No hay proveedores registrados"}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  proveedores.map((proveedor) => (
+                    <tr key={proveedor.id} className="table-row">
+                      <td className="table-cell">
+                        <code className="text-sm bg-app px-2 py-1 rounded-base font-mono text-muted">
+                          {proveedor.id}
+                        </code>
+                      </td>
+                      <td className="table-cell">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
+                            <Building size={20} className="text-primary" />
                           </div>
-                          {proveedor.rut && (
-                            <div className="text-sm text-gray-500 mt-1 font-mono">
-                              {proveedor.rut}
+                          <div>
+                            <div className="font-medium text-primary">
+                              {proveedor.nombre}
+                            </div>
+                            {proveedor.rut && (
+                              <div className="text-sm text-muted mt-1 font-mono">
+                                {proveedor.rut}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="table-cell">
+                        <div className="space-y-2">
+                          {proveedor.nit ? (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Hash
+                                size={14}
+                                className="text-muted flex-shrink-0"
+                              />
+                              <span className="text-muted font-mono bg-app px-2 py-1 rounded-base">
+                                {proveedor.nit}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted italic">
+                              Sin NIT registrado
+                            </div>
+                          )}
+                          {proveedor.email && (
+                            <div className="flex items-center gap-2 text-sm mt-2">
+                              <Mail
+                                size={14}
+                                className="text-muted flex-shrink-0"
+                              />
+                              <span className="text-muted truncate max-w-[200px]">
+                                {proveedor.email}
+                              </span>
                             </div>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        {proveedor.nit ? (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Hash
-                              size={14}
-                              className="text-gray-400 flex-shrink-0"
-                            />
-                            <span className="text-gray-600 font-mono bg-gray-50 px-2 py-1 rounded">
-                              {proveedor.nit}
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400 italic">
-                            Sin NIT registrado
-                          </div>
-                        )}
-                        {proveedor.email && (
-                          <div className="flex items-center gap-2 text-sm mt-2">
-                            <Mail
-                              size={14}
-                              className="text-gray-400 flex-shrink-0"
-                            />
-                            <span className="text-gray-600 truncate max-w-[200px]">
-                              {proveedor.email}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        className="p-2 hover:bg-gray-100 rounded-lg"
-                        title="Ver detalles"
-                        onClick={() =>
-                          navigate("productos", { proveedorId: proveedor.id })
-                        }
-                      >
-                        <Eye size={18} className="text-gray-600" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      </td>
+                      <td className="table-cell">
+                        <button
+                          className="btn btn-icon btn-outline"
+                          title="Ver detalles"
+                          onClick={() =>
+                            navigate("productos", { proveedorId: proveedor.id })
+                          }
+                        >
+                          <Eye size={18} className="text-secondary" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-6 border-t border-base">
+            <div className="text-sm text-muted">
+              Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
+              {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount}{" "}
+              proveedores
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`btn btn-icon ${
+                  currentPage === 1
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => goToPage(pageNum)}
+                    className={`w-10 h-10 flex items-center justify-center rounded-base ${
+                      currentPage === pageNum
+                        ? "btn-primary"
+                        : "btn btn-outline"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className={`btn btn-icon ${
+                  currentPage === totalPages
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
+                }`}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted">Ir a:</span>
+              <input
+                type="number"
+                min="1"
+                max={totalPages}
+                defaultValue={currentPage}
+                className="form-input w-16 !py-1.5 !px-2 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const page = parseInt(e.target.value);
+                    if (!isNaN(page)) goToPage(page);
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Botón de recarga */}
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={loadProveedores}
+            disabled={loading}
+            className="btn btn-outline flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="spinner spinner-sm"></div>
+                <span>Cargando...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4" />
+                <span>Actualizar lista</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
-
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200">
-          <div className="text-sm text-gray-600">
-            Mostrando {(currentPage - 1) * itemsPerPage + 1} -{" "}
-            {Math.min(currentPage * itemsPerPage, totalCount)} de {totalCount}{" "}
-            proveedores
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => goToPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className={`p-2 rounded-lg ${
-                currentPage === 1
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-lg ${
-                    currentPage === pageNum
-                      ? "bg-orange-500 text-white"
-                      : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-
-            <button
-              onClick={() => goToPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className={`p-2 rounded-lg ${
-                currentPage === totalPages
-                  ? "text-gray-400 cursor-not-allowed"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Ir a:</span>
-            <input
-              type="number"
-              min="1"
-              max={totalPages}
-              defaultValue={currentPage}
-              className="w-16 border border-gray-300 rounded px-2 py-1 text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const page = parseInt(e.target.value);
-                  if (!isNaN(page)) goToPage(page);
-                }
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

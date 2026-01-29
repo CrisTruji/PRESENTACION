@@ -5,7 +5,7 @@ const DEBUG_AUTH = import.meta.env.VITE_DEBUG_AUTH === "true";
 
 function debug(...args) {
   if (DEBUG_AUTH) {
-    debug(...args);
+    console.log(...args);
   }
 }
 
@@ -97,16 +97,6 @@ export function AuthProvider({ children }) {
   // =====================================================
   // 🎨 UI (DEV PANEL)
   // =====================================================
-  const colors = {
-    primary: "#4F46E5",
-    secondary: "#0EA5E9",
-    accent: "#F97316",
-    dark: "#334155",
-    light: "#F8FAFC",
-    border: "#E2E8F0",
-    danger: "#DC2626",
-  };
-
   const roles = [
     "administrador",
     "jefe_de_planta",
@@ -139,82 +129,42 @@ export function AuthProvider({ children }) {
       {children}
 
       {/* ================================================= */}
-      {/* 🛠️ DEV PANEL*/}
+      {/* 🛠️ DEV PANEL */}
       {/* ================================================= */}
       {process.env.NODE_ENV !== "production" && session && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "16px",
-            right: "16px",
-            zIndex: 9999,
-            fontFamily: "Inter, sans-serif",
-          }}
-        >
+        <div className="fixed bottom-4 right-4 z-[9999] font-sans">
           {showRoleRouter ? (
-            <div
-              style={{
-                background: "#fff",
-                padding: "12px",
-                borderRadius: "10px",
-                width: "250px",
-                border: `1px solid ${colors.border}`,
-                boxShadow: "0 4px 20px rgba(0,0,0,.15)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "8px",
-                }}
-              >
-                <strong style={{ fontSize: "12px" }}>
-                  Rol:{" "}
-                  {effectiveRole
-                    ? formatRoleName(effectiveRole)
-                    : "Sin rol"}
-                </strong>
+            <div className="bg-surface border border-base rounded-card p-3 w-64 shadow-card">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="text-xs font-semibold text-primary">
+                    Rol:
+                  </div>
+                  <div className="text-xs text-secondary">
+                    {effectiveRole
+                      ? formatRoleName(effectiveRole)
+                      : "Sin rol"}
+                  </div>
+                </div>
                 <button
                   onClick={() => setShowRoleRouter(false)}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                  }}
+                  className="text-muted hover:text-primary transition-colors"
+                  aria-label="Cerrar panel"
                 >
                   ✕
                 </button>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2,1fr)",
-                  gap: "6px",
-                  marginBottom: "10px",
-                }}
-              >
+              <div className="grid grid-cols-2 gap-1.5 mb-3">
                 {roles.map((r) => (
                   <button
                     key={r}
                     onClick={() => fakeSetRole(r)}
-                    style={{
-                      fontSize: "11px",
-                      padding: "6px",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      border:
-                        r === effectiveRole
-                          ? `1px solid ${colors.primary}`
-                          : `1px solid ${colors.border}`,
-                      background:
-                        r === effectiveRole
-                          ? colors.primary
-                          : "white",
-                      color:
-                        r === effectiveRole ? "white" : colors.dark,
-                    }}
+                    className={`text-xs py-1.5 px-2 rounded-base transition-all ${
+                      r === effectiveRole
+                        ? "btn-primary"
+                        : "btn-outline"
+                    }`}
                   >
                     {formatRoleName(r)}
                   </button>
@@ -223,18 +173,11 @@ export function AuthProvider({ children }) {
 
               <button
                 onClick={() => fakeSetRole(null)}
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  borderRadius: "6px",
-                  border: "none",
-                  background: fakeRole
-                    ? colors.danger
-                    : colors.secondary,
-                  color: "white",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                }}
+                className={`w-full py-2 rounded-base text-xs font-medium transition-colors ${
+                  fakeRole
+                    ? "bg-error hover:bg-error/90 text-white"
+                    : "bg-primary hover:bg-primary-hover text-white"
+                }`}
               >
                 {fakeRole ? "Restaurar rol real" : "Rol real"}
               </button>
@@ -242,16 +185,8 @@ export function AuthProvider({ children }) {
           ) : (
             <button
               onClick={() => setShowRoleRouter(true)}
-              style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "8px",
-                background: colors.primary,
-                color: "white",
-                border: "none",
-                cursor: "pointer",
-                fontSize: "18px",
-              }}
+              className="btn btn-primary !w-10 !h-10 !p-0 rounded-full flex items-center justify-center text-base"
+              aria-label="Abrir panel de desarrollo"
             >
               🛠️
             </button>
