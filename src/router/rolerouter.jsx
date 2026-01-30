@@ -105,21 +105,24 @@ export default function RoleRouter() {
       case "facturas":
         return <Facturas />;
 
-      // ADMIN
-      case "admin_dashboard":
-        return <AdminDashboard />;
-      case "admin_requests":
-        return <AdminRequests />;
-      // CHEF (ADMIN)
-      case "chef_arbol_materia_prima":
-        return <ArbolMateriaPrima />;
-      default:
-        return (
-          <div style={{ padding: 20, color: "red" }}>
-            <h3>Pantalla no encontrada:</h3>
-            <p>{currentScreen?.name || "(sin nombre)"}</p>
-          </div>
-        );
+// ADMIN
+case "admin_dashboard":
+  return <AdminDashboard />;
+case "admin_requests":
+  return <AdminRequests />;
+
+// CHEF (ADMIN)
+case "arbol_materia_prima":
+case "chef_arbol_materia_prima":
+  return <ArbolMateriaPrima />;
+
+default:
+  return (
+    <div style={{ padding: 20, color: "red" }}>
+      <h3>Pantalla no encontrada:</h3>
+      <p>{currentScreen?.name || "(sin nombre)"}</p>
+    </div>
+  );
     }
   };
 
