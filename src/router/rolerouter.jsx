@@ -7,8 +7,9 @@ import { useRouter } from "../context/roleroutercontext";
 // IMPORTS DE PANTALLAS POR ROL
 // ================================
 
-// CHEF (solo admin)
+// CHEF / ARBOLES (admin)
 import ArbolMateriaPrima from "../screens/chef/arbol_materia_prima";
+import SelectorArboles from "../screens/chef/selector_arboles";
 
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
@@ -111,7 +112,10 @@ case "admin_dashboard":
 case "admin_requests":
   return <AdminRequests />;
 
-// CHEF (ADMIN)
+// CHEF / ARBOLES (ADMIN)
+case "selector_arboles":
+case "arboles":
+  return <SelectorArboles />;
 case "arbol_materia_prima":
 case "chef_arbol_materia_prima":
   return <ArbolMateriaPrima />;
