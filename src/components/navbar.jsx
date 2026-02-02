@@ -99,8 +99,10 @@ export default function Navbar() {
       administrador: [
         { label: "Dashboard", name: "admin_dashboard", icon: icons.dashboard },
         { label: "Solicitudes de Acceso", name: "admin_requests", icon: icons.requests },
+        { label: "Inventario", name: "inventario", icon: icons.products },
         { label: "Facturas", name: "facturas", icon: icons.invoices },
         { label: "Arboles", name: "selector_arboles", icon: icons.tree },
+        { label: "Vincular Presentaciones", name: "vincular_presentaciones", icon: icons.products },
       ],
       jefe_de_planta: [
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },

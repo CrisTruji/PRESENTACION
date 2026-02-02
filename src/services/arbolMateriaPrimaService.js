@@ -379,5 +379,207 @@ export const arbolMateriaPrimaService = {
       valido: errores.length === 0,
       errores
     };
+  },
+
+  // ============================================================
+  // MÉTODOS DE STOCK E INVENTARIO
+  // ============================================================
+
+  /**
+   * Actualizar stock de un producto (nivel 5) desde factura
+   * Usa el RPC actualizar_stock_desde_factura para actualización atómica
+   * @param {number} facturaId - ID de la factura
+   * @returns {Promise<{data, error}>}
+   */
+  async actualizarStockDesdeFactura(facturaId) {
+    const { data, error } = await supabase.rpc('actualizar_stock_desde_factura', {
+      p_factura_id: facturaId
+    });
+
+    return { data, error };
+  },
+
+  /**
+   * Obtener movimientos de inventario de un producto
+   * @param {number} productoId - ID del producto nivel 5
+   * @param {number} limite - Cantidad de registros (default: 50)
+   * @returns {Promise<{data, error}>}
+   */
+  async getMovimientosInventario(productoId, limite = 50) {
+    const { data, error } = await supabase
+      .from('movimientos_inventario')
+      .select(`
+        *,
+        presentacion:presentacion_id(codigo, nombre, contenido_unidad, unidad_contenido),
+        factura:factura_id(numero_factura, fecha_factura)
+      `)
+      .eq('producto_id', productoId)
+      .order('created_at', { ascending: false })
+      .limit(limite);
+
+    return { data, error };
+  },
+
+  /**
+   * Obtener productos con stock bajo (por debajo del mínimo)
+   * @param {string} tipo_rama - Filtrar por tipo (opcional)
+   * @returns {Promise<{data, error}>}
+   */
+  async getProductosStockBajo(tipo_rama = null) {
+    let query = supabase
+      .from('arbol_materia_prima')
+      .select('*')
+      .eq('nivel_actual', 5)
+      .eq('activo', true)
+      .eq('maneja_stock', true)
+      .not('stock_minimo', 'is', null);
+
+    if (tipo_rama) {
+      query = query.eq('tipo_rama', tipo_rama);
+    }
+
+    const { data, error } = await query;
+
+    if (error) return { data: null, error };
+
+    // Filtrar productos donde stock_actual < stock_minimo
+    const productosBajos = data.filter(p =>
+      p.stock_actual !== null &&
+      p.stock_minimo !== null &&
+      p.stock_actual < p.stock_minimo
+    );
+
+    return { data: productosBajos, error: null };
+  },
+
+  /**
+   * Obtener resumen de stock por tipo de rama
+   * @param {string} tipo_rama - produccion, entregable, desechable
+   * @returns {Promise<{data, error}>}
+   */
+  async getResumenStockPorTipo(tipo_rama) {
+    const { data, error } = await supabase
+      .from('arbol_materia_prima')
+      .select('id, codigo, nombre, stock_actual, stock_minimo, stock_maximo, unidad_stock, costo_promedio')
+      .eq('nivel_actual', 5)
+      .eq('tipo_rama', tipo_rama)
+      .eq('activo', true)
+      .eq('maneja_stock', true)
+      .order('nombre');
+
+    return { data, error };
+  },
+
+  /**
+   * Calcular valor total del inventario
+   * @param {string} tipo_rama - Filtrar por tipo (opcional)
+   * @returns {Promise<{data, error}>}
+   */
+  async calcularValorInventario(tipo_rama = null) {
+    let query = supabase
+      .from('arbol_materia_prima')
+      .select('stock_actual, costo_promedio')
+      .eq('nivel_actual', 5)
+      .eq('activo', true)
+      .eq('maneja_stock', true);
+
+    if (tipo_rama) {
+      query = query.eq('tipo_rama', tipo_rama);
+    }
+
+    const { data, error } = await query;
+
+    if (error) return { data: null, error };
+
+    const valorTotal = data.reduce((total, producto) => {
+      const stock = producto.stock_actual || 0;
+      const costo = producto.costo_promedio || 0;
+      return total + (stock * costo);
+    }, 0);
+
+    return {
+      data: {
+        valor_total: valorTotal,
+        productos_count: data.length
+      },
+      error: null
+    };
+  },
+
+  /**
+   * Obtener presentación por ID con datos del producto padre
+   * @param {number} presentacionId - ID de la presentación (nivel 6)
+   * @returns {Promise<{data, error}>}
+   */
+  async getPresentacionConProducto(presentacionId) {
+    const { data: presentacion, error: errorPres } = await supabase
+      .from('arbol_materia_prima')
+      .select('*')
+      .eq('id', presentacionId)
+      .eq('nivel_actual', 6)
+      .single();
+
+    if (errorPres) return { data: null, error: errorPres };
+
+    // Obtener producto padre (nivel 5)
+    const { data: producto, error: errorProd } = await supabase
+      .from('arbol_materia_prima')
+      .select('*')
+      .eq('id', presentacion.parent_id)
+      .single();
+
+    if (errorProd) return { data: null, error: errorProd };
+
+    return {
+      data: {
+        presentacion,
+        producto
+      },
+      error: null
+    };
+  },
+
+  /**
+   * Buscar presentaciones disponibles para un proveedor
+   * @param {number} proveedorId - ID del proveedor
+   * @param {string} termino - Término de búsqueda
+   * @returns {Promise<{data, error}>}
+   */
+  async buscarPresentacionesParaProveedor(proveedorId, termino = '') {
+    // Obtener presentaciones ya vinculadas
+    const { data: vinculadas } = await supabase
+      .from('proveedor_presentaciones')
+      .select('presentacion_id')
+      .eq('proveedor_id', proveedorId)
+      .eq('activo', true);
+
+    const idsVinculados = (vinculadas || []).map(v => v.presentacion_id);
+
+    // Buscar presentaciones nivel 6
+    let query = supabase
+      .from('arbol_materia_prima')
+      .select(`
+        id,
+        codigo,
+        nombre,
+        contenido_unidad,
+        unidad_contenido,
+        parent_id
+      `)
+      .eq('nivel_actual', 6)
+      .eq('activo', true);
+
+    if (termino && termino.length >= 2) {
+      query = query.or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`);
+    }
+
+    const { data, error } = await query.order('nombre').limit(50);
+
+    if (error) return { data: null, error };
+
+    // Filtrar las ya vinculadas y agregar info del padre
+    const disponibles = data.filter(p => !idsVinculados.includes(p.id));
+
+    return { data: disponibles, error: null };
   }
 };

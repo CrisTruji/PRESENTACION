@@ -14,6 +14,8 @@ import SelectorArboles from "../screens/chef/selector_arboles";
 // ADMIN
 import AdminDashboard from "../screens/admin/adminDashboard";
 import AdminRequests from "../screens/admin/admin_requests";
+import VincularPresentaciones from "../screens/admin/vincular_presentaciones";
+import Inventario from "../screens/admin/inventario";
 
 // PLANTA (jefe de planta)
 import CrearSolicitud from "../screens/planta/crearsolicitud";
@@ -111,6 +113,10 @@ case "admin_dashboard":
   return <AdminDashboard />;
 case "admin_requests":
   return <AdminRequests />;
+case "vincular_presentaciones":
+  return <VincularPresentaciones />;
+case "inventario":
+  return <Inventario />;
 
 // CHEF / ARBOLES (ADMIN)
 case "selector_arboles":

@@ -5,7 +5,9 @@ import {
   getSolicitudesCompradas,
   getProveedoresConSolicitudesPendientes,
   registrarRecepcionFactura,
-  subirPDFFactura
+  subirPDFFactura,
+  getPresentacionesPorProveedor,
+  getMovimientosPorFactura
 } from "../../services/facturas";
 import notify from "../../utils/notifier";
 import {
@@ -26,7 +28,11 @@ import {
   Upload,
   DollarSign,
   AlertTriangle,
-  Save
+  Save,
+  CheckCircle,
+  TrendingUp,
+  Database,
+  Scale
 } from "lucide-react";
 
 export default function RecepcionFactura() {
@@ -56,7 +62,15 @@ export default function RecepcionFactura() {
   const [fechaFactura, setFechaFactura] = useState("");
   const [archivoPDF, setArchivoPDF] = useState(null);
   const [itemsRecepcion, setItemsRecepcion] = useState([]);
-  
+
+  // Presentaciones del proveedor
+  const [presentacionesProveedor, setPresentacionesProveedor] = useState([]);
+  const [cargandoPresentaciones, setCargandoPresentaciones] = useState(false);
+
+  // Modal de resultado de stock
+  const [mostrarResultadoStock, setMostrarResultadoStock] = useState(false);
+  const [resultadoStock, setResultadoStock] = useState(null);
+
   // Cargar datos iniciales
   useEffect(() => {
     cargarDatosIniciales();
@@ -78,18 +92,18 @@ export default function RecepcionFactura() {
         getSolicitudesCompradas(),
         getProveedoresConSolicitudesPendientes()
       ]);
-      
+
       setProveedores(provs);
       // Ordenar solicitudes
       const sorted = [...(sols || [])].sort((a, b) => {
         let aVal = a[sortField];
         let bVal = b[sortField];
-        
+
         if (sortField === "fecha_solicitud") {
           aVal = new Date(aVal).getTime();
           bVal = new Date(bVal).getTime();
         }
-        
+
         if (sortDirection === "asc") {
           return aVal > bVal ? 1 : -1;
         } else {
@@ -112,17 +126,17 @@ export default function RecepcionFactura() {
     setTableLoading(true);
     try {
       const sols = await getSolicitudesCompradas();
-      
+
       // Ordenar solicitudes
       const sorted = [...(sols || [])].sort((a, b) => {
         let aVal = a[sortField];
         let bVal = b[sortField];
-        
+
         if (sortField === "fecha_solicitud") {
           aVal = new Date(aVal).getTime();
           bVal = new Date(bVal).getTime();
         }
-        
+
         if (sortDirection === "asc") {
           return aVal > bVal ? 1 : -1;
         } else {
@@ -148,24 +162,24 @@ export default function RecepcionFactura() {
       setSortField(field);
       setSortDirection("asc");
     }
-    
+
     // Ordenar localmente sin recargar
     const sorted = [...solicitudes].sort((a, b) => {
       let aVal = a[field];
       let bVal = b[field];
-      
+
       if (field === "fecha_solicitud") {
         aVal = new Date(aVal).getTime();
         bVal = new Date(bVal).getTime();
       }
-      
+
       if (sortDirection === "asc") {
         return aVal > bVal ? 1 : -1;
       } else {
         return aVal < bVal ? 1 : -1;
       }
     });
-    
+
     setSolicitudes(sorted);
   };
 
@@ -184,7 +198,7 @@ export default function RecepcionFactura() {
     if (proveedorFiltro !== "todos" && s.proveedores?.id !== parseInt(proveedorFiltro)) {
       return false;
     }
-    
+
     // Filtro por búsqueda
     if (debouncedSearchTerm) {
       const searchLower = debouncedSearchTerm.toLowerCase();
@@ -194,7 +208,7 @@ export default function RecepcionFactura() {
         (s.email_creador || "").toLowerCase().includes(searchLower)
       );
     }
-    
+
     return true;
   });
 
@@ -202,20 +216,43 @@ export default function RecepcionFactura() {
   // ABRIR MODAL DE REGISTRO
   // ============================================================
 
-  function abrirModalRegistro(solicitud) {
+  async function abrirModalRegistro(solicitud) {
     setSolicitudSeleccionada(solicitud);
-    
+
+    // Cargar presentaciones vinculadas al proveedor
+    if (solicitud.proveedores?.id) {
+      setCargandoPresentaciones(true);
+      try {
+        const presentaciones = await getPresentacionesPorProveedor(solicitud.proveedores.id);
+        setPresentacionesProveedor(presentaciones || []);
+      } catch (error) {
+        console.error('Error cargando presentaciones:', error);
+        setPresentacionesProveedor([]);
+      } finally {
+        setCargandoPresentaciones(false);
+      }
+    }
+
     // Inicializar items con valores por defecto
-    const itemsIniciales = solicitud.solicitud_items.map(item => ({
-      item_id: item.id,
-      catalogo_producto_id: item.catalogo_productos.id,
-      nombre: item.catalogo_productos.nombre,
-      cantidad_solicitada: item.cantidad_solicitada,
-      cantidad_recibida: item.cantidad_solicitada, // Por defecto, todo llegó
-      unidad: item.unidad,
-      precio_unitario: 0,
-      observacion: ''
-    }));
+    const itemsIniciales = solicitud.solicitud_items.map(item => {
+      // Buscar si hay presentación vinculada
+      const presentacionVinculada = item.presentacion_id ? {
+        id: item.presentacion_id
+      } : null;
+
+      return {
+        item_id: item.id,
+        catalogo_producto_id: item.catalogo_productos?.id || null,
+        presentacion_id: item.presentacion_id || null,
+        nombre: item.catalogo_productos?.nombre || 'Producto sin nombre',
+        cantidad_solicitada: item.cantidad_solicitada,
+        cantidad_recibida: item.cantidad_solicitada, // Por defecto, todo llegó
+        unidad: item.unidad,
+        precio_unitario: 0,
+        observacion: '',
+        tiene_presentacion: !!item.presentacion_id
+      };
+    });
 
     setItemsRecepcion(itemsIniciales);
     setNumeroFactura("");
@@ -232,6 +269,16 @@ export default function RecepcionFactura() {
     setItemsRecepcion(prev => {
       const nuevo = [...prev];
       nuevo[index][campo] = valor;
+
+      // Si se selecciona una presentación, actualizar datos relacionados
+      if (campo === 'presentacion_id' && valor) {
+        const presentacion = presentacionesProveedor.find(p => p.presentacion?.id === valor);
+        if (presentacion) {
+          nuevo[index].tiene_presentacion = true;
+          nuevo[index].precio_unitario = presentacion.precio_referencia || 0;
+        }
+      }
+
       return nuevo;
     });
   }
@@ -247,6 +294,8 @@ export default function RecepcionFactura() {
   const hayFaltantes = itemsRecepcion.some(
     item => item.cantidad_recibida < item.cantidad_solicitada
   );
+
+  const itemsConPresentacion = itemsRecepcion.filter(item => item.presentacion_id);
 
   // ============================================================
   // GUARDAR RECEPCIÓN
@@ -292,18 +341,37 @@ export default function RecepcionFactura() {
       }
 
       // Registrar recepción
-      await registrarRecepcionFactura({
+      const resultado = await registrarRecepcionFactura({
         solicitud_id: solicitudSeleccionada.id,
         proveedor_id: solicitudSeleccionada.proveedores?.id,
         numero_factura: numeroFactura,
         fecha_factura: fechaFactura,
         pdf_url: pdfUrl,
         items: itemsRecepcion,
-        total_factura: totalFactura
+        total_factura: totalFactura,
+        codigo_unidad: solicitudSeleccionada.codigo_unidad
       });
 
-      notify.success('Recepción registrada correctamente');
-      
+      // Mostrar resultado de stock si hay items con presentación
+      if (resultado.items_con_presentacion > 0) {
+        // Obtener movimientos de inventario generados
+        try {
+          const movimientos = await getMovimientosPorFactura(resultado.factura_id);
+          setResultadoStock({
+            factura_id: resultado.factura_id,
+            items_procesados: resultado.items_con_presentacion,
+            movimientos: movimientos
+          });
+          setMostrarResultadoStock(true);
+        } catch (err) {
+          console.error('Error obteniendo movimientos:', err);
+        }
+
+        notify.success(resultado.mensaje);
+      } else {
+        notify.success('Recepción registrada correctamente');
+      }
+
       setModalAbierto(false);
       // Actualizar solo las solicitudes después de guardar
       actualizarSolicitudes();
@@ -427,7 +495,7 @@ export default function RecepcionFactura() {
 
             {/* Botón actualizar alineado a la derecha */}
             <div className="flex items-center justify-end">
-              <button 
+              <button
                 onClick={actualizarSolicitudes}
                 disabled={updating}
                 className="btn btn-outline flex items-center gap-2"
@@ -619,6 +687,20 @@ export default function RecepcionFactura() {
             guardando={guardando}
             guardarRecepcion={guardarRecepcion}
             onClose={() => setModalAbierto(false)}
+            presentacionesProveedor={presentacionesProveedor}
+            cargandoPresentaciones={cargandoPresentaciones}
+            itemsConPresentacion={itemsConPresentacion}
+          />
+        )}
+
+        {/* Modal de resultado de stock */}
+        {mostrarResultadoStock && resultadoStock && (
+          <ResultadoStockModal
+            resultado={resultadoStock}
+            onClose={() => {
+              setMostrarResultadoStock(false);
+              setResultadoStock(null);
+            }}
           />
         )}
       </div>
@@ -626,7 +708,125 @@ export default function RecepcionFactura() {
   );
 }
 
-// Componente Modal separado (se mantiene igual que antes)
+// ============================================================
+// MODAL DE RESULTADO DE STOCK
+// ============================================================
+function ResultadoStockModal({ resultado, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div className="bg-surface rounded-card shadow-xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="card-header bg-success/10 border-b border-success/20">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center">
+                <CheckCircle size={24} className="text-success" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-success">Stock Actualizado</h2>
+                <p className="text-secondary text-sm">
+                  Factura #{resultado.factura_id} • {resultado.items_procesados} productos procesados
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="btn btn-icon btn-outline">
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Contenido */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {resultado.movimientos && resultado.movimientos.length > 0 ? (
+            <div className="space-y-4">
+              <h3 className="font-medium flex items-center gap-2">
+                <Database size={18} className="text-primary" />
+                Movimientos de Inventario Generados
+              </h3>
+
+              <div className="overflow-x-auto">
+                <table className="table">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="table-header-cell">Producto</th>
+                      <th className="table-header-cell">Presentación</th>
+                      <th className="table-header-cell">Cantidad</th>
+                      <th className="table-header-cell">Stock Anterior</th>
+                      <th className="table-header-cell">Stock Nuevo</th>
+                      <th className="table-header-cell">Costo Promedio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultado.movimientos.map((mov, index) => (
+                      <tr key={index} className="table-row">
+                        <td className="table-cell">
+                          <div>
+                            <div className="font-medium">{mov.producto?.nombre}</div>
+                            <div className="text-xs text-muted">{mov.producto?.codigo}</div>
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <div className="text-sm">
+                            {mov.presentacion?.nombre}
+                            <div className="text-xs text-muted">
+                              {mov.presentacion?.contenido_unidad} {mov.presentacion?.unidad_contenido}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="table-cell">
+                          <span className="badge badge-success">
+                            +{mov.cantidad_base?.toFixed(2)} {mov.producto?.unidad_stock}
+                          </span>
+                        </td>
+                        <td className="table-cell text-muted">
+                          {mov.stock_anterior?.toFixed(2)} {mov.producto?.unidad_stock}
+                        </td>
+                        <td className="table-cell font-medium text-success">
+                          {mov.stock_nuevo?.toFixed(2)} {mov.producto?.unidad_stock}
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center gap-1">
+                            {mov.costo_promedio_anterior !== mov.costo_promedio_nuevo && (
+                              <TrendingUp size={14} className="text-primary" />
+                            )}
+                            <span className="font-medium">
+                              ${mov.costo_promedio_nuevo?.toFixed(2)}
+                            </span>
+                          </div>
+                          {mov.costo_promedio_anterior !== mov.costo_promedio_nuevo && (
+                            <div className="text-xs text-muted">
+                              Anterior: ${mov.costo_promedio_anterior?.toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted">
+              <Scale size={48} className="mx-auto mb-3 opacity-50" />
+              <p>No se generaron movimientos de inventario</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="card-footer">
+          <button onClick={onClose} className="btn btn-primary">
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// MODAL DE DETALLE (Actualizado para soportar presentaciones)
+// ============================================================
 function DetalleModal({
   solicitudSeleccionada,
   numeroFactura,
@@ -642,7 +842,10 @@ function DetalleModal({
   hayFaltantes,
   guardando,
   guardarRecepcion,
-  onClose
+  onClose,
+  presentacionesProveedor,
+  cargandoPresentaciones,
+  itemsConPresentacion
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
@@ -659,7 +862,7 @@ function DetalleModal({
                 Solicitud #{solicitudSeleccionada.id} • Proveedor: {solicitudSeleccionada.proveedores?.nombre}
               </p>
             </div>
-            <button 
+            <button
               onClick={onClose}
               className="btn btn-icon btn-outline"
               disabled={guardando}
@@ -676,7 +879,7 @@ function DetalleModal({
             <h3 className="text-lg font-medium mb-4 pb-2 border-b border-light">
               Información de la Factura
             </h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="form-label">
@@ -746,27 +949,51 @@ function DetalleModal({
             </div>
           </div>
 
+          {/* Info de integración con stock */}
+          {presentacionesProveedor.length > 0 && (
+            <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-base">
+              <div className="flex items-start gap-3">
+                <Database size={20} className="text-primary mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-primary">Integración con Inventario</h4>
+                  <p className="text-sm text-secondary mt-1">
+                    Este proveedor tiene <strong>{presentacionesProveedor.length}</strong> presentaciones vinculadas.
+                    Al registrar la recepción, el stock se actualizará automáticamente para los productos con presentación asignada.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tabla de productos */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4 pb-2 border-b border-light">
               <h3 className="text-lg font-medium">
                 Detalle de Productos Recibidos
               </h3>
-              <div className="text-sm text-secondary">
-                Total: <span className="font-semibold text-primary">{itemsRecepcion.length}</span> productos
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-secondary">
+                  Total: <span className="font-semibold text-primary">{itemsRecepcion.length}</span> productos
+                </div>
+                {itemsConPresentacion.length > 0 && (
+                  <span className="badge badge-success text-xs">
+                    <Database size={12} className="mr-1" />
+                    {itemsConPresentacion.length} con stock
+                  </span>
+                )}
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="table">
                 <thead className="table-header">
                   <tr>
                     <th className="table-header-cell">Producto</th>
+                    <th className="table-header-cell">Presentación</th>
                     <th className="table-header-cell">Solicitado</th>
                     <th className="table-header-cell">Recibido</th>
                     <th className="table-header-cell">Precio Unit.</th>
                     <th className="table-header-cell">Subtotal</th>
-                    <th className="table-header-cell">Diferencia</th>
                     <th className="table-header-cell">Observación</th>
                   </tr>
                 </thead>
@@ -774,8 +1001,7 @@ function DetalleModal({
                   {itemsRecepcion.map((item, index) => {
                     const esFaltante = item.cantidad_recibida < item.cantidad_solicitada;
                     const subtotal = item.cantidad_recibida * item.precio_unitario;
-                    const diferencia = item.cantidad_solicitada - item.cantidad_recibida;
-                    
+
                     return (
                       <tr key={index} className={`table-row ${esFaltante ? 'bg-error/5' : ''}`}>
                         <td className="table-cell">
@@ -783,18 +1009,44 @@ function DetalleModal({
                             <div className="text-sm font-medium">{item.nombre}</div>
                             <div className="text-xs text-secondary flex items-center gap-2">
                               <span>Unidad: {item.unidad}</span>
-                              <span className="text-border">•</span>
-                              <span>ID: {item.catalogo_producto_id}</span>
+                              {item.tiene_presentacion && (
+                                <span className="inline-flex items-center gap-1 text-success">
+                                  <Database size={10} />
+                                  Stock
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
-                        
+
+                        <td className="table-cell">
+                          {cargandoPresentaciones ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-muted" />
+                          ) : presentacionesProveedor.length > 0 ? (
+                            <select
+                              value={item.presentacion_id || ''}
+                              onChange={(e) => actualizarItem(index, 'presentacion_id', e.target.value ? parseInt(e.target.value) : null)}
+                              className="form-input text-sm py-1"
+                              disabled={guardando}
+                            >
+                              <option value="">Sin presentación</option>
+                              {presentacionesProveedor.map(pres => (
+                                <option key={pres.presentacion?.id} value={pres.presentacion?.id}>
+                                  {pres.presentacion?.nombre} ({pres.presentacion?.contenido_unidad} {pres.presentacion?.unidad_contenido})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-muted">No disponible</span>
+                          )}
+                        </td>
+
                         <td className="table-cell">
                           <div className="text-sm font-medium">
                             {item.cantidad_solicitada}
                           </div>
                         </td>
-                        
+
                         <td className="table-cell">
                           <input
                             type="number"
@@ -807,7 +1059,7 @@ function DetalleModal({
                             disabled={guardando}
                           />
                         </td>
-                        
+
                         <td className="table-cell">
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted">
@@ -825,7 +1077,7 @@ function DetalleModal({
                             />
                           </div>
                         </td>
-                        
+
                         <td className="table-cell">
                           <div className={`px-3 py-2 rounded-base ${
                             subtotal > 0 ? 'bg-success/10 border border-success/20' : 'bg-surface'
@@ -835,22 +1087,7 @@ function DetalleModal({
                             </div>
                           </div>
                         </td>
-                        
-                        <td className="table-cell">
-                          <div className={`px-3 py-2 rounded-base text-center ${
-                            diferencia === 0 
-                              ? 'bg-surface' 
-                              : 'bg-error/10 border border-error/20 text-error'
-                          }`}>
-                            <div className="text-sm font-medium">
-                              {diferencia}
-                              {diferencia !== 0 && (
-                                <span className="text-xs ml-1">({item.unidad})</span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        
+
                         <td className="table-cell">
                           {esFaltante ? (
                             <input
@@ -890,6 +1127,12 @@ function DetalleModal({
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
+                    <span className="text-sm text-secondary">Con actualización de stock:</span>
+                    <span className="font-medium text-success">
+                      {itemsConPresentacion.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-secondary">Estado de recepción:</span>
                     <span className={`badge ${hayFaltantes ? 'badge-warning' : 'badge-success'}`}>
                       {hayFaltantes ? 'Parcial' : 'Completa'}
@@ -897,7 +1140,7 @@ function DetalleModal({
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-app rounded-base p-4 border border-light">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-lg font-semibold">Total Factura:</span>
@@ -914,6 +1157,12 @@ function DetalleModal({
                     Esta recepción será registrada como parcial debido a productos faltantes.
                   </div>
                 )}
+                {itemsConPresentacion.length > 0 && (
+                  <div className="mt-3 p-2 bg-success/10 border border-success/20 rounded-base text-sm text-success">
+                    <Database size={16} className="inline mr-1" />
+                    El stock de {itemsConPresentacion.length} producto(s) se actualizará automáticamente.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -922,19 +1171,19 @@ function DetalleModal({
         {/* Footer */}
         <div className="card-footer flex justify-between items-center">
           <div className="text-sm text-secondary">
-            {hayFaltantes 
-              ? "Recepción parcial con productos faltantes" 
+            {hayFaltantes
+              ? "Recepción parcial con productos faltantes"
               : "Recepción completa"}
           </div>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={onClose}
               className="btn btn-outline"
               disabled={guardando}
             >
               Cancelar
             </button>
-            <button 
+            <button
               onClick={guardarRecepcion}
               disabled={guardando}
               className={`btn btn-primary flex items-center gap-2 ${

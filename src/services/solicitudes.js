@@ -1,4 +1,5 @@
 // src/services/solicitudes.js
+// ACTUALIZADO: Sin dependencia de catalogo_productos - usa arbol_materia_prima
 import { supabase } from "../lib/supabase";
 import {
   ESTADOS_SOLICITUD,
@@ -12,12 +13,12 @@ import {
 /* ============================================================
    CREAR SOLICITUD
    ============================================================ */
-export async function crearSolicitud({ 
-  proveedor_id, 
+export async function crearSolicitud({
+  proveedor_id,
   codigo_unidad,
-  created_by, 
-  email_creador, 
-  observaciones = "" 
+  created_by,
+  email_creador,
+  observaciones = ""
 }) {
   const { data, error } = await supabase
     .from("solicitudes")
@@ -38,11 +39,13 @@ export async function crearSolicitud({
 
 /* ============================================================
    AGREGAR ITEMS A SOLICITUD
+   Ahora usa producto_arbol_id y presentacion_id
    ============================================================ */
 export async function agregarItemsSolicitud(solicitud_id, items) {
   const payload = items.map((i) => ({
     solicitud_id,
-    catalogo_producto_id: i.catalogo_producto_id,
+    producto_arbol_id: i.producto_arbol_id || null,
+    presentacion_id: i.presentacion_id || null,
     cantidad_solicitada: i.cantidad_solicitada,
     unidad: i.unidad || "und",
     observaciones: i.observaciones || null,
@@ -52,7 +55,7 @@ export async function agregarItemsSolicitud(solicitud_id, items) {
   const { data, error } = await supabase
     .from("solicitud_items")
     .insert(payload);
-    
+
   if (error) throw error;
   return data;
 }
@@ -82,10 +85,19 @@ export async function getSolicitudes() {
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_producto:catalogo_productos (
+        producto_arbol_id,
+        presentacion_id,
+        producto:producto_arbol_id (
           id,
+          codigo,
+          nombre
+        ),
+        presentacion:presentacion_id (
+          id,
+          codigo,
           nombre,
-          categoria
+          contenido_unidad,
+          unidad_contenido
         )
       )
     `)
@@ -120,11 +132,19 @@ export async function getSolicitudById(solicitud_id) {
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_productos (
+        producto_arbol_id,
+        presentacion_id,
+        producto:producto_arbol_id (
           id,
+          codigo,
+          nombre
+        ),
+        presentacion:presentacion_id (
+          id,
+          codigo,
           nombre,
-          categoria,
-          codigo_arbol
+          contenido_unidad,
+          unidad_contenido
         )
       )
     `)
@@ -144,7 +164,7 @@ export async function getSolicitudById(solicitud_id) {
    ============================================================ */
 export async function getSolicitudesPorRol(rol) {
   const estadosPermitidos = ESTADOS_POR_ROL[rol] || [];
-  
+
   if (estadosPermitidos.length === 0) {
     console.warn(`⚠️ Rol "${rol}" no tiene estados definidos`);
     return [];
@@ -167,7 +187,18 @@ export async function getSolicitudesPorRol(rol) {
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_productos(id, nombre, categoria, codigo_arbol)
+        producto_arbol_id,
+        presentacion_id,
+        producto:producto_arbol_id (
+          id,
+          codigo,
+          nombre
+        ),
+        presentacion:presentacion_id (
+          id,
+          codigo,
+          nombre
+        )
       )
     `)
     .in("estado", estadosPermitidos)
@@ -202,16 +233,24 @@ export async function getSolicitudConItems(solicitudId) {
       ),
       items:solicitud_items (
         id,
-        catalogo_producto_id,
+        producto_arbol_id,
+        presentacion_id,
         cantidad_solicitada,
         unidad,
         estado_item,
         observaciones,
         motivo_rechazo,
-        catalogo_productos (
+        producto:producto_arbol_id (
           id,
+          codigo,
+          nombre
+        ),
+        presentacion:presentacion_id (
+          id,
+          codigo,
           nombre,
-          categoria
+          contenido_unidad,
+          unidad_contenido
         )
       )
     `)
@@ -242,7 +281,7 @@ export async function getSolicitudesPendientes() {
 export async function aprobarItemAuxiliar(itemId) {
   const { error } = await supabase
     .from("solicitud_items")
-    .update({ 
+    .update({
       estado_item: ESTADOS_ITEM.APROBADO_AUXILIAR,
       motivo_rechazo: null
     })
@@ -262,7 +301,7 @@ export async function aprobarItemsAuxiliar(itemIds) {
 
   const { error } = await supabase
     .from("solicitud_items")
-    .update({ 
+    .update({
       estado_item: ESTADOS_ITEM.APROBADO_AUXILIAR,
       motivo_rechazo: null
     })
@@ -356,8 +395,8 @@ export async function cerrarRevisionAuxiliar(solicitudId) {
   // 6. Registrar en historial
   await registrarHistorial(solicitudId, nuevoEstado, "Revisión cerrada por auxiliar");
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     nuevoEstado,
     mensaje: nuevoEstado === ESTADOS_SOLICITUD.APROBADO_AUXILIAR
       ? "Solicitud aprobada y enviada a jefe de compras"
@@ -369,8 +408,8 @@ export async function cerrarRevisionAuxiliar(solicitudId) {
    ACTUALIZAR ESTADO SOLICITUD (GENÉRICO)
    ============================================================ */
 export async function actualizarEstadoSolicitud(
-  solicitud_id, 
-  nuevoEstado, 
+  solicitud_id,
+  nuevoEstado,
   comentario = null
 ) {
   // Validar que el estado existe
@@ -423,7 +462,20 @@ export async function getItemsBySolicitud(solicitud_id) {
       estado_item,
       observaciones,
       motivo_rechazo,
-      catalogo_producto:catalogo_productos ( id, nombre, categoria )
+      producto_arbol_id,
+      presentacion_id,
+      producto:producto_arbol_id (
+        id,
+        codigo,
+        nombre
+      ),
+      presentacion:presentacion_id (
+        id,
+        codigo,
+        nombre,
+        contenido_unidad,
+        unidad_contenido
+      )
     `)
     .eq("solicitud_id", solicitud_id);
 
@@ -480,7 +532,7 @@ export async function reenviarSolicitud(solicitudId) {
   // 2. Resetear estado de todos los ítems a pendiente
   const { error: errorReset } = await supabase
     .from("solicitud_items")
-    .update({ 
+    .update({
       estado_item: ESTADOS_ITEM.PENDIENTE,
       motivo_rechazo: null
     })
@@ -498,13 +550,59 @@ export async function reenviarSolicitud(solicitudId) {
 
   // 4. Registrar en historial
   await registrarHistorial(
-    solicitudId, 
-    ESTADOS_SOLICITUD.PENDIENTE, 
+    solicitudId,
+    ESTADOS_SOLICITUD.PENDIENTE,
     "Solicitud corregida y reenviada por jefe de planta"
   );
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     mensaje: "Solicitud reenviada correctamente"
   };
+}
+
+/* ============================================================
+   OBTENER PRESENTACIONES POR PROVEEDOR (para crear solicitud)
+   ============================================================ */
+export async function getPresentacionesPorProveedor(proveedorId) {
+  const { data, error } = await supabase
+    .from('proveedor_presentaciones')
+    .select(`
+      id,
+      precio_referencia,
+      codigo_proveedor,
+      presentacion:presentacion_id (
+        id,
+        codigo,
+        nombre,
+        contenido_unidad,
+        unidad_contenido,
+        parent_id
+      )
+    `)
+    .eq('proveedor_id', proveedorId)
+    .eq('activo', true);
+
+  if (error) throw error;
+
+  // Obtener información del producto padre para cada presentación
+  const presentacionesConProducto = await Promise.all(
+    (data || []).map(async (item) => {
+      if (item.presentacion?.parent_id) {
+        const { data: producto } = await supabase
+          .from('arbol_materia_prima')
+          .select('id, codigo, nombre, unidad_stock, costo_promedio, stock_actual')
+          .eq('id', item.presentacion.parent_id)
+          .single();
+
+        return {
+          ...item,
+          producto
+        };
+      }
+      return item;
+    })
+  );
+
+  return presentacionesConProducto;
 }
