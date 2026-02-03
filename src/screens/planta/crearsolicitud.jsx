@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth";
 import { useTheme } from "../hooks/useTheme";
 import { getProveedores } from "../../services/proveedores";
-import { getProductosByProveedor } from "../../services/productos";
+import { proveedorPresentacionesService } from "../../services/proveedorPresentacionesService";
 import {
   crearSolicitud,
   agregarItemsSolicitud,
@@ -199,11 +199,28 @@ export default function CrearSolicitudPlanta() {
 
     try {
       setCargandoProductos(true);
-      const prods = await getProductosByProveedor(Number(provId));
-      setProductos(prods);
+      // ACTUALIZADO: Usa proveedorPresentacionesService en lugar de getProductosByProveedor
+      const { data: prods, error } = await proveedorPresentacionesService.getPresentacionesByProveedor(Number(provId));
+
+      if (error) {
+        throw error;
+      }
+
+      // Transformar la respuesta para mantener compatibilidad con el UI
+      const productosFormateados = (prods || []).map(item => ({
+        id: item.presentacion?.id,
+        nombre: item.presentacion?.nombre || 'Sin nombre',
+        codigo: item.presentacion?.codigo,
+        contenido_unidad: item.presentacion?.contenido_unidad,
+        unidad_contenido: item.presentacion?.unidad_contenido,
+        precio_referencia: item.precio_referencia,
+        producto_padre: item.producto,
+        categoria: item.producto?.nombre || 'Sin categoría'
+      }));
+      setProductos(productosFormateados);
     } catch (err) {
       console.error(err);
-      notify.error("Error cargando productos del proveedor"); // ✅ Usar sistema global
+      notify.error("Error cargando productos del proveedor");
     } finally {
       setCargandoProductos(false);
     }
@@ -211,23 +228,25 @@ export default function CrearSolicitudPlanta() {
 
   const agregarProducto = (producto, cantidad, unidad = "und") => {
     if (!producto || !cantidad || Number(cantidad) <= 0) {
-      notify.error("Ingrese una cantidad válida"); // ✅ Usar sistema global
+      notify.error("Ingrese una cantidad válida");
       return;
     }
 
+    // ACTUALIZADO: Usar presentacion_id en lugar de catalogo_producto_id
     if (
       itemsSeleccionados.some(
-        (i) => Number(i.catalogo_producto_id) === producto.id
+        (i) => Number(i.presentacion_id) === producto.id
       )
     ) {
-      notify.error("Este producto ya fue agregado"); // ✅ Usar sistema global
+      notify.error("Este producto ya fue agregado");
       return;
     }
 
     setItemsSeleccionados((prev) => [
       ...prev,
       {
-        catalogo_producto_id: producto.id,
+        presentacion_id: producto.id,
+        producto_arbol_id: producto.producto_padre?.id || null,
         nombre: producto.nombre,
         categoria: producto.categoria,
         cantidad_solicitada: Number(cantidad),
@@ -235,15 +254,16 @@ export default function CrearSolicitudPlanta() {
       },
     ]);
 
-    notify.success(`"${producto.nombre}" agregado a la solicitud`); // ✅ Usar sistema global
+    notify.success(`"${producto.nombre}" agregado a la solicitud`);
   };
 
   const eliminarItem = (id) => {
-    const item = itemsSeleccionados.find((i) => i.catalogo_producto_id === id);
+    // ACTUALIZADO: Usar presentacion_id en lugar de catalogo_producto_id
+    const item = itemsSeleccionados.find((i) => i.presentacion_id === id);
     setItemsSeleccionados((prev) =>
-      prev.filter((p) => p.catalogo_producto_id !== id)
+      prev.filter((p) => p.presentacion_id !== id)
     );
-    notify.success(`"${item?.nombre}" eliminado de la solicitud`); // ✅ Usar sistema global
+    notify.success(`"${item?.nombre}" eliminado de la solicitud`);
   };
 
   const handleEnviarSolicitud = async () => {
@@ -593,7 +613,7 @@ export default function CrearSolicitudPlanta() {
                   ) : (
                     itemsSeleccionados.map((item, index) => (
                       <div
-                        key={item.catalogo_producto_id}
+                        key={item.presentacion_id}
                         className="bg-surface border border-base rounded-base p-3 hover:bg-hover transition-colors"
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -613,7 +633,7 @@ export default function CrearSolicitudPlanta() {
                             )}
                           </div>
                           <button
-                            onClick={() => eliminarItem(item.catalogo_producto_id)}
+                            onClick={() => eliminarItem(item.presentacion_id)}
                             className="text-error hover:text-error-hover transition-colors flex-shrink-0 ml-2"
                             title="Eliminar"
                           >
