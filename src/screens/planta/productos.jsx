@@ -57,49 +57,60 @@ export default function Productos() {
       setLoading(true);
       setError(null);
 
-      // NOTA: catalogo_productos fue reemplazado por arbol_materia_prima
-      // Este componente necesita ser refactorizado
-      console.warn('[Productos] Tabla catalogo_productos no existe - componente deshabilitado temporalmente');
-      setProductos([]);
-      setTotalCount(0);
-      return;
-
-      // TODO: Migrar a arbol_materia_prima o arbol_platos
-      // 1. Primero obtener el total con los filtros aplicados
-      /*
+      // Usar arbol_materia_prima nivel 6 (presentaciones) como productos
+      // 1. Query para contar total con filtros
       let countQuery = supabase
-        .from("catalogo_productos")
-        .select("*", { count: "exact", head: true });
+        .from("arbol_materia_prima")
+        .select("*", { count: "exact", head: true })
+        .eq("nivel_actual", 6) // Solo presentaciones (nivel 6)
+        .eq("activo", true);
 
       if (debouncedSearchTerm) {
-        countQuery = countQuery.or(`nombre.ilike.%${debouncedSearchTerm}%`);
+        countQuery = countQuery.or(
+          `nombre.ilike.%${debouncedSearchTerm}%,codigo.ilike.%${debouncedSearchTerm}%`
+        );
       }
 
       if (selectedCategory) {
-        countQuery = countQuery.eq("categoria", selectedCategory);
+        countQuery = countQuery.eq("parent_id", selectedCategory);
       }
 
       const { count } = await countQuery;
       setTotalCount(count || 0);
 
-      // 2. Ahora obtener los datos con paginación
-      let dataQuery = supabase.from("catalogo_productos").select("*");
+      // 2. Obtener datos con paginación y JOIN con parent (stock nivel 5)
+      let dataQuery = supabase
+        .from("arbol_materia_prima")
+        .select(`
+          *,
+          parent:parent_id (
+            id,
+            codigo,
+            nombre,
+            stock_actual,
+            unidad_medida
+          )
+        `)
+        .eq("nivel_actual", 6)
+        .eq("activo", true);
 
-      // Aplicar los mismos filtros
+      // Aplicar filtros
       if (debouncedSearchTerm) {
-        dataQuery = dataQuery.or(`nombre.ilike.%${debouncedSearchTerm}%`);
+        dataQuery = dataQuery.or(
+          `nombre.ilike.%${debouncedSearchTerm}%,codigo.ilike.%${debouncedSearchTerm}%`
+        );
       }
 
       if (selectedCategory) {
-        dataQuery = dataQuery.eq("categoria", selectedCategory);
+        dataQuery = dataQuery.eq("parent_id", selectedCategory);
       }
 
-      // Aplicar ordenamiento
+      // Ordenamiento
       dataQuery = dataQuery.order(sortField, {
         ascending: sortDirection === "asc",
       });
 
-      // Aplicar paginación
+      // Paginación
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
       dataQuery = dataQuery.range(from, to);
@@ -108,10 +119,9 @@ export default function Productos() {
 
       if (supabaseError) throw supabaseError;
       setProductos(data || []);
-      */
     } catch (err) {
       console.error("Error cargando productos:", err);
-      setError("Componente deshabilitado - tabla catalogo_productos no existe");
+      setError("No se pudieron cargar los productos.");
     } finally {
       setLoading(false);
     }
@@ -122,19 +132,15 @@ export default function Productos() {
 
   useEffect(() => {
     const fetchCategorias = async () => {
-      // Deshabilitado temporalmente - catalogo_productos no existe
-      setCategorias([]);
-      // TODO: Usar arbol_materia_prima para categorías
-      /*
+      // Usar nivel 5 de arbol_materia_prima como categorías (stocks)
       const { data } = await supabase
-        .from("catalogo_productos")
-        .select("categoria");
+        .from("arbol_materia_prima")
+        .select("id, nombre")
+        .eq("nivel_actual", 5)
+        .eq("activo", true)
+        .order("nombre");
 
-      const uniqueCats = [
-        ...new Set(data?.map((p) => p.categoria).filter(Boolean)),
-      ];
-      setCategorias(uniqueCats.sort());
-      */
+      setCategorias(data || []);
     };
 
     fetchCategorias();
@@ -250,15 +256,15 @@ export default function Productos() {
                   Todas las categorías
                 </option>
                 {categorias.map((cat) => (
-                  <option 
-                    key={cat} 
-                    value={cat}
+                  <option
+                    key={cat.id}
+                    value={cat.id}
                     style={{
                       backgroundColor: 'var(--color-bg-surface)',
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    {cat}
+                    {cat.nombre}
                   </option>
                 ))}
               </select>

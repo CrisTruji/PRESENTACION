@@ -387,5 +387,73 @@ export const stockService = {
       valido: errores.length === 0,
       errores
     };
+  },
+
+  // ========================================
+  // MÉTODOS BATCH Y VALIDACIÓN
+  // ========================================
+
+  /**
+   * Actualizar múltiples stocks en una operación batch
+   * @param {Array} operaciones - Array de {stockId, cantidad, operacion}
+   * @returns {Promise<{success, actualizados, errores}>}
+   */
+  async actualizarStockBatch(operaciones) {
+    const resultados = [];
+    const errores = [];
+
+    for (const op of operaciones) {
+      try {
+        const { data, error } = await this.actualizarStock(
+          op.stockId,
+          op.cantidad,
+          op.operacion || 'incrementar'
+        );
+
+        if (error) {
+          errores.push({ stockId: op.stockId, error });
+        } else {
+          resultados.push({ stockId: op.stockId, data });
+        }
+      } catch (err) {
+        errores.push({ stockId: op.stockId, error: err });
+      }
+    }
+
+    return {
+      success: errores.length === 0,
+      actualizados: resultados.length,
+      errores
+    };
+  },
+
+  /**
+   * Validar si hay stock disponible para una operación
+   * @param {string} stockId - UUID del stock
+   * @param {number} cantidadRequerida - Cantidad que se necesita
+   * @returns {Promise<{data, error}>}
+   */
+  async validarStockDisponible(stockId, cantidadRequerida) {
+    const { data: stock, error } = await supabase
+      .from('arbol_materia_prima')
+      .select('stock_actual, stock_minimo')
+      .eq('id', stockId)
+      .eq('nivel_actual', 5)
+      .single();
+
+    if (error) return { data: null, error };
+
+    const disponible = stock.stock_actual >= cantidadRequerida;
+    const faltante = disponible ? 0 : cantidadRequerida - stock.stock_actual;
+
+    return {
+      data: {
+        disponible,
+        stock_actual: stock.stock_actual,
+        cantidad_requerida: cantidadRequerida,
+        faltante
+      },
+      error: null
+    };
   }
 };

@@ -114,7 +114,12 @@ export default function Facturas() {
             cantidad,
             precio_unitario,
             subtotal,
-            materia_prima_id
+            materia_prima_id,
+            arbol_materia_prima:materia_prima_id (
+              id,
+              codigo,
+              nombre
+            )
           )
         `,
         { count: "exact" },
@@ -845,13 +850,12 @@ export default function Facturas() {
                                     </div>
                                     <div>
                                       <div className="font-medium text-primary">
-                                        {item.catalogo_productos?.nombre ||
+                                        {item.arbol_materia_prima?.nombre ||
                                           "Producto sin nombre"}
                                       </div>
-                                      {item.catalogo_productos
-                                        ?.codigo_arbol && (
+                                      {item.arbol_materia_prima?.codigo && (
                                         <div className="text-xs text-muted font-mono">
-                                          {item.catalogo_productos.codigo_arbol}
+                                          {item.arbol_materia_prima.codigo}
                                         </div>
                                       )}
                                     </div>

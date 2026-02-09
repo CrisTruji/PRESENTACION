@@ -366,14 +366,63 @@ export const auditoriaService = {
   /**
    * Obtener color para tipo de operación
    * @param {string} operacion - INSERT, UPDATE, DELETE
-   * @returns {string} Clase CSS
+   * @returns {string} Color
    */
   getColorOperacion(operacion) {
     const colores = {
-      INSERT: 'text-green-600 bg-green-100',
-      UPDATE: 'text-blue-600 bg-blue-100',
-      DELETE: 'text-red-600 bg-red-100'
+      INSERT: 'green',
+      UPDATE: 'blue',
+      DELETE: 'red'
     };
-    return colores[operacion] || 'text-gray-600 bg-gray-100';
+    return colores[operacion] || 'gray';
+  },
+
+  /**
+   * Formatear operación en español
+   * @param {string} operacion - INSERT, UPDATE, DELETE
+   * @returns {string} Operación formateada
+   */
+  formatearOperacion(operacion) {
+    const formatos = {
+      INSERT: 'Creación',
+      UPDATE: 'Actualización',
+      DELETE: 'Eliminación'
+    };
+    return formatos[operacion] || operacion;
+  },
+
+  /**
+   * Obtener auditoría legible (últimos cambios)
+   * @param {number} limite - Límite de resultados
+   * @returns {Promise<{data, error}>}
+   */
+  async getAuditoriaLegible(limite = 50) {
+    const { data, error} = await supabase
+      .from('auditoria_legible')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limite);
+
+    return { data, error };
+  },
+
+  /**
+   * Obtener actividad por usuario
+   * @param {string} usuarioEmail - Email del usuario (null = todos)
+   * @returns {Promise<{data, error}>}
+   */
+  async getActividadPorUsuario(usuarioEmail = null) {
+    let query = supabase
+      .from('auditoria_por_usuario')
+      .select('*')
+      .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .order('created_at', { ascending: false });
+
+    if (usuarioEmail) {
+      query = query.eq('usuario_email', usuarioEmail);
+    }
+
+    const { data, error } = await query;
+    return { data, error };
   }
 };
