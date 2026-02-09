@@ -39,6 +39,9 @@ import Facturas from "../screens/facturas";
 import StockManager from "../components/stock/StockManager";
 import AuditoriaViewer from "../components/auditoria/AuditoriaViewer";
 
+// SPRINT 5 - Presentaciones (Admin/Planta)
+import PresentacionesManager from "../components/presentaciones/PresentacionesManager";
+
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
@@ -135,6 +138,10 @@ case "stock_manager":
   return <StockManager />;
 case "auditoria_viewer":
   return <AuditoriaViewer />;
+
+// SPRINT 5 - Presentaciones (Admin/Planta)
+case "presentaciones_manager":
+  return <PresentacionesManager />;
 
 default:
   return (

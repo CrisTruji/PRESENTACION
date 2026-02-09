@@ -243,8 +243,47 @@ export const useArbolRecetasStore = create((set, get) => ({
       modalAbierto: false,
       recetaSeleccionada: null,
       modoModal: 'ver',
-      padreParaCrear: null
+      padreParaCrear: null,
+      nivel5Items: [],
+      selectedNivel5: null
     });
+  },
+
+  // ========================================
+  // ACCIONES: Niveles Adicionales (Sprint 5)
+  // ========================================
+
+  // Estado para nivel 5 (stocks)
+  nivel5Items: [],
+  selectedNivel5: null,
+
+  /**
+   * Cargar items de nivel 5 (stocks)
+   * Usado por PresentacionesManager
+   */
+  loadNivel5: async () => {
+    try {
+      const { data, error } = await arbolRecetasService.getByNivel(5, true);
+
+      if (error) {
+        console.error('[Store] Error cargando nivel 5:', error);
+        set({ nivel5Items: [] });
+        return;
+      }
+
+      set({ nivel5Items: data || [] });
+      console.log(`[Store] Nivel 5 cargado: ${data?.length || 0} stocks`);
+    } catch (err) {
+      console.error('[Store] Error cargando nivel 5:', err);
+      set({ nivel5Items: [] });
+    }
+  },
+
+  /**
+   * Seleccionar item de nivel 5
+   */
+  setSelectedNivel5: (item) => {
+    set({ selectedNivel5: item });
   }
 }));
 

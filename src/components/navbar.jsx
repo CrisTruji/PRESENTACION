@@ -101,6 +101,7 @@ export default function Navbar() {
         { label: "Solicitudes de Acceso", name: "admin_requests", icon: icons.requests },
         { label: "Inventario", name: "inventario", icon: icons.products },
         { label: "Gestión de Stock", name: "stock_manager", icon: icons.products },
+        { label: "Presentaciones", name: "presentaciones_manager", icon: icons.products },
         { label: "Auditoría", name: "auditoria_viewer", icon: icons.requests },
         { label: "Facturas", name: "facturas", icon: icons.invoices },
         { label: "Arboles", name: "selector_arboles", icon: icons.tree },
@@ -110,6 +111,7 @@ export default function Navbar() {
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },
         { label: "Solicitudes", name: "solicitudes_planta", icon: icons.requests },
         { label: "Productos", name: "productos", icon: icons.products },
+        { label: "Presentaciones", name: "presentaciones_manager", icon: icons.products },
         { label: "Proveedores", name: "proveedores", icon: icons.suppliers },
       ],
       jefe_de_compras: [

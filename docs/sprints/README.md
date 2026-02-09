@@ -16,7 +16,8 @@ Documentación completa del desarrollo del sistema PyHealthy por sprints.
 | **Sprint 3.5** | [ENLACE DE RUTAS](#sprint-35) | Integración router | ✅ 100% | 2026-02-09 |
 | **Sprint 3.6** | [BUGFIXES](#sprint-36) | Corrección de errores | ✅ 100% | 2026-02-09 |
 | **Sprint 4** | [TESTS + REFACTORS](#sprint-4) | Tests servicios, refactors | ✅ 100% | 2026-02-09 |
-| **Sprint 5** | FEATURES + UX | Componentes faltantes | ⏳ Pendiente | - |
+| **Sprint 5** | [FEATURES + UX](#sprint-5) | PresentacionesManager, tests | ✅ 100% | 2026-02-09 |
+| **Sprint 6** | TESTS AVANZADOS + UX | Hooks tests, virtualización | ⏳ Pendiente | - |
 
 ---
 
@@ -245,13 +246,13 @@ src/screens/
 
 ### Código Creado
 ```
-Total líneas código:     ~7,500
+Total líneas código:     ~8,800
 Scripts SQL:              1,400+
 Backend Services:         1,500+
 Frontend Hooks:             800+
-Frontend Components:      2,000+
-Tests:                    1,600+  (Sprint 2: 39, Sprint 4: +34)
-Documentación:            4,000+
+Frontend Components:      2,600+  (Sprint 5: +600)
+Tests:                    2,300+  (Sprint 2: 39, Sprint 4: 34, Sprint 5: +20)
+Documentación:            5,600+  (Sprint 5: +800 + Guía: +800)
 ```
 
 ### Performance
@@ -264,17 +265,17 @@ Código duplicado:         -240 líneas
 
 ### Testing
 ```
-Tests totales:            73  (Sprint 2: 39, Sprint 4: +34)
+Tests totales:            93  (Sprint 2: 39, Sprint 4: 34, Sprint 5: +20)
 Coverage promedio:        ~85%
 Framework:                Vitest + Testing Library
-Tiempo ejecución:         ~500ms
+Tiempo ejecución:         ~185ms
 ```
 
 ### Arquitectura
 ```
 Servicios Backend:        6 (BaseArbol + 3 árboles + 3 nuevos)
 Hooks React Query:        27
-Componentes React:        4 (Sprint 3: 2, Refactors: 2)
+Componentes React:        5 (Sprint 3: 2, Refactors: 2, Sprint 5: +1)
 RPC Functions SQL:        18
 Triggers SQL:             5
 Vistas SQL:               9
@@ -283,22 +284,52 @@ Vistas SQL:               9
 
 ---
 
-## 🚀 Próximo: Sprint 5 - FEATURES + UX
+## 🎨 Sprint 5: FEATURES + UX
+
+**Archivo:** [SPRINT_5_FEATURES_UX.md](./SPRINT_5_FEATURES_UX.md)
+
+### Resumen
+Completar componente crítico faltante (PresentacionesManager) y agregar cobertura de tests para costosAutomaticosService.
+
+### Logros Principales
+- ✅ PresentacionesManager.jsx completo (600+ líneas)
+- ✅ 20 tests para costosAutomaticosService (100% pasando)
+- ✅ Integración con router y navbar
+- ✅ Store Zustand extendido con nivel 5
+- ✅ CRUD completo para presentaciones
+
+### Métricas
+- **Componentes nuevos:** 1
+- **Tests nuevos:** 20 (100% pasando)
+- **Total tests:** 93
+- **Tiempo:** ~6 horas
+
+### Archivos Clave
+```
+src/components/presentaciones/
+└── PresentacionesManager.jsx
+
+tests/
+└── costosAutomaticosService.test.js
+
+src/stores/
+└── useArbolRecetasStore.js (actualizado)
+```
+
+---
+
+## 🚀 Próximo: Sprint 6 - TESTS AVANZADOS + MEJORAS UX
 
 ### Objetivos
-- [ ] PresentacionesManager.jsx (componente faltante)
-- [ ] Tests de costosAutomaticosService (17 métodos)
 - [ ] Tests de hooks React Query (27 hooks)
-- [ ] Tests de componentes (StockManager, AuditoriaViewer)
-- [ ] Virtualización con react-window para tablas grandes
+- [ ] Tests de componentes UI (3 componentes)
+- [ ] Virtualización con react-window
 - [ ] Exportar reportes a Excel/PDF
 - [ ] Gráficos de estadísticas con recharts
-- [ ] Guías de usuario con screenshots
 
 ### Estimación
 - **Tiempo:** ~20 horas
-- **Tests nuevos:** 40+
-- **Componentes:** 1 (PresentacionesManager)
+- **Tests nuevos:** 50+
 - **Features:** Virtualización + Reportes + Gráficos
 
 ---
@@ -307,15 +338,17 @@ Vistas SQL:               9
 
 ```
 docs/
-└── sprints/
-    ├── README.md                              (este archivo, 400+ líneas)
-    ├── SPRINT_1_CIMIENTOS_PERFORMANCE.md      (350+ líneas)
-    ├── SPRINT_2_CALIDAD_CODIGO.md             (250+ líneas)
-    ├── SPRINT_3_INVENTARIO_AUDITORIA.md       (700+ líneas)
-    ├── SPRINT_3.5_ENLACE_RUTAS.md             (200+ líneas)
-    ├── SPRINT_3.6_BUGFIXES.md                 (300+ líneas)
-    ├── SPRINT_4_TESTS_REFACTORS.md            (500+ líneas)
-    └── RESUMEN_COMPLETO_SPRINTS.md            (1,500+ líneas)
+├── sprints/
+│   ├── README.md                              (este archivo, 450+ líneas)
+│   ├── SPRINT_1_CIMIENTOS_PERFORMANCE.md      (350+ líneas)
+│   ├── SPRINT_2_CALIDAD_CODIGO.md             (250+ líneas)
+│   ├── SPRINT_3_INVENTARIO_AUDITORIA.md       (700+ líneas)
+│   ├── SPRINT_3.5_ENLACE_RUTAS.md             (200+ líneas)
+│   ├── SPRINT_3.6_BUGFIXES.md                 (300+ líneas)
+│   ├── SPRINT_4_TESTS_REFACTORS.md            (500+ líneas)
+│   ├── SPRINT_5_FEATURES_UX.md                (800+ líneas)
+│   └── RESUMEN_COMPLETO_SPRINTS.md            (1,500+ líneas)
+└── GUIA_COMPLETA_SISTEMA.md                   (800+ líneas)
 ```
 
 ---
@@ -391,28 +424,31 @@ Sprint 3:   ████████████████████  100%
 Sprint 3.5: ████████████████████  100%
 Sprint 3.6: ████████████████████  100%
 Sprint 4:   ████████████████████  100%
-Sprint 5:   ░░░░░░░░░░░░░░░░░░░░    0%
+Sprint 5:   ████████████████████  100%
+Sprint 6:   ░░░░░░░░░░░░░░░░░░░░    0%
 
-Total:      ████████████████████   95%
+Total:      ████████████████████   98%
 ```
 
 ### Estado por Área
 ```
 ✅ Base de Datos:         100% (6 niveles, triggers, auditoría)
-✅ Backend Services:      100% (6 servicios, 68 métodos)
+✅ Backend Services:      100% (6 servicios, 68 métodos, tests completos)
 ✅ Frontend Hooks:        100% (27 hooks React Query)
-⚠️ Frontend Components:    90% (falta PresentacionesManager)
-✅ Tests Servicios:       100% (73 tests, stockService + auditoriaService completos)
-⚠️ Tests Hooks:             0% (pendiente Sprint 5)
-⚠️ Tests Componentes:       0% (pendiente Sprint 5)
+✅ Frontend Components:   100% (5 componentes principales)
+✅ Tests Servicios:       100% (93 tests, 100% pasando)
+⚠️ Tests Hooks:             0% (pendiente Sprint 6)
+⚠️ Tests Componentes:       0% (pendiente Sprint 6)
 ❌ TypeScript:              0% (descartado, JS es suficiente)
-✅ Documentación:         100% (6 sprints documentados)
+✅ Documentación:         100% (7 sprints + Guía completa)
 ✅ Refactors:             100% (facturas + productos completos)
+✅ CRUD Presentaciones:   100% (PresentacionesManager completo)
 ```
 
 ---
 
 _Última actualización: 2026-02-09_
-_Total Sprints: 6 (Sprint 1-4 completados, 3.5 y 3.6 bugfixes)_
-_Líneas documentación: 4,000+_
-_Tests: 73 pasando (100%)_
+_Total Sprints: 7 (Sprint 1-5 completados, 3.5 y 3.6 bugfixes)_
+_Líneas documentación: 5,600+_
+_Tests: 93 pasando (100%)_
+_Progreso: 98%_
