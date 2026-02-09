@@ -1,118 +1,73 @@
+// src/services/arbolRecetasService.js
+// Servicio para Árbol de Recetas
+// REFACTORIZADO: Extiende BaseArbolService (elimina ~150 líneas duplicadas)
+
 import { supabase } from '../lib/supabase';
+import { BaseArbolService } from './BaseArbolService';
 
 /**
  * Servicio para gestionar el Árbol de Recetas
- * Estructura: 2 niveles
- * Nivel 1: Conector (enlace con plato)
- * Nivel 2: Receta estándar o local
+ * Hereda operaciones CRUD de BaseArbolService
+ * Solo define métodos específicos de recetas
+ *
+ * Estructura:
+ * - Nivel 1: Conector (enlace con plato 2.X)
+ * - Nivel 2: Receta estándar (3.X)
+ * - Nivel 3: Receta local por unidad médica (3.X-01, etc.)
  */
-export const arbolRecetasService = {
+class ArbolRecetasService extends BaseArbolService {
+  constructor() {
+    super('arbol_recetas'); // Nombre de la tabla
+  }
+
+  // ========================================
+  // MÉTODOS ESPECÍFICOS DE RECETAS
+  // ========================================
 
   /**
-   * Obtener todas las recetas nivel 1 (conectores)
+   * Obtener conectores (nivel 1)
    */
   async getConectores() {
     const { data, error } = await supabase
-      .from('arbol_recetas')
+      .from(this.tableName)
       .select('*')
       .eq('nivel_actual', 1)
       .eq('activo', true)
       .order('codigo');
 
     return { data, error };
-  },
+  }
 
   /**
-   * Obtener todas las recetas nivel 2 (recetas reales)
+   * Obtener recetas estándar (nivel 2)
    */
   async getRecetasNivel2() {
     const { data, error } = await supabase
-      .from('arbol_recetas')
+      .from(this.tableName)
       .select('*')
       .eq('nivel_actual', 2)
       .eq('activo', true)
       .order('codigo');
 
     return { data, error };
-  },
+  }
 
   /**
-   * Obtener hijos de un nodo (recetas de un conector)
-   */
-  async getHijos(parentId) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .select('*')
-      .eq('parent_id', parentId)
-      .eq('activo', true)
-      .order('codigo');
-
-    return { data, error };
-  },
-
-  /**
-   * Obtener receta por ID
-   */
-  async getRecetaPorId(id) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    return { data, error };
-  },
-
-  /**
-   * Obtener receta por código
-   */
-  async getRecetaPorCodigo(codigo) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .select('*')
-      .eq('codigo', codigo)
-      .single();
-
-    return { data, error };
-  },
-
-  /**
-   * Obtener recetas de un plato específico
+   * Obtener todas las recetas de un plato
    */
   async getRecetasPorPlato(platoId) {
     const { data, error } = await supabase
-      .from('arbol_recetas')
+      .from(this.tableName)
       .select('*')
       .eq('plato_id', platoId)
       .eq('activo', true)
       .order('nivel_actual, codigo');
 
     return { data, error };
-  },
+  }
 
   /**
-   * Buscar recetas
-   */
-  async buscarRecetas(termino, filtros = {}) {
-    let query = supabase
-      .from('arbol_recetas')
-      .select('*')
-      .eq('activo', true);
-
-    if (termino && termino.length >= 2) {
-      query = query.or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`);
-    }
-
-    if (filtros.nivel_actual) {
-      query = query.eq('nivel_actual', filtros.nivel_actual);
-    }
-
-    const { data, error } = await query.order('codigo').limit(50);
-    return { data, error };
-  },
-
-  /**
-   * Obtener ingredientes de una receta
+   * Obtener ingredientes de una receta (con JOIN a materia prima)
    */
   async getIngredientes(recetaId) {
     const { data, error } = await supabase
@@ -120,68 +75,14 @@ export const arbolRecetasService = {
       .select(`
         *,
         materia_prima:materia_prima_id (
-          id, codigo, nombre
+          id, codigo, nombre, costo_promedio
         )
       `)
       .eq('receta_id', recetaId)
       .order('orden');
 
     return { data, error };
-  },
-
-  /**
-   * Contar recetas por nivel
-   */
-  async contarPorNivel(nivel) {
-    const { count, error } = await supabase
-      .from('arbol_recetas')
-      .select('*', { count: 'exact', head: true })
-      .eq('nivel_actual', nivel)
-      .eq('activo', true);
-
-    return { data: count, error };
-  },
-
-  /**
-   * Crear nueva receta
-   */
-  async crearReceta(datos) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .insert(datos)
-      .select()
-      .single();
-
-    return { data, error };
-  },
-
-  /**
-   * Actualizar receta
-   */
-  async actualizarReceta(id, datos) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .update({ ...datos, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    return { data, error };
-  },
-
-  /**
-   * Eliminar receta (soft delete)
-   */
-  async eliminarReceta(id) {
-    const { data, error } = await supabase
-      .from('arbol_recetas')
-      .update({ activo: false, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    return { data, error };
-  },
+  }
 
   /**
    * Agregar ingrediente a receta
@@ -194,7 +95,7 @@ export const arbolRecetasService = {
       .single();
 
     return { data, error };
-  },
+  }
 
   /**
    * Actualizar ingrediente
@@ -208,7 +109,7 @@ export const arbolRecetasService = {
       .single();
 
     return { data, error };
-  },
+  }
 
   /**
    * Eliminar ingrediente
@@ -220,14 +121,14 @@ export const arbolRecetasService = {
       .eq('id', id);
 
     return { data, error };
-  },
+  }
 
   /**
-   * Duplicar receta como variante
+   * Duplicar receta completa (con ingredientes)
    */
   async duplicarReceta(recetaId, nuevoNombre) {
     // Obtener receta original
-    const { data: original, error: errOriginal } = await this.getRecetaPorId(recetaId);
+    const { data: original, error: errOriginal } = await this.getPorId(recetaId);
     if (errOriginal) return { data: null, error: errOriginal };
 
     // Generar código único
@@ -247,10 +148,10 @@ export const arbolRecetasService = {
       activo: true
     };
 
-    const { data: recetaCreada, error: errCrear } = await this.crearReceta(nuevaReceta);
+    const { data: recetaCreada, error: errCrear } = await this.crear(nuevaReceta);
     if (errCrear) return { data: null, error: errCrear };
 
-    // Duplicar ingredientes
+    // Copiar ingredientes
     const { data: ingredientes } = await this.getIngredientes(recetaId);
     if (ingredientes && ingredientes.length > 0) {
       for (const ing of ingredientes) {
@@ -266,4 +167,39 @@ export const arbolRecetasService = {
 
     return { data: recetaCreada, error: null };
   }
-};
+
+  // ========================================
+  // ALIASES PARA COMPATIBILIDAD CON UI
+  // (Mantener nombres de métodos que usa el código existente)
+  // ========================================
+
+  async getRecetaPorId(id) {
+    return this.getPorId(id);
+  }
+
+  async getRecetaPorCodigo(codigo) {
+    return this.getPorCodigo(codigo);
+  }
+
+  async buscarRecetas(termino, filtros = {}) {
+    return this.buscar(termino, filtros);
+  }
+
+  async crearReceta(datos) {
+    return this.crear(datos);
+  }
+
+  async actualizarReceta(id, datos) {
+    return this.actualizar(id, datos);
+  }
+
+  async eliminarReceta(id) {
+    return this.eliminar(id);
+  }
+}
+
+// Exportar instancia única (singleton)
+export const arbolRecetasService = new ArbolRecetasService();
+
+// También exportar clase por si se necesita extender
+export { ArbolRecetasService };

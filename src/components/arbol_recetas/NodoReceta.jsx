@@ -1,40 +1,81 @@
 import React from 'react';
+import { useArbolRecetasStore } from '../../stores/useArbolRecetasStore';
+import { arbolRecetasService } from '../../services/arbolRecetasService';
 
 /**
  * Componente recursivo para renderizar nodos del arbol de recetas
+ * REFACTORIZADO: Reduce de 10 props a 2 props (usa Zustand store)
  * Nivel 1: Conectores (enlaces a platos)
- * Nivel 2: Recetas (estandar o locales)
+ * Nivel 2: Recetas estándar
+ * Nivel 3: Recetas locales
  */
-const NodoReceta = ({
-  nodo,
-  nivel,
-  expandido,
-  hijos,
-  hijosMap,
-  expandidos,
-  onToggle,
-  onVer,
-  onEditar,
-  onEliminar,
-  onCrearHijo,
-  onDuplicar
-}) => {
-  const tieneHijos = hijos.length > 0 || nodo.nivel_actual === 1;
-  const margenIzquierdo = nivel * 24;
-  const esReceta = nodo.nivel_actual === 2;
+const NodoReceta = ({ nodo, nivel }) => {
+  // ========================================
+  // ZUSTAND STORE (reemplaza props drilling)
+  // ========================================
+  const {
+    expandidos,
+    hijosMap,
+    toggleNodo,
+    abrirModal,
+    refrescar
+  } = useArbolRecetasStore();
 
-  // Iconos por nivel
-  const getIcono = () => {
-    if (nodo.nivel_actual === 1) return '📁'; // Conector
-    return '📋'; // Receta
+  // Estado local del nodo
+  const expandido = expandidos.has(nodo.id);
+  const hijos = hijosMap.get(nodo.id) || [];
+  const tieneHijos = hijos.length > 0 || nodo.nivel_actual < 3;
+  const margenIzquierdo = nivel * 24;
+  const esReceta = nodo.nivel_actual >= 2;
+
+  // ========================================
+  // HANDLERS
+  // ========================================
+  const handleDuplicar = async () => {
+    const nuevoNombre = prompt('Nombre para la nueva variante:', `${nodo.nombre} (Variante)`);
+    if (!nuevoNombre) return;
+
+    try {
+      const { error } = await arbolRecetasService.duplicarReceta(nodo.id, nuevoNombre);
+      if (error) throw error;
+      await refrescar();
+    } catch (err) {
+      console.error('Error duplicando:', err);
+      alert('Error al duplicar la receta');
+    }
   };
 
-  // Colores por nivel
+  const handleEliminar = async () => {
+    if (!confirm(`¿Eliminar "${nodo.nombre}"? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      const { error } = await arbolRecetasService.eliminarReceta(nodo.id);
+      if (error) throw error;
+      await refrescar();
+    } catch (err) {
+      console.error('Error eliminando:', err);
+      alert('Error al eliminar la receta');
+    }
+  };
+
+  // ========================================
+  // ESTILOS Y HELPERS
+  // ========================================
+  const getIcono = () => {
+    switch (nodo.nivel_actual) {
+      case 1: return '📁'; // Conector
+      case 2: return '📋'; // Receta estándar
+      case 3: return '🏥'; // Receta local
+      default: return '📄';
+    }
+  };
+
   const getColorBorde = () => {
     switch (nodo.nivel_actual) {
       case 1: return 'border-l-orange-500';
       case 2: return 'border-l-amber-500';
-      default: return 'border-l-yellow-500';
+      case 3: return 'border-l-green-500';
+      default: return 'border-l-gray-500';
     }
   };
 
@@ -42,7 +83,17 @@ const NodoReceta = ({
     switch (nodo.nivel_actual) {
       case 1: return 'hover:bg-orange-50 dark:hover:bg-orange-900/20';
       case 2: return 'hover:bg-amber-50 dark:hover:bg-amber-900/20';
-      default: return 'hover:bg-yellow-50 dark:hover:bg-yellow-900/20';
+      case 3: return 'hover:bg-green-50 dark:hover:bg-green-900/20';
+      default: return 'hover:bg-gray-50 dark:hover:bg-gray-900/20';
+    }
+  };
+
+  const getTipoLabel = () => {
+    switch (nodo.nivel_actual) {
+      case 1: return 'Conector';
+      case 2: return 'Receta Estándar';
+      case 3: return 'Receta Local';
+      default: return 'Nodo';
     }
   };
 
@@ -61,9 +112,9 @@ const NodoReceta = ({
         {/* Lado izquierdo: Toggle + Info */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* Boton expandir/colapsar */}
-          {tieneHijos && !esReceta ? (
+          {tieneHijos ? (
             <button
-              onClick={() => onToggle(nodo.id)}
+              onClick={() => toggleNodo(nodo.id)}
               className="flex-shrink-0 w-8 h-8 flex items-center justify-center
                          rounded-lg bg-gray-100 dark:bg-gray-700
                          hover:bg-gray-200 dark:hover:bg-gray-600
@@ -120,18 +171,18 @@ const NodoReceta = ({
           {/* Badge de tipo */}
           <span className={`
             text-xs px-2 py-1 rounded-full font-medium flex-shrink-0
-            ${esReceta
-              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-              : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'}
+            ${nodo.nivel_actual === 1 ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' : ''}
+            ${nodo.nivel_actual === 2 ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300' : ''}
+            ${nodo.nivel_actual === 3 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : ''}
           `}>
-            {esReceta ? 'Receta' : 'Conector'}
+            {getTipoLabel()}
           </span>
         </div>
 
         {/* Lado derecho: Acciones */}
         <div className="flex items-center gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
-            onClick={() => onVer(nodo)}
+            onClick={() => abrirModal('ver', nodo)}
             className="p-2 rounded-lg text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
             title="Ver detalles"
           >
@@ -141,7 +192,7 @@ const NodoReceta = ({
             </svg>
           </button>
           <button
-            onClick={() => onEditar(nodo)}
+            onClick={() => abrirModal('editar', nodo)}
             className="p-2 rounded-lg text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
             title="Editar"
           >
@@ -151,7 +202,7 @@ const NodoReceta = ({
           </button>
           {esReceta && (
             <button
-              onClick={() => onDuplicar(nodo)}
+              onClick={handleDuplicar}
               className="p-2 rounded-lg text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
               title="Duplicar como variante"
             >
@@ -160,11 +211,11 @@ const NodoReceta = ({
               </svg>
             </button>
           )}
-          {!esReceta && (
+          {nodo.nivel_actual < 3 && (
             <button
-              onClick={() => onCrearHijo(nodo)}
+              onClick={() => abrirModal('crear', null, nodo)}
               className="p-2 rounded-lg text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-              title="Agregar receta"
+              title="Agregar receta hija"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -172,7 +223,7 @@ const NodoReceta = ({
             </button>
           )}
           <button
-            onClick={() => onEliminar(nodo.id)}
+            onClick={handleEliminar}
             className="p-2 rounded-lg text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
             title="Eliminar"
           >
@@ -183,7 +234,7 @@ const NodoReceta = ({
         </div>
       </div>
 
-      {/* Hijos (recursivo) */}
+      {/* Hijos (recursivo) - SIN props drilling */}
       {expandido && hijos.length > 0 && (
         <div className="ml-2">
           {hijos.map(hijo => (
@@ -191,16 +242,6 @@ const NodoReceta = ({
               key={hijo.id}
               nodo={hijo}
               nivel={nivel + 1}
-              expandido={expandidos.has(hijo.id)}
-              hijos={hijosMap.get(hijo.id) || []}
-              hijosMap={hijosMap}
-              expandidos={expandidos}
-              onToggle={onToggle}
-              onVer={onVer}
-              onEditar={onEditar}
-              onEliminar={onEliminar}
-              onCrearHijo={onCrearHijo}
-              onDuplicar={onDuplicar}
             />
           ))}
         </div>

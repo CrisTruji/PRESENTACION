@@ -1,161 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { arbolRecetasService } from '../../services/arbolRecetasService';
+import React, { useEffect } from 'react';
+import { useArbolRecetasStore } from '../../stores/useArbolRecetasStore';
 import NodoReceta from './NodoReceta';
 import ModalReceta from './ModalReceta';
 
 /**
  * Componente principal del Arbol de Recetas
- * Visualizacion jerarquica con CRUD completo
- * Estructura: Conectores (Nivel 1) -> Recetas (Nivel 2)
+ * REFACTORIZADO: Usa Zustand store (elimina 14 useState)
+ * Estructura: Conectores (Nivel 1) -> Recetas (Nivel 2) -> Locales (Nivel 3)
  */
 const ArbolRecetas = () => {
-  const [conectores, setConectores] = useState([]);
-  const [expandidos, setExpandidos] = useState(new Set());
-  const [cargando, setCargando] = useState(true);
-  const [busqueda, setBusqueda] = useState('');
-  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
-  const [buscando, setBuscando] = useState(false);
-  const [error, setError] = useState(null);
-  const [totalRecetas, setTotalRecetas] = useState(0);
+  // ========================================
+  // ZUSTAND STORE (reemplaza 14 useState)
+  // ========================================
+  const {
+    // Estado
+    conectores,
+    cargando,
+    busqueda,
+    resultadosBusqueda,
+    buscando,
+    error,
+    totalRecetas,
+    modalAbierto,
+    recetaSeleccionada,
+    modoModal,
+    padreParaCrear,
 
-  // Modal state
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [recetaSeleccionada, setRecetaSeleccionada] = useState(null);
-  const [modoModal, setModoModal] = useState('ver');
-  const [padreParaCrear, setPadreParaCrear] = useState(null);
+    // Acciones
+    cargarArbol,
+    buscarRecetas,
+    abrirModal,
+    cerrarModal,
+    limpiarBusqueda,
+    refrescar
+  } = useArbolRecetasStore();
 
-  // Mapa de hijos (lazy loading)
-  const [hijosMap, setHijosMap] = useState(new Map());
-
+  // Cargar árbol en mount
   useEffect(() => {
     cargarArbol();
-  }, []);
+  }, [cargarArbol]);
 
-  // Busqueda con debounce
+  // Búsqueda con debounce
   useEffect(() => {
     if (busqueda.length < 2) {
-      setResultadosBusqueda([]);
+      limpiarBusqueda();
       return;
     }
 
-    const timer = setTimeout(async () => {
-      setBuscando(true);
-      const { data } = await arbolRecetasService.buscarRecetas(busqueda);
-      setResultadosBusqueda(data || []);
-      setBuscando(false);
+    const timer = setTimeout(() => {
+      buscarRecetas(busqueda);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [busqueda]);
+  }, [busqueda, buscarRecetas, limpiarBusqueda]);
 
-  const cargarArbol = async () => {
-    setCargando(true);
-    setError(null);
-
-    try {
-      const [conectoresRes, conteoRes] = await Promise.all([
-        arbolRecetasService.getConectores(),
-        arbolRecetasService.contarPorNivel(2)
-      ]);
-
-      if (conectoresRes.error) throw conectoresRes.error;
-
-      setConectores(conectoresRes.data || []);
-      setTotalRecetas(conteoRes.data || 0);
-    } catch (err) {
-      console.error('Error cargando arbol:', err);
-      setError('Error al cargar el arbol de recetas');
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  const toggleNodo = async (nodoId) => {
-    const nuevoExpandidos = new Set(expandidos);
-
-    if (nuevoExpandidos.has(nodoId)) {
-      nuevoExpandidos.delete(nodoId);
-    } else {
-      nuevoExpandidos.add(nodoId);
-
-      if (!hijosMap.has(nodoId)) {
-        const { data } = await arbolRecetasService.getHijos(nodoId);
-        const nuevoMap = new Map(hijosMap);
-        nuevoMap.set(nodoId, data || []);
-        setHijosMap(nuevoMap);
-      }
-    }
-
-    setExpandidos(nuevoExpandidos);
-  };
-
+  // ========================================
+  // HANDLERS
+  // ========================================
   const handleVer = (receta) => {
-    setRecetaSeleccionada(receta);
-    setModoModal('ver');
-    setModalAbierto(true);
+    abrirModal('ver', receta);
   };
 
-  const handleEditar = (receta) => {
-    setRecetaSeleccionada(receta);
-    setModoModal('editar');
-    setModalAbierto(true);
-  };
-
-  const handleCrear = (padre) => {
-    setPadreParaCrear(padre);
-    setRecetaSeleccionada(null);
-    setModoModal('crear');
-    setModalAbierto(true);
-  };
-
-  const handleDuplicar = async (receta) => {
-    const nuevoNombre = prompt('Nombre para la nueva variante:', `${receta.nombre} (Variante)`);
-    if (!nuevoNombre) return;
-
-    try {
-      const { error } = await arbolRecetasService.duplicarReceta(receta.id, nuevoNombre);
-      if (error) throw error;
-      await cargarArbol();
-      setHijosMap(new Map());
-      setExpandidos(new Set());
-    } catch (err) {
-      console.error('Error duplicando:', err);
-      alert('Error al duplicar la receta');
-    }
-  };
-
-  const handleEliminar = async (recetaId) => {
-    if (!confirm('Esta seguro de eliminar esta receta? Esta accion no se puede deshacer.')) return;
-
-    try {
-      const { error } = await arbolRecetasService.eliminarReceta(recetaId);
-      if (error) throw error;
-      await cargarArbol();
-      setHijosMap(new Map());
-      setExpandidos(new Set());
-    } catch (err) {
-      console.error('Error eliminando:', err);
-      alert('Error al eliminar la receta');
-    }
-  };
-
-  const handleCerrarModal = (refrescar = false) => {
-    setModalAbierto(false);
-    setRecetaSeleccionada(null);
-    setPadreParaCrear(null);
-
-    if (refrescar) {
-      cargarArbol();
-      setHijosMap(new Map());
-    }
-  };
-
-  const refrescar = () => {
-    setExpandidos(new Set());
-    setHijosMap(new Map());
-    setBusqueda('');
-    setResultadosBusqueda([]);
-    cargarArbol();
+  const handleBusquedaChange = (e) => {
+    useArbolRecetasStore.setState({ busqueda: e.target.value });
   };
 
   return (
@@ -168,7 +75,7 @@ const ArbolRecetas = () => {
             <input
               type="text"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={handleBusquedaChange}
               placeholder="Buscar recetas..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border dark:border-gray-600
                          bg-white dark:bg-gray-700 text-gray-800 dark:text-white
@@ -258,16 +165,6 @@ const ArbolRecetas = () => {
                 key={conector.id}
                 nodo={conector}
                 nivel={0}
-                expandido={expandidos.has(conector.id)}
-                hijos={hijosMap.get(conector.id) || []}
-                hijosMap={hijosMap}
-                expandidos={expandidos}
-                onToggle={toggleNodo}
-                onVer={handleVer}
-                onEditar={handleEditar}
-                onEliminar={handleEliminar}
-                onCrearHijo={handleCrear}
-                onDuplicar={handleDuplicar}
               />
             ))}
           </div>

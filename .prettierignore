@@ -1,0 +1,29 @@
+# Build outputs
+dist
+build
+.next
+out
+
+# Dependencies
+node_modules
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Coverage
+coverage
+.nyc_output
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode
+.idea

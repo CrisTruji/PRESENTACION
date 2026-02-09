@@ -6,6 +6,7 @@ import RoleRouter from "./router/rolerouter";
 import Login from "./screens/ingreso/login";
 import Register from "./screens/ingreso/register";
 import WaitingRoleScreen from "./screens/ingreso/waiting_role";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 export default function App() {
   const { session, loading, roleName } = useAuth();
@@ -40,33 +41,35 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Toaster 
-        position="top-right" 
-        expand={false} 
-        closeButton
-        toastOptions={{
-          style: {
-            padding: '16px',
-            borderRadius: '12px',
-          },
-        }}
-      />
+    <ErrorBoundary>
+      <div className="min-h-screen">
+        <Toaster
+          position="top-right"
+          expand={false}
+          closeButton
+          toastOptions={{
+            style: {
+              padding: '16px',
+              borderRadius: '12px',
+            },
+          }}
+        />
 
-      {!session ? (
-        <AuthViews />
-      ) : !roleName ? (
-        <WaitingRoleScreen />
-      ) : (
-        <>
-          <Navbar />
-          <div className="navbar-spacer"></div>
-          <main className="page-container min-h-content">
-            <RoleRouter />
-          </main>
-        </>
-      )}
-    </div>
+        {!session ? (
+          <AuthViews />
+        ) : !roleName ? (
+          <WaitingRoleScreen />
+        ) : (
+          <>
+            <Navbar />
+            <div className="navbar-spacer"></div>
+            <main className="page-container min-h-content">
+              <RoleRouter />
+            </main>
+          </>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 }
 
