@@ -57,7 +57,16 @@ export default function Productos() {
       setLoading(true);
       setError(null);
 
+      // NOTA: catalogo_productos fue reemplazado por arbol_materia_prima
+      // Este componente necesita ser refactorizado
+      console.warn('[Productos] Tabla catalogo_productos no existe - componente deshabilitado temporalmente');
+      setProductos([]);
+      setTotalCount(0);
+      return;
+
+      // TODO: Migrar a arbol_materia_prima o arbol_platos
       // 1. Primero obtener el total con los filtros aplicados
+      /*
       let countQuery = supabase
         .from("catalogo_productos")
         .select("*", { count: "exact", head: true });
@@ -99,9 +108,10 @@ export default function Productos() {
 
       if (supabaseError) throw supabaseError;
       setProductos(data || []);
+      */
     } catch (err) {
       console.error("Error cargando productos:", err);
-      setError("No se pudieron cargar los productos.");
+      setError("Componente deshabilitado - tabla catalogo_productos no existe");
     } finally {
       setLoading(false);
     }
@@ -112,6 +122,10 @@ export default function Productos() {
 
   useEffect(() => {
     const fetchCategorias = async () => {
+      // Deshabilitado temporalmente - catalogo_productos no existe
+      setCategorias([]);
+      // TODO: Usar arbol_materia_prima para categorías
+      /*
       const { data } = await supabase
         .from("catalogo_productos")
         .select("categoria");
@@ -120,6 +134,7 @@ export default function Productos() {
         ...new Set(data?.map((p) => p.categoria).filter(Boolean)),
       ];
       setCategorias(uniqueCats.sort());
+      */
     };
 
     fetchCategorias();

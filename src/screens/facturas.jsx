@@ -114,11 +114,7 @@ export default function Facturas() {
             cantidad,
             precio_unitario,
             subtotal,
-            catalogo_productos (
-              nombre,
-              codigo_arbol,
-              categoria
-            )
+            materia_prima_id
           )
         `,
         { count: "exact" },

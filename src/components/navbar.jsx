@@ -100,6 +100,8 @@ export default function Navbar() {
         { label: "Dashboard", name: "admin_dashboard", icon: icons.dashboard },
         { label: "Solicitudes de Acceso", name: "admin_requests", icon: icons.requests },
         { label: "Inventario", name: "inventario", icon: icons.products },
+        { label: "Gestión de Stock", name: "stock_manager", icon: icons.products },
+        { label: "Auditoría", name: "auditoria_viewer", icon: icons.requests },
         { label: "Facturas", name: "facturas", icon: icons.invoices },
         { label: "Arboles", name: "selector_arboles", icon: icons.tree },
         { label: "Vincular Presentaciones", name: "vincular_presentaciones", icon: icons.products },

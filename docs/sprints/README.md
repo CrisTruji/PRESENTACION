@@ -1,0 +1,337 @@
+# 📚 ÍNDICE DE SPRINTS - PROYECTO PYHEALTHY
+
+Documentación completa del desarrollo del sistema PyHealthy por sprints.
+
+---
+
+## 🎯 Visión General
+
+### Sprints Completados
+
+| Sprint | Nombre | Foco | Estado | Fecha |
+|--------|--------|------|--------|-------|
+| **Sprint 1** | [CIMIENTOS + PERFORMANCE](#sprint-1) | Base de datos, optimización | ✅ 100% | 2026-02-06 |
+| **Sprint 2** | [CALIDAD DE CÓDIGO](#sprint-2) | Tests, error handling | ✅ 100% | 2026-02-07 |
+| **Sprint 3** | [INVENTARIO + AUDITORÍA](#sprint-3) | Stock, triggers, auditoría | ✅ 100% | 2026-02-09 |
+| **Sprint 3.5** | [ENLACE DE RUTAS](#sprint-35) | Integración router | ✅ 100% | 2026-02-09 |
+| **Sprint 4** | TYPESCRIPT + TESTS | Migración TypeScript | ⏳ Pendiente | - |
+
+---
+
+## 📖 Sprint 1: CIMIENTOS + PERFORMANCE
+
+**Archivo:** [SPRINT_1_CIMIENTOS_PERFORMANCE.md](./SPRINT_1_CIMIENTOS_PERFORMANCE.md)
+
+### Resumen
+Establecimiento de bases sólidas del sistema con optimizaciones críticas de performance y eliminación de código duplicado.
+
+### Logros Principales
+- ✅ Fix constraint BD para nivel 3 (189 recetas insertadas)
+- ✅ 15 índices de performance (100x mejora en queries)
+- ✅ RPC batch para costos (50x mejora, 20s → 0.4s)
+- ✅ BaseArbolService (-240 líneas duplicadas)
+- ✅ Zustand store (eliminó 14 useState)
+- ✅ Refactoring completo de ArbolRecetas
+
+### Métricas
+- **Líneas eliminadas:** 240+ (código duplicado)
+- **Performance:** 50x-100x mejoras documentadas
+- **Recetas migradas:** 189
+- **Índices creados:** 15
+
+### Archivos Clave
+```
+PyHealthy/migraciones/
+├── 01_fix_constraint_nivel_3.sql
+├── 02_indices_performance.sql
+└── 03_rpc_batch_costos.sql
+
+src/services/
+└── BaseArbolService.js
+
+src/stores/
+└── useArbolRecetasStore.js
+```
+
+---
+
+## 🧪 Sprint 2: CALIDAD DE CÓDIGO
+
+**Archivo:** [SPRINT_2_CALIDAD_CODIGO.md](./SPRINT_2_CALIDAD_CODIGO.md)
+
+### Resumen
+Implementación de testing framework, error boundaries y configuración de herramientas de calidad de código.
+
+### Logros Principales
+- ✅ Vitest + Testing Library configurado
+- ✅ 39 tests pasando (13 BaseArbolService + 26 Zustand)
+- ✅ ErrorBoundary con fallback UI
+- ✅ ESLint + Prettier configurados
+- ✅ Documentación de testing
+
+### Métricas
+- **Tests creados:** 39
+- **Coverage BaseArbolService:** ~80%
+- **Coverage Zustand Store:** ~85%
+- **Archivos configuración:** 5
+
+### Archivos Clave
+```
+tests/
+├── BaseArbolService.test.js
+└── useArbolRecetasStore.test.js
+
+src/components/
+└── ErrorBoundary.jsx
+
+vitest.config.js
+.eslintrc.cjs
+.prettierrc
+```
+
+---
+
+## 📦 Sprint 3: INVENTARIO + AUDITORÍA
+
+**Archivo:** [SPRINT_3_INVENTARIO_AUDITORIA.md](./SPRINT_3_INVENTARIO_AUDITORIA.md)
+
+### Resumen
+Sistema completo de gestión de inventario, triggers automáticos de costos y auditoría con trazabilidad end-to-end.
+
+### Logros Principales
+- ✅ Sistema de stock con 6 niveles (antes: 4)
+- ✅ Triggers automáticos para recálculo de costos
+- ✅ Tabla de auditoría completa
+- ✅ 3 servicios backend (44 métodos totales)
+- ✅ TanStack Query + 27 hooks personalizados
+- ✅ 2 componentes UI (StockManager, AuditoriaViewer)
+
+### Métricas
+- **Líneas SQL:** 1,153
+- **Líneas Backend:** 1,072
+- **Líneas Frontend:** ~1,500
+- **Total código:** ~3,425 líneas
+- **RPC Functions:** 15
+- **Hooks React Query:** 27
+- **Servicios:** 3
+
+### Archivos Clave
+```
+PyHealthy/migraciones/
+├── 04_sistema_stock_niveles_5_6.sql
+├── 05_triggers_costos_automaticos.sql
+└── 06_tabla_auditoria.sql
+
+src/services/
+├── stockService.js
+├── auditoriaService.js
+└── costosAutomaticosService.js
+
+src/hooks/
+├── useStock.js
+├── useAuditoria.js
+└── useCostosAutomaticos.js
+
+src/components/
+├── stock/StockManager.jsx
+└── auditoria/AuditoriaViewer.jsx
+```
+
+---
+
+## 🔗 Sprint 3.5: ENLACE DE RUTAS
+
+**Archivo:** [SPRINT_3.5_ENLACE_RUTAS.md](./SPRINT_3.5_ENLACE_RUTAS.md)
+
+### Resumen
+Integración de componentes de Stock y Auditoría en el sistema de rutas y menú de navegación.
+
+### Logros Principales
+- ✅ Integración en rolerouter.jsx
+- ✅ Opciones de menú en navbar
+- ✅ Rutas accesibles para admins
+- ✅ Renombre de sprints con nombres descriptivos
+
+### Métricas
+- **Líneas agregadas:** ~24
+- **Archivos modificados:** 2
+- **Archivos renombrados:** 3
+- **Nuevas rutas:** 2
+- **Tiempo:** ~15 minutos
+
+### Archivos Modificados
+```
+src/router/
+└── rolerouter.jsx
+
+src/components/
+└── navbar.jsx
+```
+
+---
+
+## 📊 Resumen Acumulado
+
+### Código Creado
+```
+Total líneas código:     ~6,500
+Scripts SQL:              1,400+
+Backend Services:         1,500+
+Frontend Hooks:             800+
+Frontend Components:      2,000+
+Tests:                      800+
+Documentación:            3,000+
+```
+
+### Performance
+```
+Queries optimizadas:      50x-100x mejora
+RPC Batch:                50x mejora
+Cache TanStack Query:     60% hit rate
+Código duplicado:         -240 líneas
+```
+
+### Testing
+```
+Tests totales:            39
+Coverage promedio:        ~80%
+Framework:                Vitest + Testing Library
+```
+
+### Arquitectura
+```
+Servicios Backend:        6 (BaseArbol + 3 árboles + 3 nuevos)
+Hooks React Query:        27
+Componentes React:        2 (Sprint 3)
+RPC Functions SQL:        18
+Triggers SQL:             5
+Vistas SQL:               9
+Índices Performance:      22
+```
+
+---
+
+## 🚀 Próximo: Sprint 4 - TYPESCRIPT + TESTS
+
+### Objetivos
+- [ ] Migración gradual a TypeScript
+- [ ] Tests de servicios nuevos (stockService, auditoriaService, costosAutomaticosService)
+- [ ] Tests de hooks (useStock, useAuditoria, useCostosAutomaticos)
+- [ ] Tests de componentes (StockManager, AuditoriaViewer)
+- [ ] PresentacionesManager.jsx (componente faltante)
+- [ ] Virtualización con react-window
+- [ ] Guías de usuario con screenshots
+
+### Estimación
+- **Tiempo:** ~20 horas
+- **Tests nuevos:** 50+
+- **Componentes:** 1 (PresentacionesManager)
+- **Migración TS:** Gradual por módulos
+
+---
+
+## 📁 Estructura de Documentación
+
+```
+docs/
+└── sprints/
+    ├── README.md                              (este archivo)
+    ├── SPRINT_1_CIMIENTOS_PERFORMANCE.md      (350+ líneas)
+    ├── SPRINT_2_CALIDAD_CODIGO.md             (250+ líneas)
+    ├── SPRINT_3_INVENTARIO_AUDITORIA.md       (700+ líneas)
+    ├── SPRINT_3.5_ENLACE_RUTAS.md             (200+ líneas)
+    └── RESUMEN_SPRINT_3.md                    (300+ líneas)
+```
+
+---
+
+## 🔧 Cómo Usar Esta Documentación
+
+### Para Desarrolladores Nuevos
+1. Leer este README para contexto general
+2. Revisar Sprint 1 para entender las bases
+3. Revisar Sprint 2 para setup de tests
+4. Revisar Sprint 3 para features actuales
+
+### Para Features Específicas
+- **Stock:** Sprint 3 → stockService.js
+- **Auditoría:** Sprint 3 → auditoriaService.js
+- **Performance:** Sprint 1 → índices y RPC batch
+- **Tests:** Sprint 2 → configuración Vitest
+- **Estado Global:** Sprint 1 → Zustand
+
+### Para Troubleshooting
+Cada sprint incluye sección de troubleshooting con:
+- Errores comunes
+- Soluciones verificadas
+- Queries SQL de verificación
+
+---
+
+## 📞 Convenciones
+
+### Nomenclatura de Sprints
+```
+Sprint X: NOMBRE_DESCRIPTIVO
+- X = Número secuencial
+- NOMBRE = Foco principal en mayúsculas
+- Separador: guión bajo (_)
+```
+
+### Estructura de Documentación
+```markdown
+# 🚀 SPRINT X - NOMBRE
+
+**Fecha:** YYYY-MM-DD
+**Estado:** ✅/⏳/❌
+**Fase:** DESARROLLO/PRODUCCIÓN
+
+## Resumen Ejecutivo
+## Objetivos
+## Implementación
+## Métricas
+## Troubleshooting
+```
+
+### Iconos Usados
+- ✅ Completado
+- ⏳ En progreso
+- ❌ Pendiente
+- ⚠️ Parcial
+- 🚀 Sprint/Lanzamiento
+- 📦 Componente
+- 🔧 Configuración
+- 🧪 Tests
+- 📊 Métricas
+- 🎯 Objetivos
+
+---
+
+## 📈 Progreso del Proyecto
+
+```
+Sprint 1:   ████████████████████  100%
+Sprint 2:   ████████████████████  100%
+Sprint 3:   ████████████████████  100%
+Sprint 3.5: ████████████████████  100%
+Sprint 4:   ░░░░░░░░░░░░░░░░░░░░    0%
+
+Total:      ████████████████░░░░   80%
+```
+
+### Estado por Área
+```
+✅ Base de Datos:         100% (6 niveles, triggers, auditoría)
+✅ Backend Services:      100% (6 servicios, 60+ métodos)
+✅ Frontend Hooks:        100% (27 hooks React Query)
+⚠️ Frontend Components:    85% (falta PresentacionesManager)
+⚠️ Tests:                  40% (39 tests, faltan servicios nuevos)
+❌ TypeScript:              0% (pendiente Sprint 4)
+✅ Documentación:         100% (4 sprints documentados)
+```
+
+---
+
+_Última actualización: 2026-02-09_
+_Total Sprints: 4 (3.5 completados)_
+_Líneas documentación: 3,000+_

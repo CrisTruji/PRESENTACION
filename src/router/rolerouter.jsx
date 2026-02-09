@@ -35,6 +35,10 @@ import RecepcionFactura from "../screens/almacen/recepcionfactura"; // ← FIX
 import Proveedores from "../screens/proveedores";
 import Facturas from "../screens/facturas";
 
+// SPRINT 3 - Stock & Auditoría (Admin)
+import StockManager from "../components/stock/StockManager";
+import AuditoriaViewer from "../components/auditoria/AuditoriaViewer";
+
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
@@ -125,6 +129,12 @@ case "arboles":
 case "arbol_materia_prima":
 case "chef_arbol_materia_prima":
   return <ArbolMateriaPrima />;
+
+// SPRINT 3.5 - Stock & Auditoría (Admin)
+case "stock_manager":
+  return <StockManager />;
+case "auditoria_viewer":
+  return <AuditoriaViewer />;
 
 default:
   return (

@@ -35,10 +35,25 @@ export const stockService = {
 
   /**
    * Obtener alertas de stock bajo usando vista optimizada
+   * FALLBACK: Si RPC no existe, usa vista directamente
    * @returns {Promise<{data, error}>}
    */
   async getStockBajo() {
-    const { data, error } = await supabase.rpc('obtener_stock_bajo');
+    // Intentar RPC primero
+    let { data, error } = await supabase.rpc('obtener_stock_bajo');
+
+    // Si RPC no existe, usar vista directamente
+    if (error && error.code === 'PGRST202') {
+      console.warn('[StockService] RPC obtener_stock_bajo no existe, usando vista');
+      const result = await supabase
+        .from('vista_stock_alertas')
+        .select('*')
+        .in('estado_stock', ['CRÍTICO', 'BAJO'])
+        .order('estado_stock', { ascending: false });
+
+      data = result.data;
+      error = result.error;
+    }
 
     return { data, error };
   },

@@ -57,7 +57,6 @@ const VincularPresentaciones = () => {
       const { data, error } = await supabase
         .from('proveedores')
         .select('id, nombre, nit')
-        .eq('activo', true)
         .order('nombre');
 
       if (error) throw error;
