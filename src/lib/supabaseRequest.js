@@ -1,5 +1,5 @@
 // src/lib/supabaseRequest.js
-import { supabase } from "./supabase";
+import { supabase } from "@/shared/api";
 
 export async function supabaseRequest(promise) {
   const { data, error } = await promise;

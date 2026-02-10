@@ -7,12 +7,12 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import App from "./app.jsx";
 import { AuthProvider } from "./context/auth.jsx";
 import { RouterProvider } from "./context/roleroutercontext.jsx";
-import { queryClient } from "./lib/queryClient";
+import { queryClient } from "@/shared/api";
 import "./style.css";
 import "./lib/test-supabase";
 
 // src/main.jsx
-import { supabase } from "./lib/supabase";
+import { supabase } from "@/shared/api";
 
 let hadSession = false;
 

@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "@/shared/api";
 
 console.log("🧪 test-supabase cargado");
 

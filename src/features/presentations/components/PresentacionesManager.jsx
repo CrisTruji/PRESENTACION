@@ -21,7 +21,7 @@ import {
   DollarSign,
   Layers
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/shared/api';
 
 const PresentacionesManager = () => {
   // ========================================

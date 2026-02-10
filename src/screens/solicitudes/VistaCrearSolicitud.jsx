@@ -1,6 +1,7 @@
 // src/screens/solicitudes/VistaCrearSolicitud.jsx
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../context/auth";
+import { supabase } from "@/shared/api";
 import {
   ArrowLeft,
   Search,
@@ -30,14 +31,20 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
   }, []);
 
   const cargarProveedores = async () => {
-    const { getAllProviders } = await import("../../lib/supabase");
-    const data = await getAllProviders();
+    const { data, error } = await supabase
+      .from("proveedores")
+      .select("*")
+      .order("nombre", { ascending: true });
+    if (error) console.error("Error cargando proveedores:", error);
     setProveedores(data || []);
   };
 
   const cargarProductos = async (proveedorId) => {
-    const { getProductsByProvider } = await import("../../lib/supabase");
-    const data = await getProductsByProvider(proveedorId);
+    const { data, error } = await supabase
+      .from("catalogo_productos")
+      .select("*")
+      .eq("proveedor_id", proveedorId);
+    if (error) console.error("Error cargando productos:", error);
     setProductos(data || []);
   };
 
@@ -92,16 +99,21 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
 
     try {
       setCargando(true);
-      const { createSolicitud, createSolicitudItems } = await import(
-        "../../lib/supabase"
-      );
 
-      const solicitud = await createSolicitud({
-        proveedor_id: proveedorSeleccionado.id,
-        created_by: session.user.id,
-        estado: "pendiente",
-      });
+      // Crear solicitud
+      const { data: solicitud, error: errorSolicitud } = await supabase
+        .from("solicitudes")
+        .insert({
+          proveedor_id: proveedorSeleccionado.id,
+          created_by: session.user.id,
+          estado: "pendiente",
+        })
+        .select()
+        .single();
 
+      if (errorSolicitud) throw errorSolicitud;
+
+      // Crear items de solicitud
       const itemsData = items.map((item) => ({
         solicitud_id: solicitud.id,
         catalogo_producto_id: item.producto_id,
@@ -109,10 +121,16 @@ export default function VistaCrearSolicitud({ onVolver, onSolicitudCreada }) {
         unidad: item.unidad,
       }));
 
-      await createSolicitudItems(itemsData);
+      const { error: errorItems } = await supabase
+        .from("solicitud_items")
+        .insert(itemsData);
+
+      if (errorItems) throw errorItems;
+
       alert("Solicitud creada exitosamente");
       onSolicitudCreada();
     } catch (error) {
+      console.error("Error creando solicitud:", error);
       alert("Error: " + error.message);
     } finally {
       setCargando(false);
