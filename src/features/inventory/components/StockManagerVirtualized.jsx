@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useStockConAlertas, useStockBajo, useActualizarStock } from '@/features/inventory';
-import VirtualizedTable, { useTableColumns } from '@/shared/ui/VirtualizedTable';
+import { VirtualizedTable, useTableColumns } from '@/shared/ui';
 
 const StockManagerVirtualized = () => {
   const [vistaActual, setVistaActual] = useState('alertas');

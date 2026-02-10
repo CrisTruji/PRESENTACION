@@ -1,3 +1,3 @@
 // Public API - Presentations Feature
-export { PresentacionesManager } from './components/PresentacionesManager';
-export { PresentacionesManagerVirtualized } from './components/PresentacionesManagerVirtualized';
+export { default as PresentacionesManager } from './components/PresentacionesManager';
+export { default as PresentacionesManagerVirtualized } from './components/PresentacionesManagerVirtualized';

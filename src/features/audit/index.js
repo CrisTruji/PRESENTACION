@@ -1,4 +1,10 @@
 // Public API - Audit Feature
-export { AuditoriaViewer } from './components/AuditoriaViewer';
-export { AuditoriaViewerVirtualized } from './components/AuditoriaViewerVirtualized';
-export { useAuditoriaLegible, useBuscarAuditoria } from './hooks/useAuditoria';
+export { default as AuditoriaViewer } from './components/AuditoriaViewer';
+export { default as AuditoriaViewerVirtualized } from './components/AuditoriaViewerVirtualized';
+export {
+  useAuditoriaLegible,
+  useBuscarAuditoria,
+  useHistorialRegistro,
+  useEstadisticasAuditoria
+} from './hooks/useAuditoria';
+export { auditoriaService } from './services/auditoriaService';

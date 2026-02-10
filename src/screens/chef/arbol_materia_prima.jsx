@@ -1,5 +1,5 @@
 import React from 'react';
-import ArbolMateriaPrima from '../../components/arbol/ArbolMateriaPrima';
+import { ArbolMateriaPrima } from '@/features/products';
 
 /**
  * Pantalla principal del Árbol de Materia Prima

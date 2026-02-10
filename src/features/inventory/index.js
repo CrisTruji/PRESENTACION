@@ -1,4 +1,13 @@
 // Public API - Inventory Feature
-export { StockManager } from './components/StockManager';
-export { StockManagerVirtualized } from './components/StockManagerVirtualized';
-export { useStock, useStockBajo, useStockConAlertas, useActualizarStock } from './hooks/useStock';
+export { default as StockManager } from './components/StockManager';
+export { default as StockManagerVirtualized } from './components/StockManagerVirtualized';
+export {
+  useStockConAlertas,
+  useStockBajo,
+  usePresentaciones,
+  useCostoPromedio,
+  useActualizarStock,
+  useActualizarStockBatch,
+  useValidarStock
+} from './hooks/useStock';
+export { stockService } from './services/stockService';

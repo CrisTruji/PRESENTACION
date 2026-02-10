@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase } from "@/shared/api";
 
 export async function listRoles() {
   const { data, error } = await supabase

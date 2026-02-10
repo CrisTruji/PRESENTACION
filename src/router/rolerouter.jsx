@@ -36,11 +36,11 @@ import Proveedores from "../screens/proveedores";
 import Facturas from "../screens/facturas";
 
 // SPRINT 3 - Stock & Auditoría (Admin)
-import StockManager from "../components/stock/StockManager";
-import AuditoriaViewer from "../components/auditoria/AuditoriaViewer";
+import { StockManager } from "@/features/inventory";
+import { AuditoriaViewer } from "@/features/audit";
 
 // SPRINT 5 - Presentaciones (Admin/Planta)
-import PresentacionesManager from "../components/presentaciones/PresentacionesManager";
+import { PresentacionesManager } from "@/features/presentations";
 
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();

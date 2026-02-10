@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useArbolRecetasStore } from '@/features/products';
-import VirtualizedTable, { useTableColumns } from '@/shared/ui/VirtualizedTable';
+import { VirtualizedTable, useTableColumns } from '@/shared/ui';
 import { supabase } from '@/shared/api';
 
 const PresentacionesManagerVirtualized = () => {

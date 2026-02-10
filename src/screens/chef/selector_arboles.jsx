@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import ArbolMateriaPrima from '../../components/arbol/ArbolMateriaPrima';
-import ArbolPlatos from '../../components/arbol_platos/ArbolPlatos';
-import ArbolRecetas from '../../components/arbol_recetas/ArbolRecetas';
+import { ArbolMateriaPrima } from '@/features/products';
+// TODO: Migrar ArbolPlatos y ArbolRecetas a features
+// import ArbolPlatos from '../../components/arbol_platos/ArbolPlatos';
+// import ArbolRecetas from '../../components/arbol_recetas/ArbolRecetas';
 
 /**
  * Selector principal de los 4 árboles del sistema
@@ -96,9 +97,7 @@ const SelectorArboles = () => {
         {/* Contenido del árbol */}
         <div className="flex-1 overflow-hidden">
           {arbolSeleccionado === 'materia_prima' && <ArbolMateriaPrima />}
-          {arbolSeleccionado === 'platos' && <ArbolPlatos />}
-          {arbolSeleccionado === 'recetas' && <ArbolRecetas />}
-          {arbolSeleccionado === 'servicios' && (
+          {(arbolSeleccionado === 'platos' || arbolSeleccionado === 'recetas' || arbolSeleccionado === 'servicios') && (
             <div className="flex items-center justify-center h-full">
               <div className="text-center p-12 bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md">
                 <div className="text-8xl mb-6">🚧</div>
@@ -106,7 +105,9 @@ const SelectorArboles = () => {
                   Próximamente
                 </h2>
                 <p className="text-gray-500 dark:text-gray-400">
-                  El módulo de Servicios está en desarrollo y estará disponible pronto.
+                  {arbolSeleccionado === 'platos' && 'El módulo de Platos está en desarrollo.'}
+                  {arbolSeleccionado === 'recetas' && 'El módulo de Recetas está en desarrollo.'}
+                  {arbolSeleccionado === 'servicios' && 'El módulo de Servicios está en desarrollo.'}
                 </p>
               </div>
             </div>

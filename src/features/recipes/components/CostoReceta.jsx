@@ -1,6 +1,6 @@
 // src/components/recetas/CostoReceta.jsx
 import React, { useState, useEffect } from 'react';
-import { costosRecetasService } from '../../services/costosRecetasService';
+import { costosRecetasService } from '@/services/costosRecetasService';
 import {
   DollarSign,
   TrendingUp,

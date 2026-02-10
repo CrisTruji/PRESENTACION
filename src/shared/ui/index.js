@@ -1,2 +1,2 @@
 // Public API - Shared UI Components
-export { VirtualizedTable, useTableColumns } from './VirtualizedTable/VirtualizedTable';
+export { default as VirtualizedTable, useTableColumns } from './VirtualizedTable/VirtualizedTable';

@@ -4,7 +4,7 @@
 // ========================================
 
 import React, { useState, useMemo } from 'react';
-import { usePresentaciones } from '@/features/inventory';
+// import { usePresentaciones } from '@/features/inventory'; // TODO: Hook no existe
 import { useArbolRecetasStore } from '@/features/products';
 import {
   Package,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { arbolMateriaPrimaService } from '../../services/arbolMateriaPrimaService';
+import { arbolMateriaPrimaService } from '@/services/arbolMateriaPrimaService';
 import TabsArbol from './TabsArbol';
 import BuscadorArbol from './BuscadorArbol';
 import NodoArbol from './NodoArbol';

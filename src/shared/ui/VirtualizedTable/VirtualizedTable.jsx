@@ -4,7 +4,7 @@
 // ========================================
 
 import React from 'react';
-import { FixedSizeList } from 'react-window';
+import { List as FixedSizeList } from 'react-window';
 
 /**
  * Componente de tabla virtualizada para listas grandes

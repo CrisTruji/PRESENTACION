@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useAuditoriaLegible, useBuscarAuditoria } from '@/features/audit';
-import VirtualizedTable, { useTableColumns } from '@/shared/ui/VirtualizedTable';
+import { VirtualizedTable, useTableColumns } from '@/shared/ui';
 
 const AuditoriaViewerVirtualized = () => {
   // ========================================
