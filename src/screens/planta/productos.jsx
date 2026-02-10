@@ -1,6 +1,6 @@
 // src/screens/planta/productos.jsx
 import React, { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from '@/shared/api';
 import {
   Search,
   Filter,

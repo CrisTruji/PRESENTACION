@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { proveedorPresentacionesService } from '../../services/proveedorPresentacionesService';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/shared/api';
 
 /**
  * Pantalla para vincular presentaciones (nivel 6) a proveedores

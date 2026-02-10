@@ -1,6 +1,6 @@
 // src/services/facturas.js
 // ACTUALIZADO: Sin dependencia de catalogo_productos
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 import { supabaseRequest } from "../lib/supabaseRequest";
 import { ESTADOS_SOLICITUD } from "../lib/estados";
 

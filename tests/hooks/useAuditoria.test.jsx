@@ -17,11 +17,11 @@ import {
   useActividadUsuario,
   useUsuariosMasActivos,
   useCambiosRecientes,
-} from '../../src/hooks/useAuditoria';
-import { auditoriaService } from '../../src/services/auditoriaService';
+} from '../../src/features/audit/hooks/useAuditoria';
+import { auditoriaService } from '../../src/features/audit/services/auditoriaService';
 
 // Mock del servicio
-vi.mock('../../src/services/auditoriaService', () => ({
+vi.mock('../../src/features/audit/services/auditoriaService', () => ({
   auditoriaService: {
     getHistorial: vi.fn(),
     buscar: vi.fn(),

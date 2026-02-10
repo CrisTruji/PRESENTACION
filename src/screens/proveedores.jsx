@@ -1,6 +1,6 @@
 // src/screens/planta/proveedores.jsx
 import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 import { useRouter } from "../context/roleroutercontext";
 import {
   Search,

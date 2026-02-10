@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/shared/api';
 
 /**
  * Servicio para gestionar la vinculación entre proveedores y presentaciones

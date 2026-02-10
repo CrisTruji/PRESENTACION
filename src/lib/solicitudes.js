@@ -1,5 +1,5 @@
 // src/services/solicitudes.js
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 
 
 export async function listSolicitudes() {

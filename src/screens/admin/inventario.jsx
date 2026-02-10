@@ -1,7 +1,7 @@
 // src/screens/admin/inventario.jsx
 // Pantalla para visualizar el inventario de productos
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/shared/api';
 import notify from '../../utils/notifier';
 import {
   Package,

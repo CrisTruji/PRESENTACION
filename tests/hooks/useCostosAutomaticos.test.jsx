@@ -18,11 +18,11 @@ import {
   useEstadisticasCostos,
   useCompararCostos,
   useActualizarPreciosBatch,
-} from '../../src/hooks/useCostosAutomaticos';
-import { costosAutomaticosService } from '../../src/services/costosAutomaticosService';
+} from '../../src/features/recipes/hooks/useCostosAutomaticos';
+import { costosAutomaticosService } from '../../src/features/recipes/services/costosAutomaticosService';
 
 // Mock del servicio
-vi.mock('../../src/services/costosAutomaticosService', () => ({
+vi.mock('../../src/features/recipes/services/costosAutomaticosService', () => ({
   costosAutomaticosService: {
     getRecetasCostosPendientes: vi.fn(),
     contarRecetasPendientes: vi.fn(),

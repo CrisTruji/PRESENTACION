@@ -14,11 +14,11 @@ import {
   useActualizarStock,
   useActualizarStockBatch,
   useValidarStock,
-} from '../../src/hooks/useStock';
-import { stockService } from '../../src/services/stockService';
+} from '../../src/features/inventory/hooks/useStock';
+import { stockService } from '../../src/features/inventory/services/stockService';
 
 // Mock del servicio
-vi.mock('../../src/services/stockService', () => ({
+vi.mock('../../src/features/inventory/services/stockService', () => ({
   stockService: {
     getStockConAlertas: vi.fn(),
     getStockBajo: vi.fn(),

@@ -1,7 +1,7 @@
 // src/screens/facturas.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/auth";
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 import notify from "../utils/notifier";
 import {
   Search,

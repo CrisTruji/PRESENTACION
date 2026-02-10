@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 import { supabaseRequest } from "../lib/supabaseRequest"; // He agregado esta linea
 
 export async function getProveedores() {

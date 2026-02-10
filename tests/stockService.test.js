@@ -4,11 +4,11 @@
 // ========================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { stockService } from '../src/services/stockService';
-import { supabase } from '../src/lib/supabase';
+import { stockService } from '../src/features/inventory/services/stockService';
+import { supabase } from '@/shared/api';
 
 // Mock de Supabase
-vi.mock('../src/lib/supabase', () => ({
+vi.mock('@/shared/api', () => ({
   supabase: {
     rpc: vi.fn(),
     from: vi.fn(),

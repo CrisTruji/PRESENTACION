@@ -1,6 +1,6 @@
 // src/services/solicitudes.js
 // ACTUALIZADO: Sin dependencia de catalogo_productos - usa arbol_materia_prima
-import { supabase } from "../lib/supabase";
+import { supabase } from '@/shared/api';
 import {
   ESTADOS_SOLICITUD,
   ESTADOS_ITEM,

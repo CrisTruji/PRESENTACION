@@ -1,6 +1,6 @@
 // src/services/costosRecetasService.js
 // REFACTORIZADO: Usa batch RPC para eliminar N+1 queries
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/shared/api';
 
 /**
  * Servicio para calcular costos de recetas basándose en el árbol de materia prima
