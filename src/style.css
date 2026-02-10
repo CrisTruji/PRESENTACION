@@ -6,62 +6,41 @@
 @tailwind utilities;
 
 /* ===== SISTEMA DE TEMAS ===== */
-:root {
-  /* ===== TEMA LIGHT - CLINICAL SOFT ===== */
-  --color-bg-app: #F1F5F9;          /* Fondo de aplicación (gris azulado suave) */
-  --color-bg-surface: #FFFFFF;      /* Superficies (cards/tablas) */
-  --color-bg-sidebar: #111827;      /* Sidebar (se mantiene oscuro) */
-  
-  /* Colores principales */
-  --color-primary: #0F766E;          /* Esmeralda Profundo */
-  --color-text-primary: #1E293B;     /* Slate 800 - Texto principal */
-  --color-text-secondary: #64748B;   /* Slate 600 - Texto secundario */
-  --color-text-muted: #94A3B8;       /* Slate 500 - Texto muted */
-  
-  /* Estados */
-  --color-success: #059669;          /* Verde Salud */
-  --color-warning: #F59E0B;          /* Ámbar */
-  --color-error: #E11D48;            /* Rojo Carmín */
-  
-  /* Bordes y separadores */
-  --color-border: #E2E8F0;           /* Gris claro para bordes */
-  --color-border-light: #F1F5F9;     /* Borde muy claro */
-  
-  /* Estados hover */
-  --color-primary-hover: #0D635C;
-  --color-bg-hover: rgba(15, 118, 110, 0.05);
-  
-  /* Variables de utilidad */
-  --radius-base: 8px;                /* Border radius base (rounded-lg) */
-  --radius-card: 12px;               /* Border radius para cards */
+:root{
+--color-bg-app:#f1f5f9;
+--color-bg-surface:#ffffff;
+--color-bg-sidebar:#111827;
+--color-text-primary:#0f172a;
+--color-text-secondary:#334155;
+--color-text-muted:#64748b;
+--color-primary:#0d9488;
+--color-primary-hover:#0f766e;
+--color-primary-light:#ccfbf1;
+--color-accent:#6366f1;
+--color-border:#cbd5e1;
+--color-border-light:#e2e8f0;
+--color-bg-hover:#f8fafc;
+--color-bg-active:#e6fffa;
+--radius-card:12px;
+--radius-base:8px;
 }
-
-/* ===== TEMA DARK - DEEP HEALTH ===== */
-[data-theme="dark"] {
-  --color-bg-app: #0F172A;           /* Fondo de aplicación (azul oscuro profundo) */
-  --color-bg-surface: #1E293B;       /* Superficies (cards/tablas) */
-  --color-bg-sidebar: #0F172A;       /* Sidebar (mismo que fondo app) */
-  
-  /* Colores principales */
-  --color-primary: #2DD4BF;          /* Esmeralda brillante para modo oscuro */
-  --color-text-primary: #F8FAFC;     /* Texto high - blanco azulado */
-  --color-text-secondary: #CBD5E1;   /* Texto secondary */
-  --color-text-muted: #94A3B8;       /* Texto muted */
-  
-  /* Estados (más suaves en modo oscuro) */
-  --color-success: #10B981;          /* Verde más brillante para dark */
-  --color-warning: #FBBF24;          /* Ámbar más brillante */
-  --color-error: #FB7185;            /* Rojo más suave */
-  
-  /* Bordes y separadores */
-  --color-border: #334155;           /* Bordes en modo oscuro */
-  --color-border-light: #1E293B;     /* Borde más claro */
-  
-  /* Estados hover */
-  --color-primary-hover: #5EEAD4;
-  --color-bg-hover: rgba(45, 212, 191, 0.1);
+[data-theme="dark"]{
+--color-bg-app:#0F172A;
+--color-bg-surface:#1E293B;
+--color-bg-sidebar:#0F172A;
+--color-primary:#2DD4BF;
+--color-text-primary:#F8FAFC;
+--color-text-secondary:#CBD5E1;
+--color-text-muted:#94A3B8;
+--color-success:#10B981;
+--color-warning:#FBBF24;
+--color-error:#FB7185;
+--color-border:#334155;
+--color-border-light:#1E293B;
+--color-primary-hover:#5EEAD4;
+--color-bg-hover:rgba(45,212,191,0.1);
+--color-bg-active:rgba(45,212,191,0.15);
 }
-
 /* ===== ESTILOS BASE ===== */
 @layer base {
   body {
@@ -238,7 +217,7 @@
 
   .table-header {
     background-color: var(--color-bg-hover);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 2px solid var(--color-border);
   }
 
   .table-header-cell {
@@ -251,14 +230,20 @@
     text-align: left;
   }
 
-  .table-row {
-    border-bottom: 1px solid var(--color-border);
-    transition: background-color 0.2s ease;
-  }
+.table-row{
+position:relative;
+transition:background-color 0.2s ease;
+border-bottom:1px solid var(--color-border-light);
+}
 
-  .table-row:hover {
-    background-color: var(--color-bg-hover);
-  }
+.table-row:hover{
+background-color:var(--color-bg-active);
+box-shadow:inset 4px 0 0 0 var(--color-primary-hover);
+cursor:pointer;
+}
+.table-row:nth-child(even):not(:hover){
+background-color:var(--color-bg-hover);
+}
 
   .table-row:last-child {
     border-bottom: none;
