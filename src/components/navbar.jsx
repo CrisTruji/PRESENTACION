@@ -108,6 +108,8 @@ export default function Navbar() {
         { label: "Vincular Presentaciones", name: "vincular_presentaciones", icon: icons.products },
         { label: "Empleados SST", name: "Empleados_SST", icon: icons.tree },
         { label: "Empleados TH", name: "Empleados_TH", icon: icons.tree },
+        { label: "Análisis de Costos", name: "analisis_costos", icon: icons.management },
+        { label: "Nomina", name: "nomina", icon: icons.management }
       ],
       jefe_de_planta: [
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },

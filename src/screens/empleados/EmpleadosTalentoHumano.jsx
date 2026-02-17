@@ -47,6 +47,56 @@ import {
 } from "lucide-react";
 import notify from "../../utils/notifier";
 
+const Toggle = ({ checked, onChange, disabled, id, label }) => {
+  const handleClick = () => {
+    if (!disabled) {
+      onChange(!checked);
+    }
+  };
+
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={handleClick}
+      className={`
+        relative inline-flex flex-shrink-0 h-5 w-9 border-2 border-transparent rounded-full 
+        transition-colors duration-200 ease-in-out focus:outline-none 
+        
+        /* === CAMBIOS APLICADOS AQUÍ === */
+        /* Usamos valores arbitrarios de Tailwind [] para inyectar tus variables CSS */
+        
+        /* Estado Focus: Usa tu variable primary */
+        focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)]
+        
+        /* Color de fondo del riel (track) */
+        /* Activo: --color-primary (Verde/Teal) */
+        /* Inactivo: --color-border (Gris que cambia en modo oscuro) */
+        ${checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}
+
+        /* Opacidad en estado deshabilitado */
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+      /* Estilo en línea para asegurar que el anillo de focus use el color exacto si Tailwind falla */
+      style={{
+        '--tw-ring-color': 'var(--color-primary)' 
+      }}
+    >
+      <span className="sr-only">{label || 'Toggle'}</span>
+      <span
+        className={`
+          pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 
+          transition duration-200 ease-in-out
+          ${checked ? 'translate-x-4' : 'translate-x-0'}
+        `}
+      />
+    </button>
+  );
+};
+
 // Constantes para los selects
 const OPCIONES_EPS = [
   "CAJA COPI",
@@ -700,6 +750,18 @@ function EmpleadoDetalleTH({ empleado, modo = "ver", onClose, onRefresh, onCambi
     }));
   };
 
+  // Función auxiliar para manejar cambios del toggle (simula evento de checkbox)
+  const handleToggleChange = (setter, name, newChecked) => {
+    const syntheticEvent = {
+      target: {
+        name,
+        type: 'checkbox',
+        checked: newChecked
+      }
+    };
+    handleInputChange(setter)(syntheticEvent);
+  };
+
   const formatCurrency = (value) => {
     if (!value) return "";
     return `$${parseFloat(value).toLocaleString('es-CO')}`;
@@ -911,16 +973,14 @@ function EmpleadoDetalleTH({ empleado, modo = "ver", onClose, onRefresh, onCambi
                   <div>
                     <label className="form-label">Estado</label>
                     <div className="flex items-center gap-2 p-2">
-                      <input
-                        type="checkbox"
-                        name="activo"
-                        checked={empleadoData.activo}
-                        onChange={handleInputChange(setEmpleadoData)}
-                        className="checkbox"
+                      <Toggle
                         id="estadoActivo"
+                        checked={empleadoData.activo}
+                        onChange={(newChecked) => handleToggleChange(setEmpleadoData, 'activo', newChecked)}
                         disabled={!esModoEdicion}
+                        label="Empleado Activo"
                       />
-                      <label htmlFor="estadoActivo" className="cursor-pointer">
+                      <label htmlFor="estadoActivo" className="cursor-pointer text-sm">
                         Empleado Activo
                       </label>
                     </div>
@@ -1155,7 +1215,6 @@ function EmpleadoDetalleTH({ empleado, modo = "ver", onClose, onRefresh, onCambi
                           <div>
                             <p className="font-medium">{doc.tipo_documento}</p>
                             <p className="text-xs text-secondary">{doc.area}</p>
-                            {/* Mostrar nombre del archivo usando la función helper */}
                             <p className="text-xs text-muted">
                               {getNombreArchivo(doc)}
                             </p>

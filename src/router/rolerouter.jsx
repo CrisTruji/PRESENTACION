@@ -18,6 +18,8 @@ import VincularPresentaciones from "../screens/admin/vincular_presentaciones";
 import Inventario from "../screens/admin/inventario";
 import EmpleadosSST from "../screens/empleados/EmpleadosSST";
 import EmpleadosTH from "../screens/empleados/EmpleadosTalentoHumano";
+import AnalisisCostos from "../screens/admin/AnalisisCostos";
+import Nomina from "../screens/admin/Nomina";
 
 // PLANTA (jefe de planta)
 import CrearSolicitud from "../screens/planta/crearsolicitud";
@@ -130,6 +132,10 @@ case "inventario":
   return <EmpleadosSST />;
   case "Empleados_TH":
   return <EmpleadosTH />;
+  case "analisis_costos":
+  return <AnalisisCostos />;
+    case "nomina":
+  return <Nomina />;
 
 // CHEF / ARBOLES (ADMIN)
 case "selector_arboles":

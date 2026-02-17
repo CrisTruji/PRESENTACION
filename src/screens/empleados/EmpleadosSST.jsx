@@ -44,6 +44,44 @@ import {
   Thermometer
 } from "lucide-react";
 
+const Toggle = ({ checked, onChange, disabled, id, label }) => {
+  const handleClick = () => {
+    if (!disabled) {
+      onChange(!checked);
+    }
+  };
+
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={handleClick}
+      className={`
+        relative inline-flex flex-shrink-0 h-5 w-9 border-2 border-transparent rounded-full 
+        transition-colors duration-200 ease-in-out focus:outline-none 
+        focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)]
+        ${checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+      style={{
+        '--tw-ring-color': 'var(--color-primary)' 
+      }}
+    >
+      <span className="sr-only">{label || 'Toggle'}</span>
+      <span
+        className={`
+          pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform ring-0 
+          transition duration-200 ease-in-out
+          ${checked ? 'translate-x-4' : 'translate-x-0'}
+        `}
+      />
+    </button>
+  );
+};
+
 // Constantes para selects específicos de SST
 const OPCIONES_ARL = [
   "COLSANITAS",
@@ -57,11 +95,9 @@ const OPCIONES_CAJA_COMPENSACION = [
 ];
 
 const OPCIONES_ESTADO_EXAMEN = [
-  "Apto",
-  "Apto con restricciones",
-  "No apto",
-  "Pendiente",
-  "En proceso"
+  "VIGENTE",
+  "VENCIDO",
+  "POR VENCER",
 ];
 
 const TIPOS_DOCUMENTO_SST = [
@@ -271,15 +307,6 @@ export default function EmpleadosSST() {
                 Gestión de exámenes médicos, capacitaciones y elementos de protección
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn btn-primary flex items-center gap-2"
-              >
-                <Plus size={16} />
-                Nuevo Registro SST
-              </button>
-            </div>
           </div>
         </div>
 
@@ -319,7 +346,7 @@ export default function EmpleadosSST() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Buscar por nombre, apellido o documento..."
+                placeholder="Buscar..."
                 className="form-input pl-10 pr-10 !py-2.5"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -350,7 +377,7 @@ export default function EmpleadosSST() {
                 value={selectedEstado}
                 onChange={(e) => setSelectedEstado(e.target.value)}
               >
-                <option value="todos">Todos los estados</option>
+                <option value="todos">Estados: Todos</option>
                 <option value="activo">Activos</option>
                 <option value="inactivo">Inactivos</option>
               </select>
@@ -367,7 +394,7 @@ export default function EmpleadosSST() {
                 value={selectedExamen}
                 onChange={(e) => setSelectedExamen(e.target.value)}
               >
-                <option value="todos">Todos los exámenes</option>
+                <option value="todos">Exámenes: Todos</option>
                 <option value="si">Con exámenes</option>
                 <option value="no">Sin exámenes</option>
               </select>
@@ -386,30 +413,29 @@ export default function EmpleadosSST() {
           </div>
         </div>
 
-        {/* Tabla de Empleados SST */}
+        {/* Tabla de Empleados SST - OPTIMIZADA PARA ESPACIO */}
         <div className="card overflow-hidden mb-6">
           <div className="overflow-x-auto">
-            <table className="table">
-              <thead className="table-header">
+            <table className="w-full">
+              <thead className="bg-[var(--color-bg-hover)] border-b border-[var(--color-border)]">
                 <tr>
-                  <th className="table-header-cell">#</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider w-10">#</th>
                   <th
-                    className="table-header-cell cursor-pointer hover:bg-app"
+                    className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider cursor-pointer hover:bg-app min-w-[200px]"
                     onClick={() => handleSort("apellidos")}
                   >
                     <div className="flex items-center gap-1">
-                      <User className="w-4 h-4" />
-                      Nombre Completo {getSortIcon("apellidos")}
+                      Nombre {getSortIcon("apellidos")}
                     </div>
                   </th>
-                  <th className="table-header-cell">Documento</th>
-                  <th className="table-header-cell">Cargo</th>
-                  <th className="table-header-cell">Exámenes Médicos</th>
-                  <th className="table-header-cell">Curso Manipulación</th>
-                  <th className="table-header-cell">Inducción</th>
-                  <th className="table-header-cell">ARL</th>
-                  <th className="table-header-cell">Estado</th>
-                  <th className="table-header-cell">Acciones</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider">Doc.</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider">Cargo</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-secondary uppercase tracking-wider w-24">Exám. Med</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-secondary uppercase tracking-wider w-24">Curso</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-secondary uppercase tracking-wider w-24">Inducción</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider">ARL</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-secondary uppercase tracking-wider w-24">Estado</th>
+                  <th className="px-3 py-3 text-right text-xs font-semibold text-secondary uppercase tracking-wider w-32">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -417,7 +443,7 @@ export default function EmpleadosSST() {
                   <tr>
                     <td colSpan="10" className="px-6 py-12 text-center">
                       <div className="spinner spinner-lg mx-auto mb-3"></div>
-                      <p className="text-muted">Cargando empleados SST...</p>
+                      <p className="text-muted">Cargando...</p>
                     </td>
                   </tr>
                 ) : empleados.length === 0 ? (
@@ -428,119 +454,102 @@ export default function EmpleadosSST() {
                         <p className="text-lg font-medium mb-2 text-primary">
                           No se encontraron empleados
                         </p>
-                        <p className="text-muted">
-                          {debouncedSearchTerm || selectedEstado !== "todos" || selectedExamen !== "todos"
-                            ? "Prueba con otros filtros"
-                            : "No hay empleados registrados en SST"}
-                        </p>
                         <button
                           onClick={() => setShowCreateModal(true)}
                           className="btn btn-primary mt-4"
                         >
                           <Plus className="w-4 h-4 mr-2" />
-                          Crear Primer Registro SST
+                          Crear Registro
                         </button>
                       </div>
                     </td>
                   </tr>
                 ) : (
                   empleados.map((e, index) => (
-                    <tr key={e.id} className="table-row hover:bg-app/50">
-                      <td className="table-cell">
-                        <div className="text-sm text-secondary">{index + 1}</div>
+                    <tr key={e.id} className="border-b border-[var(--color-border-light)] hover:bg-[var(--color-bg-active)] transition-colors">
+                      <td className="px-3 py-2 text-sm text-secondary">
+                        {index + 1}
                       </td>
-                      <td className="table-cell">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
-                            <User size={20} className="text-primary" />
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2 max-w-[220px]">
+                          <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User size={16} className="text-primary" />
                           </div>
-                          <div>
-                            <p className="font-medium">
+                          <div className="truncate">
+                            <p className="font-medium text-sm text-primary truncate">
                               {e.nombres} {e.apellidos}
                             </p>
-                            <p className="text-xs text-secondary">{e.correo || "Sin correo"}</p>
+                            <p className="text-xs text-secondary truncate">{e.correo}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="table-cell">
-                        <span className="font-mono">{e.documento_identidad}</span>
+                      <td className="px-3 py-2 text-sm font-mono text-secondary whitespace-nowrap">
+                        {e.documento_identidad}
                       </td>
-                      <td className="table-cell">
-                        <span className="badge badge-outline">{e.cargo || "Sin cargo"}</span>
+                      <td className="px-3 py-2">
+                        <div className="max-w-[150px] truncate" title={e.cargo}>
+                          <span className="badge badge-outline text-xs">{e.cargo || "N/A"}</span>
+                        </div>
                       </td>
-                      <td className="table-cell">
+                      <td className="px-3 py-2 text-center">
                         {e.empleados_sst?.examenes_medicos ? (
-                          <div className="flex items-center gap-1 text-success">
-                            <CheckCircle size={16} />
-                            <span className="text-sm">Sí</span>
-                          </div>
+                          <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <div className="flex items-center gap-1 text-error">
-                            <XCircle size={16} />
-                            <span className="text-sm">No</span>
-                          </div>
+                          <XCircle size={18} className="text-error mx-auto opacity-50" />
                         )}
                       </td>
-                      <td className="table-cell">
+                      <td className="px-3 py-2 text-center">
                         {e.empleados_sst?.curso_manipulacion ? (
-                          <div className="flex items-center gap-1 text-success">
-                            <CheckCircle size={16} />
-                            <span className="text-sm">Sí</span>
-                          </div>
+                          <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <div className="flex items-center gap-1 text-error">
-                            <XCircle size={16} />
-                            <span className="text-sm">No</span>
-                          </div>
+                          <XCircle size={18} className="text-error mx-auto opacity-50" />
                         )}
                       </td>
-                      <td className="table-cell">
+                      <td className="px-3 py-2 text-center">
                         {e.empleados_sst?.induccion ? (
-                          <div className="flex items-center gap-1 text-success">
-                            <CheckCircle size={16} />
-                            <span className="text-sm">Sí</span>
-                          </div>
+                          <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <div className="flex items-center gap-1 text-error">
-                            <XCircle size={16} />
-                            <span className="text-sm">No</span>
-                          </div>
+                          <XCircle size={18} className="text-error mx-auto opacity-50" />
                         )}
                       </td>
-                      <td className="table-cell">
+                      <td className="px-3 py-2">
                         {e.empleados_sst?.arl ? (
-                          <span className="badge badge-outline badge-success">{e.empleados_sst.arl}</span>
+                          <span className="text-xs font-medium text-success truncate block max-w-[100px]" title={e.empleados_sst.arl}>
+                            {e.empleados_sst.arl}
+                          </span>
                         ) : (
-                          <span className="text-secondary">-</span>
+                          <span className="text-secondary text-xs">-</span>
                         )}
                       </td>
-                      <td className="table-cell">
-                        <button
+                      <td className="px-3 py-2">
+                        <span 
                           onClick={() => handleToggleEstado(e.id, e.activo)}
-                          className={`badge cursor-pointer ${e.activo ? "badge-success" : "badge-error"}`}
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer ${
+                            e.activo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}
                         >
                           {e.activo ? "Activo" : "Inactivo"}
-                        </button>
+                        </span>
                       </td>
-                      <td className="table-cell">
-                        <div className="flex items-center gap-2">
+                      <td className="px-3 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => handleVerDetalle(e.id)}
-                            className="btn btn-outline btn-icon"
+                            className="p-1.5 text-secondary hover:text-primary hover:bg-primary/10 rounded transition-colors"
                             title="Ver detalle"
                           >
                             <Eye size={16} />
                           </button>
                           <button
                             onClick={() => handleEditarDetalle(e.id)}
-                            className="btn btn-outline btn-icon"
+                            className="p-1.5 text-secondary hover:text-primary hover:bg-primary/10 rounded transition-colors"
                             title="Editar"
                           >
                             <Edit size={16} />
                           </button>
                           <button
                             onClick={() => handleToggleEstado(e.id, e.activo)}
-                            className="btn btn-outline btn-icon"
+                            className="p-1.5 text-secondary hover:text-error hover:bg-error/10 rounded transition-colors"
                             title={e.activo ? "Desactivar" : "Activar"}
                           >
                             {e.activo ? (
@@ -745,6 +754,18 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
     }));
   };
 
+  // Función auxiliar para manejar cambios del toggle (simula evento de checkbox)
+  const handleToggleChange = (setter, name, newChecked) => {
+    const syntheticEvent = {
+      target: {
+        name,
+        type: 'checkbox',
+        checked: newChecked
+      }
+    };
+    handleInputChange(setter)(syntheticEvent);
+  };
+
   // Función para extraer el nombre del archivo (maneja array o string)
   const getNombreArchivo = (doc) => {
     if (Array.isArray(doc.nombre_archivo)) {
@@ -913,13 +934,16 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                   <div>
                     <label className="form-label">Estado</label>
                     <div className="flex items-center gap-2 p-2">
-                      <input
-                        type="checkbox"
+                      <Toggle
+                        id="estadoActivo"
                         checked={empleadoData.activo}
-                        className="checkbox"
-                        disabled
+                        onChange={() => {}} // Solo lectura, no cambia
+                        disabled={true}
+                        label="Empleado Activo"
                       />
-                      <label>Empleado Activo</label>
+                      <label htmlFor="estadoActivo" className="cursor-pointer text-sm">
+                        Empleado Activo
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -935,16 +959,14 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="examenes_medicos"
-                      checked={sstData.examenes_medicos || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="examenes_medicos"
+                      checked={sstData.examenes_medicos || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'examenes_medicos', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Exámenes Médicos Realizados"
                     />
-                    <label htmlFor="examenes_medicos" className="cursor-pointer">
+                    <label htmlFor="examenes_medicos" className="cursor-pointer text-sm">
                       Exámenes Médicos Realizados
                     </label>
                   </div>
@@ -985,44 +1007,38 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="curso_manipulacion"
-                      checked={sstData.curso_manipulacion || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="curso_manipulacion"
+                      checked={sstData.curso_manipulacion || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'curso_manipulacion', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Curso Manipulación de Alimentos"
                     />
-                    <label htmlFor="curso_manipulacion" className="cursor-pointer">
+                    <label htmlFor="curso_manipulacion" className="cursor-pointer text-sm">
                       Curso Manipulación de Alimentos
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="induccion"
-                      checked={sstData.induccion || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="induccion"
+                      checked={sstData.induccion || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'induccion', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Inducción realizada"
                     />
-                    <label htmlFor="induccion" className="cursor-pointer">
+                    <label htmlFor="induccion" className="cursor-pointer text-sm">
                       Inducción realizada
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="reinduccion"
-                      checked={sstData.reinduccion || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="reinduccion"
+                      checked={sstData.reinduccion || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'reinduccion', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Reinducción necesaria"
                     />
-                    <label htmlFor="reinduccion" className="cursor-pointer">
+                    <label htmlFor="reinduccion" className="cursor-pointer text-sm">
                       Reinducción necesaria
                     </label>
                   </div>
@@ -1037,16 +1053,14 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="covid"
-                      checked={sstData.covid || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="covid"
+                      checked={sstData.covid || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'covid', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Vacuna COVID-19"
                     />
-                    <label htmlFor="covid" className="cursor-pointer">
+                    <label htmlFor="covid" className="cursor-pointer text-sm">
                       Vacuna COVID-19
                     </label>
                   </div>
@@ -1063,30 +1077,26 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="hepatitis_a"
-                      checked={sstData.hepatitis_a || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="hepatitis_a"
+                      checked={sstData.hepatitis_a || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'hepatitis_a', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Hepatitis A"
                     />
-                    <label htmlFor="hepatitis_a" className="cursor-pointer">
+                    <label htmlFor="hepatitis_a" className="cursor-pointer text-sm">
                       Hepatitis A
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="tetano"
-                      checked={sstData.tetano || false}
-                      onChange={handleInputChange(setSstData)}
-                      className="checkbox"
+                    <Toggle
                       id="tetano"
+                      checked={sstData.tetano || false}
+                      onChange={(newChecked) => handleToggleChange(setSstData, 'tetano', newChecked)}
                       disabled={!esModoEdicion}
+                      label="Tétano"
                     />
-                    <label htmlFor="tetano" className="cursor-pointer">
+                    <label htmlFor="tetano" className="cursor-pointer text-sm">
                       Tétano
                     </label>
                   </div>
@@ -1428,6 +1438,17 @@ function CrearRegistroSSTModal({ onClose, onSuccess }) {
     }));
   };
 
+  const handleToggleChange = (name, newChecked) => {
+    const syntheticEvent = {
+      target: {
+        name,
+        type: 'checkbox',
+        checked: newChecked
+      }
+    };
+    handleChange(syntheticEvent);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-surface rounded-card shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -1503,15 +1524,14 @@ function CrearRegistroSSTModal({ onClose, onSuccess }) {
                   <h3 className="font-semibold mb-3">Exámenes Médicos</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="examenes_medicos"
-                        checked={sstData.examenes_medicos}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="examenes_medicos"
+                        checked={sstData.examenes_medicos}
+                        onChange={(newChecked) => handleToggleChange('examenes_medicos', newChecked)}
+                        disabled={false}
+                        label="Exámenes Médicos Realizados"
                       />
-                      <label htmlFor="examenes_medicos" className="cursor-pointer">
+                      <label htmlFor="examenes_medicos" className="cursor-pointer text-sm">
                         Exámenes Médicos Realizados
                       </label>
                     </div>
@@ -1547,41 +1567,38 @@ function CrearRegistroSSTModal({ onClose, onSuccess }) {
                   <h3 className="font-semibold mb-3">Capacitaciones</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="curso_manipulacion"
-                        checked={sstData.curso_manipulacion}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="curso_manipulacion"
+                        checked={sstData.curso_manipulacion}
+                        onChange={(newChecked) => handleToggleChange('curso_manipulacion', newChecked)}
+                        disabled={false}
+                        label="Curso Manipulación de Alimentos"
                       />
-                      <label htmlFor="curso_manipulacion" className="cursor-pointer">
+                      <label htmlFor="curso_manipulacion" className="cursor-pointer text-sm">
                         Curso Manipulación de Alimentos
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="induccion"
-                        checked={sstData.induccion}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="induccion"
+                        checked={sstData.induccion}
+                        onChange={(newChecked) => handleToggleChange('induccion', newChecked)}
+                        disabled={false}
+                        label="Inducción realizada"
                       />
-                      <label htmlFor="induccion" className="cursor-pointer">
+                      <label htmlFor="induccion" className="cursor-pointer text-sm">
                         Inducción realizada
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="reinduccion"
-                        checked={sstData.reinduccion}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="reinduccion"
+                        checked={sstData.reinduccion}
+                        onChange={(newChecked) => handleToggleChange('reinduccion', newChecked)}
+                        disabled={false}
+                        label="Reinducción necesaria"
                       />
-                      <label htmlFor="reinduccion" className="cursor-pointer">
+                      <label htmlFor="reinduccion" className="cursor-pointer text-sm">
                         Reinducción necesaria
                       </label>
                     </div>
@@ -1593,15 +1610,14 @@ function CrearRegistroSSTModal({ onClose, onSuccess }) {
                   <h3 className="font-semibold mb-3">Vacunas</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="covid"
-                        checked={sstData.covid}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="covid"
+                        checked={sstData.covid}
+                        onChange={(newChecked) => handleToggleChange('covid', newChecked)}
+                        disabled={false}
+                        label="Vacuna COVID-19"
                       />
-                      <label htmlFor="covid" className="cursor-pointer">
+                      <label htmlFor="covid" className="cursor-pointer text-sm">
                         Vacuna COVID-19
                       </label>
                     </div>
@@ -1617,28 +1633,26 @@ function CrearRegistroSSTModal({ onClose, onSuccess }) {
                       />
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="hepatitis_a"
-                        checked={sstData.hepatitis_a}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="hepatitis_a"
+                        checked={sstData.hepatitis_a}
+                        onChange={(newChecked) => handleToggleChange('hepatitis_a', newChecked)}
+                        disabled={false}
+                        label="Hepatitis A"
                       />
-                      <label htmlFor="hepatitis_a" className="cursor-pointer">
+                      <label htmlFor="hepatitis_a" className="cursor-pointer text-sm">
                         Hepatitis A
                       </label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        name="tetano"
-                        checked={sstData.tetano}
-                        onChange={handleChange}
-                        className="checkbox"
+                      <Toggle
                         id="tetano"
+                        checked={sstData.tetano}
+                        onChange={(newChecked) => handleToggleChange('tetano', newChecked)}
+                        disabled={false}
+                        label="Tétano"
                       />
-                      <label htmlFor="tetano" className="cursor-pointer">
+                      <label htmlFor="tetano" className="cursor-pointer text-sm">
                         Tétano
                       </label>
                     </div>
