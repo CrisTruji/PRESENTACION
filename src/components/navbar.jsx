@@ -58,7 +58,22 @@ const icons = {
     <svg className="theme-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
     </svg>
-  )
+  ),
+  menu: (
+    <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  ),
+  order: (
+    <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+  ),
+  consolidado: (
+    <svg className="sidebar-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
 };
 
 export default function Navbar() {
@@ -109,7 +124,9 @@ export default function Navbar() {
         { label: "Empleados SST", name: "Empleados_SST", icon: icons.tree },
         { label: "Empleados TH", name: "Empleados_TH", icon: icons.tree },
         { label: "Análisis de Costos", name: "analisis_costos", icon: icons.management },
-        { label: "Nomina", name: "nomina", icon: icons.management }
+        { label: "Nomina", name: "nomina", icon: icons.management },
+        { label: "Ciclos de Menu", name: "chef_dashboard", icon: icons.menu },
+        { label: "Consolidado", name: "consolidado_supervisor", icon: icons.consolidado },
       ],
       jefe_de_planta: [
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },
@@ -131,6 +148,17 @@ export default function Navbar() {
         { label: "Recepción", name: "recepcion_factura", icon: icons.reception },
         { label: "Facturas", name: "facturas", icon: icons.invoices },
         { label: "Proveedores", name: "proveedores", icon: icons.suppliers },
+      ],
+      chef: [
+        { label: "Ciclos de Menu", name: "chef_dashboard", icon: icons.menu },
+        { label: "Arboles", name: "selector_arboles", icon: icons.tree },
+      ],
+      supervisor_produccion: [
+        { label: "Consolidado", name: "consolidado_supervisor", icon: icons.consolidado },
+        { label: "Ciclos de Menu", name: "chef_dashboard", icon: icons.menu },
+      ],
+      coordinador_unidad: [
+        { label: "Pedido de Servicio", name: "pedido_servicio", icon: icons.order },
       ],
     };
 

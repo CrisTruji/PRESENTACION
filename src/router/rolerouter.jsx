@@ -46,6 +46,12 @@ import { AuditoriaViewer } from "@/features/audit";
 // SPRINT 5 - Presentaciones (Admin/Planta)
 import { PresentacionesManager } from "@/features/presentations";
 
+// SPRINT 7 - Ciclos de Menu (Chef)
+import { ChefDashboard } from "@/features/menu-cycles";
+
+// SPRINT 7 - Pedidos y Consolidado (Unidades/Supervisor)
+import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-orders";
+
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
@@ -78,6 +84,18 @@ export default function RoleRouter() {
 
       case "administrador":
         defaultScreen = "admin_dashboard";
+        break;
+
+      case "chef":
+        defaultScreen = "chef_dashboard";
+        break;
+
+      case "supervisor_produccion":
+        defaultScreen = "consolidado_supervisor";
+        break;
+
+      case "coordinador_unidad":
+        defaultScreen = "pedido_servicio";
         break;
 
       default:
@@ -154,6 +172,18 @@ case "auditoria_viewer":
 // SPRINT 5 - Presentaciones (Admin/Planta)
 case "presentaciones_manager":
   return <PresentacionesManager />;
+
+// SPRINT 7 - Ciclos de Menu (Chef/Admin)
+case "chef_dashboard":
+  return <ChefDashboard />;
+
+// SPRINT 7 - Pedidos de Servicio (Coordinador Unidad/Admin)
+case "pedido_servicio":
+  return <PedidoServicioForm />;
+
+// SPRINT 7 - Consolidado (Supervisor/Admin)
+case "consolidado_supervisor":
+  return <ConsolidadoSupervisor />;
 
 default:
   return (

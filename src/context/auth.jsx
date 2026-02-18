@@ -104,6 +104,10 @@ export function AuthProvider({ children }) {
     "auxiliar_de_compras",
     "almacenista",
     "usuario",
+    // Nuevos roles - Sistema de pedidos de servicios
+    "chef",
+    "supervisor_produccion",
+    "coordinador_unidad",
   ];
 
   const formatRoleName = (role) =>
