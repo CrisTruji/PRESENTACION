@@ -7,18 +7,37 @@ import { usePedidoStore } from '../store/usePedidoStore';
 import { useTiposDieta } from '@features/menu-cycles';
 
 export default function PedidoDietas() {
-  const { items, actualizarItem, inicializarItems } = usePedidoStore();
+  const { items, actualizarItem, inicializarItems, menuDelDia } = usePedidoStore();
   const { data: tiposDieta, isLoading } = useTiposDieta();
 
   // Calcular total reactivamente desde los items (getTotalPorciones del store no es reactivo)
   const totalPorciones = items.reduce((sum, i) => sum + (i.cantidad || 0), 0);
 
+  // Filtrar: mostrar solo tipos de dieta con gramaje configurado en el ciclo activo
+  // Si no hay menuDelDia, mostrar todos para no bloquear al coordinador
+  const tiposDietaFiltrados = React.useMemo(() => {
+    if (!tiposDieta) return [];
+    if (!menuDelDia?.servicios?.length) return tiposDieta;
+
+    const conGramaje = tiposDieta.filter((td) =>
+      menuDelDia.servicios.some((srv) =>
+        srv.menu_componentes?.some((mc) =>
+          mc.gramajes_componente_menu?.some(
+            (g) => g.tipo_dieta_id === td.id && !g.excluir && g.gramaje > 0
+          )
+        )
+      )
+    );
+    // Fallback: si el filtro deja 0 resultados, mostrar todos
+    return conGramaje.length > 0 ? conGramaje : tiposDieta;
+  }, [tiposDieta, menuDelDia]);
+
   // Inicializar items si estan vacios y tenemos tipos de dieta
   React.useEffect(() => {
-    if (tiposDieta && items.length === 0) {
-      inicializarItems(tiposDieta);
+    if (tiposDietaFiltrados.length > 0 && items.length === 0) {
+      inicializarItems(tiposDietaFiltrados);
     }
-  }, [tiposDieta]);
+  }, [tiposDietaFiltrados]);
 
   if (isLoading) {
     return (
@@ -37,7 +56,7 @@ export default function PedidoDietas() {
         </p>
 
         <div className="space-y-2">
-          {tiposDieta?.map((dieta) => {
+          {tiposDietaFiltrados?.map((dieta) => {
             const item = items.find((i) => i.tipo_dieta_id === dieta.id);
             return (
               <div

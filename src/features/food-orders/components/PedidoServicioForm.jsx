@@ -14,6 +14,7 @@ import {
   useCrearPedido,
   useEnviarPedido,
   useGuardarItems,
+  useDiaCiclo,
 } from '../hooks/usePedidos';
 import { useGuardarPacientes } from '../hooks/usePedidoPacientes';
 import { useOperaciones } from '@features/menu-cycles';
@@ -47,10 +48,11 @@ export default function PedidoServicioForm() {
   const [showSolicitudCambio, setShowSolicitudCambio] = useState(false);
 
   const { data: operaciones } = useOperaciones();
-  const { data: pedidoExistente, refetch: refetchPedido } = usePedidoDelDia(
+  const { data: pedidoExistente, refetch: refetchPedido, isError: errorPedido } = usePedidoDelDia(
     operacionActual?.id, fechaPedido, servicioPedido
   );
   const { data: menuDelDia } = useMenuDelDia(operacionActual?.id, fechaPedido);
+  const { data: diaCiclo, isLoading: loadingDiaCiclo } = useDiaCiclo(operacionActual?.id, fechaPedido);
 
   const crearPedido = useCrearPedido();
   const enviarPedido = useEnviarPedido();
@@ -189,7 +191,23 @@ export default function PedidoServicioForm() {
                 </select>
               </div>
               <div>
-                <label className="form-label">Fecha</label>
+                <label className="form-label">
+                  Fecha
+                  {/* Badge informativo: día del ciclo activo para la fecha seleccionada */}
+                  {operacionActual && !loadingDiaCiclo && (
+                    diaCiclo !== null && diaCiclo !== undefined ? (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: 'rgba(99,102,241,0.1)', color: '#6366F1' }}>
+                        Día {diaCiclo} del ciclo
+                      </span>
+                    ) : (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>
+                        Sin ciclo activo
+                      </span>
+                    )
+                  )}
+                </label>
                 <input
                   type="date"
                   value={fechaPedido}
@@ -281,7 +299,17 @@ export default function PedidoServicioForm() {
                 </div>
 
                 <div className="card-body">
-                  {!pedidoActual ? (
+                  {errorPedido ? (
+                    <div className="p-10 text-center">
+                      <AlertCircle className="w-10 h-10 text-error mx-auto mb-3" />
+                      <h4 className="text-lg font-semibold text-error mb-1">Error de conexión</h4>
+                      <p className="text-sm text-muted mb-4">No se pudo cargar el pedido. Verifica tu conexión.</p>
+                      <button onClick={() => refetchPedido()} className="btn btn-outline flex items-center gap-2 mx-auto">
+                        <RefreshCw className="w-4 h-4" />
+                        Reintentar
+                      </button>
+                    </div>
+                  ) : !pedidoActual ? (
                     <div className="p-10 text-center">
                       <div className="w-20 h-20 bg-app rounded-card flex items-center justify-center mx-auto mb-4">
                         <Calendar className="w-10 h-10 text-muted" />

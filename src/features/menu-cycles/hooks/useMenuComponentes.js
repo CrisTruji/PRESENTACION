@@ -11,6 +11,8 @@ export function useComponentesDia(cicloDiaServicioId) {
     queryFn: () => menuComponentesService.getComponentesDia(cicloDiaServicioId),
     select: (response) => response.data,
     enabled: !!cicloDiaServicioId,
+    // No retener datos de otro servicio/día mientras carga el nuevo
+    placeholderData: undefined,
   });
 }
 
@@ -19,9 +21,13 @@ export function useAsignarComponente() {
   return useMutation({
     mutationFn: ({ cicloDiaServicioId, componenteId, recetaId, orden }) =>
       menuComponentesService.asignarComponente(cicloDiaServicioId, componenteId, recetaId, orden),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-componentes'] });
-      queryClient.invalidateQueries({ queryKey: ['ciclos'] });
+    onSuccess: (_, variables) => {
+      // Invalidar solo la query específica del servicio/día que fue modificado
+      queryClient.invalidateQueries({ queryKey: ['menu-componentes', variables.cicloDiaServicioId] });
+      // Invalidar el progreso del ciclo (campo "completo" actualizado)
+      queryClient.invalidateQueries({ queryKey: ['ciclos', 'dia'] });
+      queryClient.invalidateQueries({ queryKey: ['ciclos', 'progreso'] });
+      queryClient.invalidateQueries({ queryKey: ['operaciones'] });
     },
   });
 }
@@ -31,8 +37,34 @@ export function useEliminarComponente() {
   return useMutation({
     mutationFn: (menuComponenteId) =>
       menuComponentesService.eliminarComponente(menuComponenteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menu-componentes'] });
+    onSuccess: (data) => {
+      // Obtener el cicloDiaServicioId del resultado para invalidar solo esa query
+      const cicloDiaServicioId = data?.data?.ciclo_dia_servicio_id;
+      if (cicloDiaServicioId) {
+        queryClient.invalidateQueries({ queryKey: ['menu-componentes', cicloDiaServicioId] });
+      } else {
+        // Fallback: invalidar todas si no tenemos el ID
+        queryClient.invalidateQueries({ queryKey: ['menu-componentes'] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['ciclos', 'dia'] });
+      queryClient.invalidateQueries({ queryKey: ['ciclos', 'progreso'] });
+      queryClient.invalidateQueries({ queryKey: ['operaciones'] });
+    },
+  });
+}
+
+export function useActualizarReceta() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ menuComponenteId, recetaId }) =>
+      menuComponentesService.actualizarReceta(menuComponenteId, recetaId),
+    onSuccess: (data) => {
+      const cicloDiaServicioId = data?.data?.ciclo_dia_servicio_id;
+      if (cicloDiaServicioId) {
+        queryClient.invalidateQueries({ queryKey: ['menu-componentes', cicloDiaServicioId] });
+      }
+      // Actualizar ingredientes y gramajes del nuevo receta_id
+      queryClient.invalidateQueries({ queryKey: ['receta-ingredientes'] });
     },
   });
 }
@@ -86,5 +118,26 @@ export function useRecetaConIngredientes(recetaId) {
     queryFn: () => menuComponentesService.getRecetaConIngredientes(recetaId),
     select: (response) => response.data,
     enabled: !!recetaId,
+  });
+}
+
+// Gramajes base de componentes
+export function useGramajeBASEComponentes(operacionId) {
+  return useQuery({
+    queryKey: ['gramajes-base-componentes', operacionId],
+    queryFn: () => menuComponentesService.getGramajeBASEComponentes(operacionId),
+    select: (response) => response.data,
+    enabled: !!operacionId,
+  });
+}
+
+export function useGuardarGramajeBASEComponentes() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ operacionId, gramajes }) =>
+      menuComponentesService.guardarGramajeBASEComponentes(operacionId, gramajes),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['gramajes-base-componentes', variables.operacionId] });
+    },
   });
 }

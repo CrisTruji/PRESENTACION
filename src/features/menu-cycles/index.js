@@ -23,17 +23,22 @@ export {
   useActivarCiclo,
   useCopiarDia,
   useMarcarDiaCompleto,
+  useEliminarCiclo,
+  useActivarServicio,
 } from './hooks/useCiclos';
 
 export {
   useComponentesDia,
   useAsignarComponente,
   useEliminarComponente,
+  useActualizarReceta,
   useGramajes,
   useGuardarGramajes,
   useCrearRecetaLocal,
   useBuscarRecetas,
   useRecetaConIngredientes,
+  useGramajeBASEComponentes,
+  useGuardarGramajeBASEComponentes,
 } from './hooks/useMenuComponentes';
 
 export { useTiposDieta, useTiposDietaPorCategoria } from './hooks/useTiposDieta';

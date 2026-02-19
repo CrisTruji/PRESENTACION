@@ -11,6 +11,7 @@ export const useConsolidadoStore = create((set, get) => ({
   vistaActiva: 'recetas',  // 'recetas' | 'unidades' | 'ingredientes'
   filtroFecha: new Date().toISOString().split('T')[0],
   filtroServicio: 'almuerzo',
+  filtroUnidad: null,       // operacion_id | null = todas las unidades
   consolidadoActual: null,
   solicitudesPendientes: [],
   alertasStock: [],
@@ -32,6 +33,10 @@ export const useConsolidadoStore = create((set, get) => ({
   setFiltroServicio: (servicio) => set({
     filtroServicio: servicio,
     consolidadoActual: null,
+  }),
+
+  setFiltroUnidad: (operacionId) => set({
+    filtroUnidad: operacionId,
   }),
 
   // ========================================
@@ -76,6 +81,7 @@ export const useConsolidadoStore = create((set, get) => ({
     vistaActiva: 'recetas',
     filtroFecha: new Date().toISOString().split('T')[0],
     filtroServicio: 'almuerzo',
+    filtroUnidad: null,
     consolidadoActual: null,
     solicitudesPendientes: [],
     alertasStock: [],

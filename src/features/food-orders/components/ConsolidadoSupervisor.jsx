@@ -11,6 +11,9 @@ import {
   RefreshCw,
   FileText,
   Check,
+  Clock,
+  Building2,
+  X,
 } from 'lucide-react';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import {
@@ -19,6 +22,8 @@ import {
   useAprobarConsolidado,
   useMarcarPreparado,
   useSustituirReceta,
+  useOperacionesConsolidado,
+  useServiciosUnidad,
 } from '../hooks/useConsolidado';
 import { useSolicitudesPendientes } from '../hooks/useSolicitudesCambio';
 import { usePedidosPorFecha } from '../hooks/usePedidos';
@@ -30,16 +35,91 @@ import CambioRecetaPanel from './CambioRecetaPanel';
 import { useAuth } from '@/context/auth';
 import notify from '@/utils/notifier';
 
+// ----------------------------------------
+// Panel de Horarios (inline)
+// ----------------------------------------
+function PanelHorarios({ operacionId, filtroServicio }) {
+  const { data: servicios, isLoading } = useServiciosUnidad(operacionId || null);
+
+  if (isLoading) {
+    return (
+      <div className="py-2 text-center">
+        <div className="spinner spinner-sm mx-auto" />
+      </div>
+    );
+  }
+
+  if (!servicios || servicios.length === 0) {
+    return (
+      <p className="text-xs text-text-muted py-2">
+        Sin horarios configurados. Ejecuta el SQL de horarios para configurarlos.
+      </p>
+    );
+  }
+
+  // Group by operacion if showing all units, else flat list
+  const grouped = {};
+  for (const s of servicios) {
+    const key = s.operacion_id;
+    if (!grouped[key]) {
+      grouped[key] = { nombre: s.operaciones?.nombre || s.operacion_id, items: [] };
+    }
+    grouped[key].items.push(s);
+  }
+
+  const grupos = Object.values(grouped);
+
+  return (
+    <div className="space-y-3">
+      {grupos.map((grupo) => (
+        <div key={grupo.nombre}>
+          {!operacionId && (
+            <div className="text-xs font-semibold text-text-secondary uppercase mb-1.5">
+              {grupo.nombre}
+            </div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {grupo.items.map((srv) => {
+              const esFiltro = srv.servicio === filtroServicio;
+              return (
+                <div
+                  key={srv.id}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-all ${
+                    esFiltro
+                      ? 'bg-primary/10 border-primary text-primary font-semibold'
+                      : 'bg-bg-surface border-border text-text-muted'
+                  }`}
+                >
+                  <Clock className="w-3 h-3 flex-shrink-0" />
+                  <span className="capitalize">{srv.servicio}:</span>
+                  <span className="font-mono font-semibold">
+                    {srv.hora_limite?.slice(0, 5) || '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ----------------------------------------
+// Main Component
+// ----------------------------------------
 export default function ConsolidadoSupervisor() {
   const { user } = useAuth();
   const {
     vistaActiva,
     filtroFecha,
     filtroServicio,
+    filtroUnidad,
     consolidadoActual,
     cambiarVista,
     setFiltroFecha,
     setFiltroServicio,
+    setFiltroUnidad,
     setConsolidado,
     iniciarSustitucion,
   } = useConsolidadoStore();
@@ -49,12 +129,12 @@ export default function ConsolidadoSupervisor() {
     useConsolidadoPorFecha(filtroFecha, filtroServicio);
   const { data: pedidos } = usePedidosPorFecha(filtroFecha, filtroServicio);
   const { data: solicitudesPendientes } = useSolicitudesPendientes();
+  const { data: operaciones } = useOperacionesConsolidado();
 
   // Mutations
   const consolidar = useConsolidar();
   const aprobarConsolidado = useAprobarConsolidado();
   const marcarPreparado = useMarcarPreparado();
-  const sustituirReceta = useSustituirReceta();
 
   useEffect(() => {
     if (consolidado) setConsolidado(consolidado);
@@ -64,6 +144,11 @@ export default function ConsolidadoSupervisor() {
   const totalPedidos = pedidos?.length || 0;
   const pedidosEnviados = pedidos?.filter((p) => p.estado !== 'borrador').length || 0;
   const pedidosTardios = pedidos?.filter((p) => !p.enviado_en_hora && p.hora_envio).length || 0;
+
+  // Selected unit name for display
+  const unidadSeleccionada = filtroUnidad
+    ? operaciones?.find((o) => o.id === filtroUnidad)
+    : null;
 
   const handleConsolidar = () => {
     consolidar.mutate(
@@ -201,13 +286,13 @@ export default function ConsolidadoSupervisor() {
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="card mb-6">
+        {/* Filtros + Selector de Unidad */}
+        <div className="card mb-4">
           <div className="card-header">
             <h3 className="text-lg font-semibold text-primary">Filtros</h3>
           </div>
           <div className="card-body">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="form-label">Fecha</label>
                 <input
@@ -230,6 +315,40 @@ export default function ConsolidadoSupervisor() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="form-label flex items-center gap-1">
+                  <Building2 className="w-3.5 h-3.5" />
+                  Unidad (opcional)
+                </label>
+                <div className="relative">
+                  <select
+                    value={filtroUnidad || ''}
+                    onChange={(e) => setFiltroUnidad(e.target.value || null)}
+                    className="form-input w-full pr-8"
+                  >
+                    <option value="">— Todas las unidades —</option>
+                    {(operaciones || []).map((op) => (
+                      <option key={op.id} value={op.id}>
+                        {op.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  {filtroUnidad && (
+                    <button
+                      onClick={() => setFiltroUnidad(null)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary"
+                      title="Limpiar filtro de unidad"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                {unidadSeleccionada && (
+                  <p className="text-xs text-text-muted mt-1">
+                    Viendo datos de: <span className="font-semibold text-primary">{unidadSeleccionada.nombre}</span>
+                  </p>
+                )}
               </div>
               <div className="flex items-end">
                 <button
@@ -254,6 +373,23 @@ export default function ConsolidadoSupervisor() {
           </div>
         </div>
 
+        {/* Panel Horarios */}
+        <div className="card mb-6">
+          <div className="card-header flex items-center gap-2 py-3">
+            <Clock className="w-4 h-4 text-text-muted" />
+            <h3 className="text-sm font-semibold text-primary">
+              Horarios límite de entrega
+              {unidadSeleccionada ? ` — ${unidadSeleccionada.nombre}` : ' (todas las unidades)'}
+            </h3>
+          </div>
+          <div className="card-body py-3">
+            <PanelHorarios
+              operacionId={filtroUnidad}
+              filtroServicio={filtroServicio}
+            />
+          </div>
+        </div>
+
         {/* Solicitudes de cambio pendientes */}
         {solicitudesPendientes && solicitudesPendientes.length > 0 && (
           <div className="mb-6">
@@ -275,7 +411,7 @@ export default function ConsolidadoSupervisor() {
               <Package className="h-12 w-12 mx-auto text-muted mb-3" />
               <h3 className="text-base font-semibold text-primary mb-2">Sin consolidado</h3>
               <p className="text-sm text-muted mb-4">
-                No hay consolidado para {filtroFecha} - {filtroServicio}. Genera uno cuando los pedidos estén listos.
+                No hay consolidado para {filtroFecha} — {filtroServicio}. Genera uno cuando los pedidos estén listos.
               </p>
               <button
                 onClick={handleConsolidar}
@@ -291,16 +427,16 @@ export default function ConsolidadoSupervisor() {
           <div className="card">
             {/* Tabs */}
             <div className="card-header border-b" style={{ borderColor: 'var(--color-border)' }}>
-              <div className="flex gap-0">
+              <div className="flex gap-0 flex-wrap">
                 {[
                   { key: 'recetas', label: 'Por Receta' },
-                  { key: 'unidades', label: 'Por Unidad' },
+                  { key: 'unidades', label: filtroUnidad ? `Unidad: ${unidadSeleccionada?.nombre || '...'}` : 'Por Unidad' },
                   { key: 'ingredientes', label: 'Ingredientes' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => cambiarVista(tab.key)}
-                    className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                       vistaActiva === tab.key
                         ? 'border-primary text-primary'
                         : 'border-transparent text-text-muted hover:text-primary'
@@ -310,6 +446,16 @@ export default function ConsolidadoSupervisor() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Info de totales */}
+            <div className="px-4 py-2 border-b bg-bg-surface flex items-center justify-between text-xs text-text-muted" style={{ borderColor: 'var(--color-border)' }}>
+              <span>
+                Total porciones: <strong className="text-primary">{consolidadoActual.total_porciones || 0}</strong>
+              </span>
+              <span>
+                Consolidado: {new Date(consolidadoActual.created_at).toLocaleString('es-CO')}
+              </span>
             </div>
 
             {/* Contenido según tab */}
@@ -329,8 +475,8 @@ export default function ConsolidadoSupervisor() {
             {/* Footer acciones */}
             <div className="card-footer flex items-center justify-between">
               <div className="text-xs text-muted">
-                {consolidadoActual.aprobado_por && (
-                  <span>Aprobado el {new Date(consolidadoActual.aprobado_at).toLocaleString('es-CO')}</span>
+                {consolidadoActual.fecha_aprobacion && (
+                  <span>Aprobado el {new Date(consolidadoActual.fecha_aprobacion).toLocaleString('es-CO')}</span>
                 )}
               </div>
               <div className="flex items-center gap-2">

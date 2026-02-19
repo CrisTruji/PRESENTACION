@@ -1,76 +1,24 @@
 // ========================================
-// PanelCalendario - Grid de dias + selector servicio
+// PanelCalendario - Grid de dias (selector de día)
+// El selector de servicio vive en el panel central (CicloEditor)
 // ========================================
 
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Plus } from 'lucide-react';
+import React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
 import { useDiaServicios } from '../hooks/useCiclos';
-import { useComponentesDia, useAsignarComponente, useEliminarComponente } from '../hooks/useMenuComponentes';
-import { useComponentesPlato } from '../hooks/useComponentesPlato';
-import { SERVICIOS } from '@/shared/types/menu';
-import ComponenteSlot from './ComponenteSlot';
-import SelectorReceta from './SelectorReceta';
 
 export default function PanelCalendario({ ciclo }) {
   const {
     diaSeleccionado,
     servicioSeleccionado,
     seleccionarDia,
-    seleccionarServicio,
-    seleccionarComponente,
-    cambiarPanel,
   } = useCicloEditorStore();
-
-  const [showSelectorReceta, setShowSelectorReceta] = useState(false);
-  const [componenteParaAsignar, setComponenteParaAsignar] = useState(null);
 
   const totalDias = ciclo?.operaciones?.cantidad_ciclos || ciclo?.cantidad_dias || 20;
 
-  // Obtener servicios del dia seleccionado
+  // Obtener el estado de completitud de los servicios del día seleccionado
   const { data: diaServicios } = useDiaServicios(ciclo?.id, diaSeleccionado);
-
-  // Encontrar el ciclo_dia_servicio_id para el servicio seleccionado
-  const cicloDiaServicio = diaServicios?.find(
-    (ds) => ds.servicio === servicioSeleccionado
-  );
-
-  // Obtener componentes del dia+servicio
-  const { data: componentes } = useComponentesDia(cicloDiaServicio?.id);
-  const { data: componentesPlato } = useComponentesPlato();
-
-  const asignarComponente = useAsignarComponente();
-  const eliminarComponente = useEliminarComponente();
-
-  const handleAgregarPlato = (componenteId) => {
-    setComponenteParaAsignar(componenteId);
-    setShowSelectorReceta(true);
-  };
-
-  const handleSeleccionarReceta = (receta) => {
-    if (!cicloDiaServicio?.id || !componenteParaAsignar) return;
-    asignarComponente.mutate({
-      cicloDiaServicioId: cicloDiaServicio.id,
-      componenteId: componenteParaAsignar,
-      recetaId: receta.id,
-    });
-    setShowSelectorReceta(false);
-    setComponenteParaAsignar(null);
-  };
-
-  const handleEliminar = (menuComponenteId) => {
-    eliminarComponente.mutate(menuComponenteId);
-  };
-
-  const handleClickGramajes = (comp) => {
-    seleccionarComponente(comp);
-    cambiarPanel('gramajes');
-  };
-
-  const handleClickIngredientes = (comp) => {
-    seleccionarComponente(comp);
-    cambiarPanel('ingredientes');
-  };
 
   return (
     <div className="space-y-5">
@@ -80,7 +28,6 @@ export default function PanelCalendario({ ciclo }) {
         <div className="grid grid-cols-4 gap-1">
           {Array.from({ length: totalDias }, (_, i) => {
             const dia = i + 1;
-
             return (
               <button
                 key={dia}
@@ -98,28 +45,38 @@ export default function PanelCalendario({ ciclo }) {
         </div>
       </div>
 
-      {/* Separador */}
-      <div className="border-t" style={{ borderColor: 'var(--color-border)' }}></div>
-
-      {/* Selector de servicio */}
-      <div>
-        <label className="form-label">🍽️ Servicio</label>
-        <div className="space-y-2">
-          {SERVICIOS.map((srv) => (
-            <button
-              key={srv.value}
-              onClick={() => seleccionarServicio(srv.value)}
-              className={`w-full px-3 py-2 rounded-md text-sm font-medium text-left transition-all ${
-                srv.value === servicioSeleccionado
-                  ? 'bg-primary text-white'
-                  : 'bg-bg-surface text-text-primary border border-border hover:border-primary hover:bg-bg-app'
-              }`}
-            >
-              {srv.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Resumen de servicios del día */}
+      {diaServicios && diaServicios.length > 0 && (
+        <>
+          <div className="border-t" style={{ borderColor: 'var(--color-border)' }}></div>
+          <div>
+            <label className="form-label">📊 Estado del día {diaSeleccionado}</label>
+            <div className="space-y-1.5">
+              {diaServicios.map((ds) => (
+                <div
+                  key={ds.id}
+                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs border transition-all ${
+                    ds.servicio === servicioSeleccionado
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-bg-surface'
+                  }`}
+                >
+                  <span className={`font-medium capitalize ${ds.servicio === servicioSeleccionado ? 'text-primary' : 'text-text-primary'}`}>
+                    {ds.servicio.replace('_', ' ')}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    ds.completo
+                      ? 'bg-success/15 text-success'
+                      : 'bg-bg-app text-text-muted'
+                  }`}>
+                    {ds.completo ? '✓' : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Navegacion de dias */}
       <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
@@ -141,14 +98,6 @@ export default function PanelCalendario({ ciclo }) {
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>
-
-      {/* Selector receta modal */}
-      {showSelectorReceta && (
-        <SelectorReceta
-          onSelect={handleSeleccionarReceta}
-          onClose={() => setShowSelectorReceta(false)}
-        />
-      )}
     </div>
   );
 }

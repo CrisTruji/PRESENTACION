@@ -1,14 +1,16 @@
 // ========================================
 // VistaUnidades - Tab: consolidado por unidad
+// Muestra pedidos por unidad con filtro de unidad individual
 // ========================================
 
 import React from 'react';
+import { CheckCircle, AlertTriangle } from 'lucide-react';
 import { usePedidosPorFecha } from '../hooks/usePedidos';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import { ETIQUETAS_ESTADO_PEDIDO } from '@/shared/types/menu';
 
 export default function VistaUnidades() {
-  const { filtroFecha, filtroServicio } = useConsolidadoStore();
+  const { filtroFecha, filtroServicio, filtroUnidad } = useConsolidadoStore();
   const { data: pedidos, isLoading } = usePedidosPorFecha(filtroFecha, filtroServicio);
 
   if (isLoading) {
@@ -28,6 +30,19 @@ export default function VistaUnidades() {
     );
   }
 
+  // Filter by unit if one is selected
+  const pedidosFiltrados = filtroUnidad
+    ? pedidos.filter((p) => p.operacion_id === filtroUnidad)
+    : pedidos;
+
+  if (pedidosFiltrados.length === 0) {
+    return (
+      <div className="py-8 text-center">
+        <p className="text-sm text-text-muted">Esta unidad no tiene pedidos para la fecha y servicio seleccionados</p>
+      </div>
+    );
+  }
+
   return (
     <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
       <table className="table w-full">
@@ -41,7 +56,7 @@ export default function VistaUnidades() {
           </tr>
         </thead>
         <tbody>
-          {pedidos.map((pedido) => (
+          {pedidosFiltrados.map((pedido) => (
             <tr
               key={pedido.id}
               className="hover:bg-bg-surface transition-colors"
@@ -75,9 +90,13 @@ export default function VistaUnidades() {
               <td className="table-cell text-center">
                 {pedido.hora_envio ? (
                   pedido.enviado_en_hora ? (
-                    <span className="text-success text-xs font-semibold">✓ Sí</span>
+                    <span className="text-success text-xs font-semibold flex items-center justify-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" /> Sí
+                    </span>
                   ) : (
-                    <span className="text-error text-xs font-semibold">⚠ Tardío</span>
+                    <span className="text-error text-xs font-semibold flex items-center justify-center gap-1">
+                      <AlertTriangle className="w-3.5 h-3.5" /> Tardío
+                    </span>
                   )
                 ) : (
                   <span className="text-text-muted text-xs">—</span>

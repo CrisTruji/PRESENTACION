@@ -16,6 +16,7 @@ export const useCicloEditorStore = create((set, get) => ({
   panelActivo: 'calendario', // 'calendario' | 'gramajes' | 'ingredientes'
   modalNuevoCiclo: false,
   modalRecetaLocal: false,
+  modalGramajeBASE: false,
 
   // ========================================
   // ACTIONS - Seleccion
@@ -64,6 +65,8 @@ export const useCicloEditorStore = create((set, get) => ({
   cerrarModalNuevoCiclo: () => set({ modalNuevoCiclo: false }),
   abrirModalRecetaLocal: () => set({ modalRecetaLocal: true }),
   cerrarModalRecetaLocal: () => set({ modalRecetaLocal: false }),
+  abrirModalGramajeBASE: () => set({ modalGramajeBASE: true }),
+  cerrarModalGramajeBASE: () => set({ modalGramajeBASE: false }),
 
   // ========================================
   // RESET
@@ -77,5 +80,6 @@ export const useCicloEditorStore = create((set, get) => ({
     panelActivo: 'calendario',
     modalNuevoCiclo: false,
     modalRecetaLocal: false,
+    modalGramajeBASE: false,
   }),
 }));

@@ -14,6 +14,7 @@ export {
   useCrearPedido,
   useEnviarPedido,
   useGuardarItems,
+  useDiaCiclo,
 } from './hooks/usePedidos';
 
 export { useGuardarPacientes } from './hooks/usePedidoPacientes';
@@ -38,6 +39,8 @@ export {
   useSustituirReceta,
   useAprobarConsolidado,
   useMarcarPreparado,
+  useOperacionesConsolidado,
+  useServiciosUnidad,
 } from './hooks/useConsolidado';
 
 // Store

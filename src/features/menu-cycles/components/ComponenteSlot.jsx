@@ -3,7 +3,7 @@
 // ========================================
 
 import React from 'react';
-import { Percent, Edit2, X } from 'lucide-react';
+import { Percent, Edit2, X, RefreshCw } from 'lucide-react';
 
 export default function ComponenteSlot({
   componente,
@@ -11,6 +11,7 @@ export default function ComponenteSlot({
   esLocal = false,
   onClickGramajes,
   onClickIngredientes,
+  onCambiarReceta,
   onEliminar,
   seleccionado = false,
 }) {
@@ -50,6 +51,16 @@ export default function ComponenteSlot({
       </div>
 
       <div className="flex items-center gap-0.5 ml-2 flex-shrink-0">
+        {/* Cambiar receta — siempre disponible */}
+        {onCambiarReceta && (
+          <button
+            onClick={onCambiarReceta}
+            className="p-2 text-text-muted hover:text-primary hover:bg-bg-surface rounded-md transition-colors"
+            title="Cambiar receta"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        )}
         {receta && (
           <>
             <button
@@ -62,7 +73,7 @@ export default function ComponenteSlot({
             <button
               onClick={onClickIngredientes}
               className="p-2 text-text-muted hover:text-primary hover:bg-bg-surface rounded-md transition-colors"
-              title="Ver ingredientes"
+              title="Ver ingredientes / Crear variante"
             >
               <Edit2 className="w-4 h-4" />
             </button>
@@ -71,7 +82,7 @@ export default function ComponenteSlot({
         <button
           onClick={onEliminar}
           className="p-2 text-text-muted hover:text-error hover:bg-error/10 rounded-md transition-colors"
-          title="Eliminar"
+          title="Eliminar plato del menú"
         >
           <X className="w-4 h-4" />
         </button>

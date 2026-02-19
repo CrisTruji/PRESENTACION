@@ -119,8 +119,8 @@ export const ciclosService = {
 
     if (cicloError) return { data: null, error: cicloError };
 
-    // 3. Generar dias x servicios principales (desayuno, almuerzo, cena, onces)
-    const serviciosPrincipales = ['desayuno', 'almuerzo', 'cena', 'onces'];
+    // 3. Generar dias x servicios principales (todos los definidos en SERVICIOS)
+    const serviciosPrincipales = ['desayuno', 'nueves', 'almuerzo', 'onces', 'cena', 'cena_ligera'];
     const registrosDias = [];
 
     for (let dia = 1; dia <= operacion.cantidad_ciclos; dia++) {
@@ -158,20 +158,49 @@ export const ciclosService = {
   },
 
   async activarCiclo(cicloId) {
-    // Verificar que todos los dias tengan al menos 1 componente
+    // Obtener todos los dias+servicios del ciclo
     const { data: dias } = await supabase
       .from('ciclo_dia_servicios')
       .select('id, numero_dia, servicio, completo')
       .eq('ciclo_id', cicloId);
 
-    const incompletos = dias?.filter(d => !d.completo) || [];
+    if (!dias || dias.length === 0) {
+      return {
+        data: null,
+        error: { message: 'El ciclo no tiene días configurados' },
+      };
+    }
 
-    if (incompletos.length > 0) {
+    // Calcular cuántos días únicos tiene el ciclo
+    const diasUnicos = [...new Set(dias.map(d => d.numero_dia))];
+    const totalDias = diasUnicos.length;
+
+    // Agrupar por servicio: { desayuno: [dia1, dia2, ...], almuerzo: [...], ... }
+    const porServicio = {};
+    dias.forEach(d => {
+      if (!porServicio[d.servicio]) porServicio[d.servicio] = [];
+      porServicio[d.servicio].push(d);
+    });
+
+    // Verificar si al menos UN servicio tiene TODOS sus días completos
+    const serviciosCompletos = Object.entries(porServicio).filter(([, filas]) => {
+      // El servicio está completo si tiene registros para todos los días
+      // y todos están marcados como completo = true
+      return filas.length === totalDias && filas.every(f => f.completo);
+    });
+
+    if (serviciosCompletos.length === 0) {
+      // Generar mensaje descriptivo: mostrar cuántos días le faltan al servicio más avanzado
+      const resumen = Object.entries(porServicio).map(([srv, filas]) => {
+        const completosEnSrv = filas.filter(f => f.completo).length;
+        return `${srv}: ${completosEnSrv}/${totalDias}`;
+      }).join(', ');
+
       return {
         data: null,
         error: {
-          message: `Hay ${incompletos.length} servicios sin completar`,
-          detalles: incompletos,
+          message: `Ningún servicio está completo en todos los días. Para activar, al menos un servicio debe tener los ${totalDias} días configurados.`,
+          detalle: resumen,
         },
       };
     }
@@ -259,16 +288,12 @@ export const ciclosService = {
   // ========================================
 
   async getDiaServicios(cicloId, numeroDia) {
+    // Solo traemos los metadatos del slot (id, servicio, completo)
+    // Los menu_componentes se obtienen por separado con getComponentesDia(cicloDiaServicioId)
+    // para evitar que Supabase mezcle datos entre servicios en el join anidado
     const { data, error } = await supabase
       .from('ciclo_dia_servicios')
-      .select(`
-        *,
-        menu_componentes (
-          *,
-          componentes_plato (*),
-          arbol_recetas (id, codigo, nombre, costo_porcion, rendimiento)
-        )
-      `)
+      .select('id, ciclo_id, numero_dia, servicio, completo, created_at')
       .eq('ciclo_id', cicloId)
       .eq('numero_dia', numeroDia)
       .order('servicio');
@@ -281,8 +306,133 @@ export const ciclosService = {
       .from('ciclo_dia_servicios')
       .update({ completo })
       .eq('id', cicloDiaServicioId)
+      .select('id, ciclo_id, numero_dia, servicio, completo')
+      .single();
+    return { data, error };
+  },
+
+  // ========================================
+  // ELIMINAR CICLO COMPLETO
+  // ========================================
+
+  async eliminarCiclo(cicloId) {
+    // 1. Eliminar gramajes de componentes del menú
+    const { data: cds } = await supabase
+      .from('ciclo_dia_servicios')
+      .select('id')
+      .eq('ciclo_id', cicloId);
+
+    if (cds && cds.length > 0) {
+      const cdsIds = cds.map(c => c.id);
+
+      // Obtener IDs de menu_componentes
+      const { data: mcs } = await supabase
+        .from('menu_componentes')
+        .select('id')
+        .in('ciclo_dia_servicio_id', cdsIds);
+
+      if (mcs && mcs.length > 0) {
+        const mcIds = mcs.map(m => m.id);
+        // Borrar gramajes
+        await supabase
+          .from('gramajes_componente_menu')
+          .delete()
+          .in('menu_componente_id', mcIds);
+      }
+
+      // 2. Borrar componentes del menú
+      await supabase
+        .from('menu_componentes')
+        .delete()
+        .in('ciclo_dia_servicio_id', cdsIds);
+    }
+
+    // 3. Borrar dias/servicios
+    await supabase
+      .from('ciclo_dia_servicios')
+      .delete()
+      .eq('ciclo_id', cicloId);
+
+    // 4. Borrar el ciclo
+    const { data, error } = await supabase
+      .from('ciclos_menu')
+      .delete()
+      .eq('id', cicloId)
       .select()
       .single();
+
+    return { data, error };
+  },
+
+  // ========================================
+  // ACTIVAR SERVICIO INDIVIDUAL
+  // Marca un servicio específico como "listo para producción"
+  // El ciclo no necesita todos los servicios completos
+  // ========================================
+
+  async activarServicio(cicloId, servicio) {
+    // Obtener los días del servicio
+    const { data: filas } = await supabase
+      .from('ciclo_dia_servicios')
+      .select('id, numero_dia, completo')
+      .eq('ciclo_id', cicloId)
+      .eq('servicio', servicio);
+
+    if (!filas || filas.length === 0) {
+      return { data: null, error: { message: `El servicio "${servicio}" no tiene días configurados` } };
+    }
+
+    const totalDias = filas.length;
+    const diasCompletos = filas.filter(f => f.completo).length;
+
+    if (diasCompletos < totalDias) {
+      return {
+        data: null,
+        error: {
+          message: `El servicio "${servicio}" tiene ${diasCompletos}/${totalDias} días completos. Debes completar todos los días para activarlo.`,
+        },
+      };
+    }
+
+    // Marcar el ciclo como activo si aún no lo está
+    const { data: ciclo } = await supabase
+      .from('ciclos_menu')
+      .select('estado, operacion_id')
+      .eq('id', cicloId)
+      .single();
+
+    if (ciclo?.estado === 'borrador') {
+      // Desactivar otros ciclos activos de la misma operación
+      await supabase
+        .from('ciclos_menu')
+        .update({ estado: 'finalizado', activo: false, updated_at: new Date().toISOString() })
+        .eq('operacion_id', ciclo.operacion_id)
+        .eq('estado', 'activo')
+        .neq('id', cicloId);
+
+      // Activar este ciclo
+      await supabase
+        .from('ciclos_menu')
+        .update({ estado: 'activo', validado: true, updated_at: new Date().toISOString() })
+        .eq('id', cicloId);
+    }
+
+    return {
+      data: { activado: true, servicio, diasCompletos, totalDias },
+      error: null,
+    };
+  },
+
+  // ========================================
+  // OBTENER CICLOS DE UNA OPERACION (todos, incluyendo borradores)
+  // ========================================
+
+  async getCiclosPorOperacion(operacionId) {
+    const { data, error } = await supabase
+      .from('ciclos_menu')
+      .select('*')
+      .eq('operacion_id', operacionId)
+      .order('created_at', { ascending: false });
     return { data, error };
   },
 };

@@ -3,7 +3,7 @@
 // ========================================
 
 import React from 'react';
-import { Edit2, ExternalLink } from 'lucide-react';
+import { Edit2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
 import { useRecetaConIngredientes } from '../hooks/useMenuComponentes';
 
@@ -11,8 +11,9 @@ export default function PanelIngredientes() {
   const { componenteSeleccionado, abrirModalRecetaLocal } = useCicloEditorStore();
   const recetaId = componenteSeleccionado?.receta_id;
 
-  const { data, isLoading } = useRecetaConIngredientes(recetaId);
-  const receta = data?.receta;
+  // getRecetaConIngredientes retorna { ...receta, ingredientes } (estructura plana)
+  // data?.receta siempre sería undefined — leer campos directamente desde data
+  const { data, isLoading, isError, refetch } = useRecetaConIngredientes(recetaId);
   const ingredientes = data?.ingredientes || [];
 
   if (!componenteSeleccionado) {
@@ -31,15 +32,29 @@ export default function PanelIngredientes() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-error mx-auto mb-3" />
+        <p className="text-sm font-medium text-error mb-1">Error al cargar ingredientes</p>
+        <p className="text-xs text-text-muted mb-4">Verifica tu conexión e intenta de nuevo</p>
+        <button onClick={() => refetch()} className="btn btn-outline flex items-center gap-2 mx-auto">
+          <RefreshCw className="w-4 h-4" />
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 pb-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
         <div>
           <h3 className="text-base font-semibold text-primary mb-1">
-            🧪 Ingredientes - {receta?.nombre || 'Cargando...'}
+            🧪 Ingredientes - {data?.nombre || (isLoading ? 'Cargando...' : 'Sin nombre')}
           </h3>
           <p className="text-sm text-text-muted">
-            {receta?.es_local ? (
+            {data?.es_local ? (
               <span className="inline-flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-accent"></span>
                 Receta Local
@@ -47,7 +62,7 @@ export default function PanelIngredientes() {
             ) : (
               'Receta Estándar'
             )}
-            {receta?.rendimiento && ` • Rendimiento: ${receta.rendimiento} porciones`}
+            {data?.rendimiento && ` • Rendimiento: ${data.rendimiento} porciones`}
           </p>
         </div>
         <button
@@ -103,12 +118,12 @@ export default function PanelIngredientes() {
       )}
 
       {/* Costo estimado */}
-      {receta?.costo_porcion && (
+      {data?.costo_porcion && (
         <div className="mt-6 p-4 bg-bg-surface rounded-lg border" style={{ borderColor: 'var(--color-border)' }}>
           <div className="flex items-center justify-between">
             <span className="text-sm text-text-secondary font-medium">Costo por porción:</span>
             <span className="font-semibold text-primary text-lg">
-              ${Number(receta.costo_porcion).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
+              ${Number(data.costo_porcion).toLocaleString('es-CO', { maximumFractionDigits: 0 })}
             </span>
           </div>
         </div>

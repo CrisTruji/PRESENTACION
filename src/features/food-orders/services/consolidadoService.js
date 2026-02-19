@@ -70,72 +70,92 @@ export const consolidadoService = {
       .select(`
         *,
         arbol_recetas (id, codigo, nombre, costo_porcion, rendimiento),
-        componentes_plato (codigo, nombre)
+        componentes_plato (codigo, nombre, orden)
       `)
       .eq('consolidado_id', consolidadoId)
-      .order('componentes_plato(orden)');
+      .order('created_at', { ascending: true });
+
+    // Sort in JS by componente orden since PostgREST doesn't support
+    // ordering by a related table's column via .order()
+    if (data) {
+      data.sort((a, b) => {
+        const oa = a.componentes_plato?.orden ?? 99;
+        const ob = b.componentes_plato?.orden ?? 99;
+        return oa - ob;
+      });
+    }
 
     return { data, error };
   },
 
   async getIngredientesTotales(consolidadoId) {
-    // Obtener items del consolidado
+    // Try the server-side RPC first (fix_sprint_c.sql must be applied)
+    const { data, error } = await supabase
+      .rpc('get_ingredientes_totales', { p_consolidado_id: consolidadoId });
+
+    // If RPC exists and succeeded, return its result
+    if (!error) return { data, error };
+
+    // Fallback: if RPC doesn't exist (PGRST202 / 404) or fails,
+    // calculate ingredients in JS from consolidado_items + receta_ingredientes
+    console.warn('get_ingredientes_totales RPC not found, using JS fallback. Apply fix_sprint_c.sql.');
+
     const { data: items, error: itemsError } = await supabase
       .from('consolidado_items')
-      .select('receta_id, cantidad_total')
+      .select('receta_id, cantidad_total, arbol_recetas(rendimiento)')
       .eq('consolidado_id', consolidadoId);
 
-    if (itemsError) return { data: null, error: itemsError };
-
-    // Para cada receta, obtener ingredientes y calcular totales
-    const ingredientesMap = {};
-
-    for (const item of items) {
-      const { data: ingredientes } = await supabase
-        .from('receta_ingredientes')
-        .select('*, arbol_materia_prima(id, codigo, nombre, unidad_medida, stock_actual, stock_minimo)')
-        .eq('receta_id', item.receta_id)
-        .eq('activo', true);
-
-      if (!ingredientes) continue;
-
-      const { data: receta } = await supabase
-        .from('arbol_recetas')
-        .select('rendimiento')
-        .eq('id', item.receta_id)
-        .single();
-
-      const rendimiento = receta?.rendimiento || 1;
-      const factor = item.cantidad_total / rendimiento;
-
-      ingredientes.forEach(ing => {
-        const mpId = ing.materia_prima_id;
-        if (!ingredientesMap[mpId]) {
-          ingredientesMap[mpId] = {
-            materia_prima_id: mpId,
-            nombre: ing.arbol_materia_prima?.nombre || 'Desconocido',
-            codigo: ing.arbol_materia_prima?.codigo || '',
-            unidad_medida: ing.arbol_materia_prima?.unidad_medida || ing.unidad_medida,
-            stock_actual: ing.arbol_materia_prima?.stock_actual || 0,
-            stock_minimo: ing.arbol_materia_prima?.stock_minimo || 0,
-            total_requerido: 0,
-          };
-        }
-        ingredientesMap[mpId].total_requerido += ing.cantidad_requerida * factor;
-      });
+    if (itemsError || !items || items.length === 0) {
+      return { data: [], error: itemsError };
     }
 
-    // Calcular estado de stock
-    const resultado = Object.values(ingredientesMap).map(ing => ({
-      ...ing,
-      total_requerido: Math.round(ing.total_requerido * 100) / 100,
-      diferencia: Math.round((ing.stock_actual - ing.total_requerido) * 100) / 100,
-      estado_stock: ing.stock_actual >= ing.total_requerido ? 'SUFICIENTE' : 'INSUFICIENTE',
-    }));
+    // Collect all unique receta_ids
+    const recetaIds = [...new Set(items.map(i => i.receta_id))];
+
+    const { data: ingredientes, error: ingError } = await supabase
+      .from('receta_ingredientes')
+      .select('receta_id, cantidad_requerida, unidad_medida, arbol_materia_prima(id, codigo, nombre, unidad_medida, stock_actual, stock_minimo)')
+      .in('receta_id', recetaIds)
+      .eq('activo', true);
+
+    if (ingError || !ingredientes) return { data: [], error: ingError };
+
+    // Aggregate by materia_prima
+    const mpMap = {};
+    for (const ing of ingredientes) {
+      const mp = ing.arbol_materia_prima;
+      if (!mp) continue;
+      const item = items.find(i => i.receta_id === ing.receta_id);
+      const rendimiento = item?.arbol_recetas?.rendimiento || 1;
+      const cantidadTotal = item?.cantidad_total || 0;
+      const requerido = ing.cantidad_requerida * (cantidadTotal / rendimiento);
+
+      if (!mpMap[mp.id]) {
+        mpMap[mp.id] = {
+          materia_prima_id: mp.id,
+          nombre: mp.nombre,
+          codigo: mp.codigo,
+          unidad_medida: mp.unidad_medida,
+          stock_actual: mp.stock_actual || 0,
+          stock_minimo: mp.stock_minimo || 0,
+          total_requerido: 0,
+        };
+      }
+      mpMap[mp.id].total_requerido += requerido;
+    }
+
+    const resultado = Object.values(mpMap).map(mp => {
+      const diferencia = parseFloat((mp.stock_actual - mp.total_requerido).toFixed(2));
+      return {
+        ...mp,
+        total_requerido: parseFloat(mp.total_requerido.toFixed(2)),
+        diferencia,
+        estado_stock: diferencia >= 0 ? 'SUFICIENTE' : 'INSUFICIENTE',
+      };
+    });
 
     resultado.sort((a, b) => {
-      if (a.estado_stock === 'INSUFICIENTE' && b.estado_stock !== 'INSUFICIENTE') return -1;
-      if (a.estado_stock !== 'INSUFICIENTE' && b.estado_stock === 'INSUFICIENTE') return 1;
+      if (a.estado_stock !== b.estado_stock) return a.estado_stock === 'INSUFICIENTE' ? -1 : 1;
       return a.nombre.localeCompare(b.nombre);
     });
 
@@ -188,6 +208,9 @@ export const consolidadoService = {
   },
 
   async marcarPreparado(consolidadoId) {
+    // Descontar stock de materias primas antes de marcar como preparado
+    await supabase.rpc('descontar_stock_consolidado', { p_consolidado_id: consolidadoId });
+
     const { data, error } = await supabase
       .from('consolidados_produccion')
       .update({
@@ -199,7 +222,6 @@ export const consolidadoService = {
       .select()
       .single();
 
-    // TODO: Descontar stock automaticamente via RPC
     return { data, error };
   },
 
@@ -218,6 +240,38 @@ export const consolidadoService = {
       .eq('consolidado_id', consolidadoId)
       .order('created_at', { ascending: false });
 
+    return { data, error };
+  },
+
+  // ========================================
+  // OPERACIONES (para selector de unidad)
+  // ========================================
+
+  async getOperaciones() {
+    const { data, error } = await supabase
+      .from('operaciones')
+      .select('id, codigo, nombre')
+      .eq('activo', true)
+      .order('nombre');
+    return { data, error };
+  },
+
+  // ========================================
+  // HORARIOS POR UNIDAD (servicios_unidad)
+  // ========================================
+
+  async getServiciosUnidad(operacionId = null) {
+    let query = supabase
+      .from('servicios_unidad')
+      .select('*, operaciones(id, codigo, nombre)')
+      .eq('activo', true)
+      .order('servicio');
+
+    if (operacionId) {
+      query = query.eq('operacion_id', operacionId);
+    }
+
+    const { data, error } = await query;
     return { data, error };
   },
 };

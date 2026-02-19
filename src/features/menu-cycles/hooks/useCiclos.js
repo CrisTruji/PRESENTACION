@@ -38,6 +38,8 @@ export function useDiaServicios(cicloId, numeroDia) {
     queryFn: () => ciclosService.getDiaServicios(cicloId, numeroDia),
     select: (response) => response.data,
     enabled: !!cicloId && !!numeroDia,
+    // No retener datos del día anterior mientras carga el nuevo
+    placeholderData: undefined,
   });
 }
 
@@ -83,6 +85,28 @@ export function useMarcarDiaCompleto() {
       ciclosService.marcarDiaCompleto(cicloDiaServicioId, completo),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ciclos'] });
+    },
+  });
+}
+
+export function useEliminarCiclo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (cicloId) => ciclosService.eliminarCiclo(cicloId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['operaciones'] });
+    },
+  });
+}
+
+export function useActivarServicio() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cicloId, servicio }) => ciclosService.activarServicio(cicloId, servicio),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ciclos'] });
+      queryClient.invalidateQueries({ queryKey: ['operaciones'] });
     },
   });
 }

@@ -26,51 +26,74 @@ export const operacionesService = {
   },
 
   async getConCicloActivo() {
-    // Trae operaciones con su ciclo activo (si existe)
-    const { data: operaciones, error: opError } = await supabase
+    // Query única: operaciones + ciclos activos + días del ciclo (1 round-trip en vez de N+1)
+    const { data, error } = await supabase
       .from('operaciones')
-      .select('*')
+      .select(`
+        *,
+        ciclos_menu (
+          id, nombre, estado, dia_actual_ciclo, fecha_inicio, validado, created_at,
+          ciclo_dia_servicios (numero_dia, servicio, completo)
+        )
+      `)
       .eq('activo', true)
+      .eq('ciclos_menu.activo', true)
       .order('nombre');
 
-    if (opError) return { data: null, error: opError };
+    if (error) return { data: null, error };
 
-    // Para cada operacion, buscar ciclo activo
-    const resultados = await Promise.all(
-      operaciones.map(async (op) => {
-        const { data: ciclos } = await supabase
-          .from('ciclos_menu')
-          .select('id, nombre, estado, dia_actual_ciclo, fecha_inicio, validado, created_at')
-          .eq('operacion_id', op.id)
-          .eq('activo', true)
-          .order('created_at', { ascending: false })
-          .limit(1);
+    // Calcular progreso y estado de días en memoria (sin más queries)
+    const resultado = (data || []).map((op) => {
+      // ciclos_menu puede tener 0, 1 o más ciclos activos — tomar el más reciente
+      const ciclos = (op.ciclos_menu || []).sort(
+        (a, b) => new Date(b.created_at) - new Date(a.created_at)
+      );
+      const cicloRaw = ciclos[0] ?? null;
 
-        const cicloActivo = ciclos && ciclos.length > 0 ? ciclos[0] : null;
+      if (!cicloRaw) {
+        // eslint-disable-next-line no-unused-vars
+        const { ciclos_menu, ...opSinCiclos } = op;
+        return { ...opSinCiclos, cicloActivo: null, progreso: null };
+      }
 
-        // Si hay ciclo, obtener progreso
-        let progreso = null;
-        if (cicloActivo) {
-          const { data: dias } = await supabase
-            .from('ciclo_dia_servicios')
-            .select('completo')
-            .eq('ciclo_id', cicloActivo.id);
+      const dias = cicloRaw.ciclo_dia_servicios || [];
 
-          if (dias && dias.length > 0) {
-            const completos = dias.filter(d => d.completo).length;
-            progreso = {
-              total: dias.length,
-              completos,
-              porcentaje: Math.round((completos / dias.length) * 100),
-            };
-          }
+      // Agrupar por numero_dia para el mini-calendario PRIMERO
+      const diasMap = {};
+      dias.forEach((d) => {
+        if (!diasMap[d.numero_dia]) {
+          diasMap[d.numero_dia] = { numero_dia: d.numero_dia, servicios: [], completo: true };
         }
+        diasMap[d.numero_dia].servicios.push({ servicio: d.servicio, completo: d.completo });
+        if (!d.completo) diasMap[d.numero_dia].completo = false;
+      });
 
-        return { ...op, cicloActivo, progreso };
-      })
-    );
+      // Calcular totales basados en DÍAS ÚNICOS (no filas día×servicio)
+      // Fix: antes dias.length = 21 días × 4 servicios = 84 para Alcalá → ahora 21
+      const totalDias = Object.keys(diasMap).length;
+      const completos = Object.values(diasMap).filter((d) => d.completo).length;
+      const progresoPct = totalDias > 0 ? Math.round((completos / totalDias) * 100) : 0;
 
-    return { data: resultados, error: null };
+      // eslint-disable-next-line no-unused-vars
+      const { ciclo_dia_servicios, ...cicloBase } = cicloRaw;
+      const cicloActivo = {
+        ...cicloBase,
+        diasCompletos: completos,
+        diasTotales: totalDias,
+        progreso: progresoPct,
+        diasData: Object.values(diasMap),
+      };
+
+      const progreso = totalDias > 0
+        ? { total: totalDias, completos, porcentaje: progresoPct }
+        : null;
+
+      // eslint-disable-next-line no-unused-vars
+      const { ciclos_menu, ...opBase } = op;
+      return { ...opBase, cicloActivo, progreso };
+    });
+
+    return { data: resultado, error: null };
   },
 
   async crear(datos) {

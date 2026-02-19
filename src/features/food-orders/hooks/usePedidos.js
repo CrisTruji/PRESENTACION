@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pedidosService } from '../services/pedidosService';
+import { supabase } from '@/shared/api';
 
 export function usePedidoDelDia(operacionId, fecha, servicio) {
   return useQuery({
@@ -60,5 +61,23 @@ export function useGuardarItems() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pedidos', 'dia'] });
     },
+  });
+}
+
+// Hook para obtener el día del ciclo correspondiente a una fecha
+// Muestra al coordinador en qué día del ciclo está antes de crear el pedido
+export function useDiaCiclo(operacionId, fecha) {
+  return useQuery({
+    queryKey: ['dia-ciclo', operacionId, fecha],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('calcular_dia_ciclo', {
+        p_operacion_id: operacionId,
+        p_fecha: fecha,
+      });
+      if (error) throw error;
+      return data; // número de día o null si no hay ciclo activo
+    },
+    enabled: !!operacionId && !!fecha,
+    staleTime: 30_000,
   });
 }

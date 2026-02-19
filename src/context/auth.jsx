@@ -90,6 +90,15 @@ export function AuthProvider({ children }) {
   function fakeSetRole(role) {
     debug("🟣 Fake role:", role);
     setFakeRole(role);
+
+    // Resetear stores Zustand al cambiar de rol para evitar datos contaminados entre sesiones
+    import('@features/menu-cycles').then((m) => {
+      m.useCicloEditorStore?.getState?.()?.reset?.();
+    }).catch(() => {});
+    import('@features/food-orders').then((m) => {
+      m.usePedidoStore?.getState?.()?.reset?.();
+      m.useConsolidadoStore?.getState?.()?.reset?.();
+    }).catch(() => {});
   }
 
   const effectiveRole = fakeRole ?? roleName;

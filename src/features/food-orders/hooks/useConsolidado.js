@@ -96,3 +96,21 @@ export function useMarcarPreparado() {
     },
   });
 }
+
+export function useOperacionesConsolidado() {
+  return useQuery({
+    queryKey: ['operaciones-consolidado'],
+    queryFn: () => consolidadoService.getOperaciones(),
+    select: (response) => response.data,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useServiciosUnidad(operacionId = null) {
+  return useQuery({
+    queryKey: ['servicios-unidad', operacionId],
+    queryFn: () => consolidadoService.getServiciosUnidad(operacionId),
+    select: (response) => response.data,
+    staleTime: 5 * 60_000,
+  });
+}
