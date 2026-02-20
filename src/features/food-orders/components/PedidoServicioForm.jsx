@@ -22,6 +22,7 @@ import { OPERACIONES_CON_PACIENTES, SERVICIOS } from '@/shared/types/menu';
 import MenuDelDia from './MenuDelDia';
 import PedidoDietas from './PedidoDietas';
 import PedidoPacientes from './PedidoPacientes';
+import PedidoCartaMenu from './PedidoCartaMenu';
 import SolicitudCambioModal from './SolicitudCambioModal';
 import notify from '@/utils/notifier';
 import { useAuth } from '@/context/auth';
@@ -59,9 +60,14 @@ export default function PedidoServicioForm() {
   const guardarItems = useGuardarItems();
   const guardarPacientes = useGuardarPacientes();
 
-  const requierePacientes = operacionActual
+  // Flujo carta-menu: tipo_operacion === 'carta_menu' (Eiren)
+  const esCartaMenu = operacionActual?.tipo_operacion === 'carta_menu';
+  // Flujo pacientes obligatorio: Alcala / Presentes
+  const requierePacientesObligatorio = operacionActual
     ? OPERACIONES_CON_PACIENTES.includes(operacionActual.codigo?.toLowerCase())
     : false;
+  // Legado: requierePacientes mantiene compatibilidad con los handlers
+  const requierePacientes = requierePacientesObligatorio;
 
   useEffect(() => {
     if (pedidoExistente) {
@@ -108,7 +114,8 @@ export default function PedidoServicioForm() {
       {
         onSuccess: (res) => {
           if (res.error) { notify.error('Error al guardar items'); return; }
-          if (requierePacientes) {
+          // Guardar pacientes siempre que haya datos (todos los roles pueden registrar pacientes)
+          if (pacientes.length > 0) {
             guardarPacientes.mutate({ pedidoId: pedidoActual.id, pacientes }, {
               onSuccess: () => notify.success('Borrador guardado'),
             });
@@ -133,7 +140,8 @@ export default function PedidoServicioForm() {
               },
             });
           };
-          if (requierePacientes) {
+          // Guardar pacientes siempre que haya datos (todos los roles pueden registrar pacientes)
+          if (pacientes.length > 0) {
             guardarPacientes.mutate({ pedidoId: pedidoActual.id, pacientes }, { onSuccess: enviar });
           } else { enviar(); }
         },
@@ -289,12 +297,18 @@ export default function PedidoServicioForm() {
               <div className="card">
                 <div className="card-header">
                   <h3 className="text-lg font-semibold text-primary">
-                    {requierePacientes ? 'Lista de Pacientes' : 'Cantidades por Tipo de Dieta'}
+                    {esCartaMenu
+                      ? 'Carta de Menú — Opciones por Componente'
+                      : requierePacientesObligatorio
+                        ? 'Lista de Pacientes'
+                        : 'Cantidades por Tipo de Dieta'}
                   </h3>
                   <p className="text-sm text-muted mt-0.5">
-                    {requierePacientes
-                      ? 'Agrega los datos de cada paciente que recibira este servicio'
-                      : 'Ingresa la cantidad de porciones que necesitas para cada tipo de dieta'}
+                    {esCartaMenu
+                      ? 'Ingresa las cantidades y la opción elegida por cada grupo de dieta'
+                      : requierePacientesObligatorio
+                        ? 'Agrega los datos de cada paciente que recibira este servicio'
+                        : 'Ingresa la cantidad de porciones que necesitas para cada tipo de dieta'}
                   </p>
                 </div>
 
@@ -326,10 +340,21 @@ export default function PedidoServicioForm() {
                         Crear Pedido
                       </button>
                     </div>
-                  ) : requierePacientes ? (
+                  ) : esCartaMenu ? (
+                    /* ── Eiren: carta-menu con opciones A/B por componente + pacientes opcionales ── */
+                    <>
+                      <PedidoCartaMenu />
+                      <PedidoPacientes opcional={true} />
+                    </>
+                  ) : requierePacientesObligatorio ? (
+                    /* ── Alcala/Presentes: solo pacientes obligatorios ── */
                     <PedidoPacientes />
                   ) : (
-                    <PedidoDietas />
+                    /* ── Otras unidades: cantidades por dieta + pacientes opcionales ── */
+                    <>
+                      <PedidoDietas />
+                      <PedidoPacientes opcional={true} />
+                    </>
                   )}
                 </div>
 

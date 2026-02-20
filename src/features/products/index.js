@@ -2,6 +2,8 @@
 
 // Components
 export { default as ArbolMateriaPrima } from './components/ArbolMateriaPrima';
+export { default as ArbolPlatos } from './components/ArbolPlatos';
+export { default as ArbolRecetas } from './components/ArbolRecetas';
 export { default as BuscadorArbol } from './components/BuscadorArbol';
 export { default as NodoArbol } from './components/NodoArbol';
 export { default as TabsArbol } from './components/TabsArbol';

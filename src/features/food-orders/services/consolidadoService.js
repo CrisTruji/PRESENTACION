@@ -70,13 +70,19 @@ export const consolidadoService = {
       .select(`
         *,
         arbol_recetas (id, codigo, nombre, costo_porcion, rendimiento),
-        componentes_plato (codigo, nombre, orden)
+        componentes_plato (codigo, nombre, orden),
+        menu_componentes (
+          id,
+          gramajes_componente_menu (
+            gramaje, unidad_medida, excluir,
+            tipos_dieta (id, codigo, nombre)
+          )
+        )
       `)
       .eq('consolidado_id', consolidadoId)
       .order('created_at', { ascending: true });
 
-    // Sort in JS by componente orden since PostgREST doesn't support
-    // ordering by a related table's column via .order()
+    // Sort in JS by componente orden
     if (data) {
       data.sort((a, b) => {
         const oa = a.componentes_plato?.orden ?? 99;
@@ -244,6 +250,87 @@ export const consolidadoService = {
   },
 
   // ========================================
+  // BÚSQUEDA DE ALTERNATIVAS (para modal de sustitución)
+  // ========================================
+
+  async buscarRecetasAlternativas(termino = '', componenteId = null) {
+    // Buscar recetas del mismo componente (nivel 3 en arbol_recetas)
+    let query = supabase
+      .from('arbol_recetas')
+      .select(`
+        id, codigo, nombre, costo_porcion, rendimiento,
+        receta_ingredientes (
+          cantidad_requerida, activo,
+          arbol_materia_prima (
+            id, nombre, stock_actual, unidad_medida
+          )
+        )
+      `)
+      .eq('activo', true)
+      .in('nivel_actual', [2, 3])
+      .eq('receta_ingredientes.activo', true);
+
+    if (termino && termino.length >= 2) {
+      query = query.ilike('nombre', `%${termino}%`);
+    }
+
+    if (componenteId) {
+      // Filtrar por recetas asociadas a ese componente en menu_componentes
+      const { data: recetasComp } = await supabase
+        .from('menu_componentes')
+        .select('receta_id')
+        .eq('componente_id', componenteId)
+        .eq('activo', true);
+
+      const ids = (recetasComp || []).map((r) => r.receta_id).filter(Boolean);
+      if (ids.length > 0) {
+        query = query.in('id', ids);
+      }
+    }
+
+    const { data, error } = await query.order('nombre').limit(20);
+
+    if (error || !data) return { data: [], error };
+
+    // Calcular viabilidad de stock para cada receta
+    const resultado = data.map((receta) => {
+      const ingredientes = receta.receta_ingredientes || [];
+      let stockOk = true;
+      const detalle = ingredientes.map((ing) => {
+        const mp = ing.arbol_materia_prima;
+        if (!mp) return null;
+        const stockSuficiente = (mp.stock_actual || 0) >= ing.cantidad_requerida;
+        if (!stockSuficiente) stockOk = false;
+        return {
+          nombre: mp.nombre,
+          stock_actual: mp.stock_actual || 0,
+          requerido: ing.cantidad_requerida,
+          unidad_medida: mp.unidad_medida,
+          suficiente: stockSuficiente,
+        };
+      }).filter(Boolean);
+
+      return {
+        id: receta.id,
+        codigo: receta.codigo,
+        nombre: receta.nombre,
+        costo_porcion: receta.costo_porcion,
+        stock_ok: stockOk,
+        ingredientes: detalle,
+      };
+    });
+
+    // Ordenar: primero las que tienen stock OK
+    resultado.sort((a, b) => {
+      if (a.stock_ok && !b.stock_ok) return -1;
+      if (!a.stock_ok && b.stock_ok) return 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+
+    return { data: resultado, error: null };
+  },
+
+  // ========================================
   // OPERACIONES (para selector de unidad)
   // ========================================
 
@@ -253,6 +340,23 @@ export const consolidadoService = {
       .select('id, codigo, nombre')
       .eq('activo', true)
       .order('nombre');
+    return { data, error };
+  },
+
+  // ========================================
+  // CICLO ACTIVO POR OPERACIÓN (para modal ciclo completo)
+  // ========================================
+
+  async getCicloActivoPorOperacion(operacionId) {
+    const { data, error } = await supabase
+      .from('ciclos_menu')
+      .select('id, nombre, estado, fecha_inicio, dia_actual_ciclo')
+      .eq('operacion_id', operacionId)
+      .eq('activo', true)
+      .eq('estado', 'activo')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
     return { data, error };
   },
 

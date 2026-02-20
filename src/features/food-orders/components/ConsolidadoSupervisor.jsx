@@ -14,6 +14,7 @@ import {
   Clock,
   Building2,
   X,
+  BookOpen,
 } from 'lucide-react';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import {
@@ -32,6 +33,9 @@ import VistaRecetas from './VistaRecetas';
 import VistaUnidades from './VistaUnidades';
 import VistaIngredientes from './VistaIngredientes';
 import CambioRecetaPanel from './CambioRecetaPanel';
+import ModalSustituirReceta from './ModalSustituirReceta';
+import PanelMenuUnidad from './PanelMenuUnidad';
+import ModalCicloCompleto from './ModalCicloCompleto';
 import { useAuth } from '@/context/auth';
 import notify from '@/utils/notifier';
 
@@ -136,6 +140,15 @@ export default function ConsolidadoSupervisor() {
   const aprobarConsolidado = useAprobarConsolidado();
   const marcarPreparado = useMarcarPreparado();
 
+  // Item seleccionado para sustituir receta
+  const [itemSustituyendo, setItemSustituyendo] = React.useState(null);
+
+  // Confirmación de aprobación
+  const [confirmarAprobar, setConfirmarAprobar] = React.useState(false);
+
+  // Ciclo seleccionado para modal de ciclo completo
+  const [cicloModal, setCicloModal] = React.useState(null);
+
   useEffect(() => {
     if (consolidado) setConsolidado(consolidado);
   }, [consolidado]);
@@ -168,15 +181,17 @@ export default function ConsolidadoSupervisor() {
 
   const handleAprobar = () => {
     if (!consolidadoActual?.id) return;
+    setConfirmarAprobar(true);
+  };
+
+  const handleConfirmarAprobar = () => {
+    setConfirmarAprobar(false);
     aprobarConsolidado.mutate(
       { consolidadoId: consolidadoActual.id, supervisorId: user?.id },
       {
         onSuccess: (res) => {
-          if (res.error) {
-            notify.error('Error al aprobar');
-            return;
-          }
-          notify.success('Consolidado aprobado');
+          if (res.error) { notify.error('Error al aprobar'); return; }
+          notify.success('Consolidado aprobado y enviado a cocina');
           refetch();
         },
       }
@@ -199,6 +214,7 @@ export default function ConsolidadoSupervisor() {
 
   const handleCambiarReceta = (item) => {
     iniciarSustitucion(item.receta_id, consolidadoActual?.id);
+    setItemSustituyendo(item);
   };
 
   return (
@@ -390,6 +406,26 @@ export default function ConsolidadoSupervisor() {
           </div>
         </div>
 
+        {/* Panel Menú del día — visible solo cuando hay unidad seleccionada */}
+        {filtroUnidad && (
+          <div className="card mb-4">
+            <div className="card-header flex items-center gap-2 py-3">
+              <BookOpen className="w-4 h-4 text-text-muted" />
+              <h3 className="text-sm font-semibold text-primary flex-1">
+                Menú del día — {unidadSeleccionada?.nombre}
+              </h3>
+            </div>
+            <div className="card-body py-3">
+              <PanelMenuUnidad
+                operacionId={filtroUnidad}
+                fecha={filtroFecha}
+                filtroServicio={filtroServicio}
+                onVerCicloCompleto={(ciclo) => setCicloModal(ciclo)}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Solicitudes de cambio pendientes */}
         {solicitudesPendientes && solicitudesPendientes.length > 0 && (
           <div className="mb-6">
@@ -523,6 +559,76 @@ export default function ConsolidadoSupervisor() {
           </div>
         )}
       </div>
+
+      {/* Modal confirmación aprobación */}
+      {confirmarAprobar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+             style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
+          <div className="bg-bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6"
+               style={{ border: '1px solid var(--color-border)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center flex-shrink-0">
+                <Check className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-primary">Aprobar consolidado</h3>
+                <p className="text-xs text-text-muted">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-sm text-text-secondary mb-1">
+              Vas a enviar a cocina el consolidado de:
+            </p>
+            <div className="bg-bg-app rounded-lg px-4 py-3 mb-5 text-sm"
+                 style={{ border: '1px solid var(--color-border)' }}>
+              <span className="font-semibold text-primary capitalize">{filtroServicio}</span>
+              <span className="text-text-muted"> · </span>
+              <span className="text-text-secondary">{filtroFecha}</span>
+              <span className="text-text-muted"> · </span>
+              <span className="font-semibold text-primary">{consolidadoActual?.total_porciones} porciones</span>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmarAprobar(false)}
+                className="btn btn-outline flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarAprobar}
+                disabled={aprobarConsolidado.isPending}
+                className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {aprobarConsolidado.isPending
+                  ? <><div className="spinner spinner-sm" /><span>Aprobando...</span></>
+                  : <><Check className="w-4 h-4" /><span>Confirmar</span></>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal sustitución de receta */}
+      {itemSustituyendo && consolidadoActual && (
+        <ModalSustituirReceta
+          item={itemSustituyendo}
+          consolidadoId={consolidadoActual.id}
+          onClose={() => setItemSustituyendo(null)}
+          onSuccess={() => {
+            setItemSustituyendo(null);
+            refetch();
+          }}
+        />
+      )}
+
+      {/* Modal ciclo completo (solo lectura) */}
+      {cicloModal && (
+        <ModalCicloCompleto
+          ciclo={cicloModal}
+          unidadNombre={unidadSeleccionada?.nombre || ''}
+          onClose={() => setCicloModal(null)}
+        />
+      )}
     </div>
   );
 }

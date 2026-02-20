@@ -1,5 +1,5 @@
 // src/pages/jefe-planta/crearsolicitud.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../../context/auth";
 import { useTheme } from "../hooks/useTheme";
 import { getProveedores } from "../../services/proveedores";
@@ -32,7 +32,9 @@ import {
   ClipboardList,
   Hospital,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Filter,
+  X,
 } from "lucide-react";
 
 // Paleta de colores para categorías usando variables CSS del sistema
@@ -139,6 +141,27 @@ export default function CrearSolicitudPlanta() {
   const [cargandoProductos, setCargandoProductos] = useState(false);
   const [proveedorNombre, setProveedorNombre] = useState("");
   const [codigoUnidad, setCodigoUnidad] = useState("");
+  // Buscador y filtro de productos
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
+
+  // Categorías únicas disponibles para el filtro
+  const categoriasDisponibles = useMemo(() => {
+    const cats = [...new Set(productos.map((p) => p.categoria).filter(Boolean))];
+    return cats.sort();
+  }, [productos]);
+
+  // Productos filtrados por búsqueda y categoría
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((p) => {
+      const coincideNombre = busquedaProducto
+        ? p.nombre.toLowerCase().includes(busquedaProducto.toLowerCase())
+        : true;
+      const coincideCategoria =
+        filtroCategoria === "todas" ? true : p.categoria === filtroCategoria;
+      return coincideNombre && coincideCategoria;
+    });
+  }, [productos, busquedaProducto, filtroCategoria]);
 
   // Función para obtener estilos de categoría según el tema
   const getCategoryStyle = (categoria) => {
@@ -194,6 +217,8 @@ export default function CrearSolicitudPlanta() {
     setBusquedaProveedor("");
     setProductos([]);
     setItemsSeleccionados([]);
+    setBusquedaProducto("");
+    setFiltroCategoria("todas");
 
     if (!provId) return;
 
@@ -320,6 +345,8 @@ export default function CrearSolicitudPlanta() {
     setProductos([]);
     setItemsSeleccionados([]);
     setCodigoUnidad("");
+    setBusquedaProducto("");
+    setFiltroCategoria("todas");
   };
 
   return (
@@ -488,11 +515,69 @@ export default function CrearSolicitudPlanta() {
                         Productos Disponibles
                       </h2>
                     </div>
-                    <span className="badge badge-primary">
-                      {productos.length} productos
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* Contador filtrado / total */}
+                      <span className="badge badge-primary">
+                        {productosFiltrados.length === productos.length
+                          ? `${productos.length} productos`
+                          : `${productosFiltrados.length} de ${productos.length}`}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {/* ── Buscador + filtro de categorías (fila compacta) ── */}
+                {!cargandoProductos && productos.length > 0 && (
+                  <div className="px-4 pb-3 pt-1 border-b flex items-center gap-2"
+                       style={{ borderColor: 'var(--color-border)' }}>
+                    {/* Buscador */}
+                    <div className="relative flex-1">
+                      <Search size={15}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                      <input
+                        type="text"
+                        className="form-input w-full pl-9 pr-8 !py-1.5 text-sm"
+                        placeholder="Buscar producto..."
+                        value={busquedaProducto}
+                        onChange={(e) => setBusquedaProducto(e.target.value)}
+                      />
+                      {busquedaProducto && (
+                        <button
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-error transition-colors"
+                          onClick={() => setBusquedaProducto("")}
+                          title="Limpiar"
+                        >
+                          <X size={13} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Select de categoría */}
+                    {categoriasDisponibles.length > 0 && (
+                      <select
+                        value={filtroCategoria}
+                        onChange={(e) => setFiltroCategoria(e.target.value)}
+                        className="form-input !py-1.5 text-sm w-44 flex-shrink-0"
+                      >
+                        <option value="todas">Todas las categorías</option>
+                        {categoriasDisponibles.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {/* Botón limpiar (solo si hay filtro activo) */}
+                    {(busquedaProducto || filtroCategoria !== "todas") && (
+                      <button
+                        onClick={() => { setBusquedaProducto(""); setFiltroCategoria("todas"); }}
+                        className="flex-shrink-0 p-1.5 rounded text-error hover:bg-error/10 transition-colors"
+                        title="Limpiar filtros"
+                      >
+                        <X size={15} />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 <div className="card-body">
                   {cargandoProductos ? (
@@ -506,15 +591,43 @@ export default function CrearSolicitudPlanta() {
                         Este proveedor no tiene productos asociados.
                       </p>
                     </div>
+                  ) : productosFiltrados.length === 0 ? (
+                    /* Sin resultados tras filtrar */
+                    <div className="text-center py-8">
+                      <Filter size={40} className="text-muted mx-auto mb-3 opacity-40" />
+                      <p className="font-medium text-muted mb-1">
+                        No hay productos que coincidan
+                      </p>
+                      <p className="text-sm text-muted mb-4">
+                        {busquedaProducto && (
+                          <>Búsqueda: <span className="font-semibold text-primary">"{busquedaProducto}"</span></>
+                        )}
+                        {busquedaProducto && filtroCategoria !== "todas" && " · "}
+                        {filtroCategoria !== "todas" && (
+                          <>Categoría: <span className="font-semibold text-primary">{filtroCategoria}</span></>
+                        )}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setBusquedaProducto("");
+                          setFiltroCategoria("todas");
+                        }}
+                        className="btn btn-outline btn-sm inline-flex items-center gap-2"
+                      >
+                        <X size={14} />
+                        Limpiar filtros
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-4">
-                      {productos.map((prod) => (
+                      {productosFiltrados.map((prod) => (
                         <ProductoFila
                           key={prod.id}
                           producto={prod}
                           onAgregar={agregarProducto}
                           getCategoryStyle={getCategoryStyle}
                           getCategoryIcon={getCategoryIcon}
+                          busqueda={busquedaProducto}
                         />
                       ))}
                     </div>
@@ -774,8 +887,24 @@ export default function CrearSolicitudPlanta() {
   );
 }
 
+// Helper: resalta la parte del texto que coincide con la búsqueda
+function ResaltarTexto({ texto, busqueda }) {
+  if (!busqueda || !texto) return <>{texto}</>;
+  const idx = texto.toLowerCase().indexOf(busqueda.toLowerCase());
+  if (idx === -1) return <>{texto}</>;
+  return (
+    <>
+      {texto.slice(0, idx)}
+      <mark className="bg-yellow-200 dark:bg-yellow-600/50 text-inherit rounded px-0.5">
+        {texto.slice(idx, idx + busqueda.length)}
+      </mark>
+      {texto.slice(idx + busqueda.length)}
+    </>
+  );
+}
+
 // Componente ProductoFila
-function ProductoFila({ producto, onAgregar, getCategoryStyle, getCategoryIcon }) {
+function ProductoFila({ producto, onAgregar, getCategoryStyle, getCategoryIcon, busqueda = "" }) {
   const [cantidad, setCantidad] = useState("");
 
   const handleAgregar = () => {
@@ -802,13 +931,22 @@ function ProductoFila({ producto, onAgregar, getCategoryStyle, getCategoryIcon }
                 className="font-medium text-base mb-2 line-clamp-2"
                 title={producto.nombre}
               >
-                {producto.nombre}
+                <ResaltarTexto texto={producto.nombre} busqueda={busqueda} />
               </h3>
 
               <div className="flex flex-wrap items-center gap-2">
                 <span className="badge badge-primary text-xs">
                   ID: {producto.id}
                 </span>
+                {producto.categoria && producto.categoria !== 'Sin categoría' && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs border"
+                    style={getCategoryStyle(producto.categoria)}
+                  >
+                    {getCategoryIcon(producto.categoria)}
+                    {producto.categoria}
+                  </span>
+                )}
               </div>
             </div>
           </div>

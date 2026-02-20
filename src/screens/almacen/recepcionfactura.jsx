@@ -218,13 +218,18 @@ export default function RecepcionFactura() {
 
   async function abrirModalRegistro(solicitud) {
     setSolicitudSeleccionada(solicitud);
+    setNumeroFactura("");
+    setFechaFactura(new Date().toISOString().split('T')[0]);
+    setArchivoPDF(null);
 
-    // Cargar presentaciones vinculadas al proveedor
+    // 1. Cargar presentaciones del proveedor PRIMERO para poder auto-llenar precios
+    let presentacionesCargadas = [];
     if (solicitud.proveedores?.id) {
       setCargandoPresentaciones(true);
       try {
-        const presentaciones = await getPresentacionesPorProveedor(solicitud.proveedores.id);
-        setPresentacionesProveedor(presentaciones || []);
+        presentacionesCargadas = await getPresentacionesPorProveedor(solicitud.proveedores.id);
+        presentacionesCargadas = presentacionesCargadas || [];
+        setPresentacionesProveedor(presentacionesCargadas);
       } catch (error) {
         console.error('Error cargando presentaciones:', error);
         setPresentacionesProveedor([]);
@@ -233,31 +238,41 @@ export default function RecepcionFactura() {
       }
     }
 
-    // Inicializar items con valores por defecto
+    // 2. Inicializar items usando las presentaciones recién cargadas (no el estado React)
     const itemsIniciales = solicitud.solicitud_items.map(item => {
-      // Buscar si hay presentación vinculada
-      const presentacionVinculada = item.presentacion_id ? {
-        id: item.presentacion_id
-      } : null;
+      // Nombre del producto desde arbol_materia_prima (campo correcto)
+      const productoArbol = item.arbol_materia_prima;
+      const nombreProducto = productoArbol?.nombre
+        || item.presentacion?.nombre
+        || 'Sin nombre';
+
+      // Auto-llenar precio desde proveedor_presentaciones si hay presentacion_id
+      let precioInicial = 0;
+      if (item.presentacion_id && presentacionesCargadas.length > 0) {
+        const presProveedor = presentacionesCargadas.find(
+          p => p.presentacion?.id === item.presentacion_id
+        );
+        if (presProveedor) {
+          precioInicial = presProveedor.precio_referencia || 0;
+        }
+      }
 
       return {
         item_id: item.id,
-        catalogo_producto_id: item.catalogo_productos?.id || null,
+        producto_arbol_id: productoArbol?.id || null,
         presentacion_id: item.presentacion_id || null,
-        nombre: item.catalogo_productos?.nombre || 'Producto sin nombre',
+        nombre: nombreProducto,
+        codigo: productoArbol?.codigo || '',
         cantidad_solicitada: item.cantidad_solicitada,
         cantidad_recibida: item.cantidad_solicitada, // Por defecto, todo llegó
-        unidad: item.unidad,
-        precio_unitario: 0,
+        unidad: item.unidad || item.presentacion?.unidad_contenido || '',
+        precio_unitario: precioInicial,
         observacion: '',
         tiene_presentacion: !!item.presentacion_id
       };
     });
 
     setItemsRecepcion(itemsIniciales);
-    setNumeroFactura("");
-    setFechaFactura(new Date().toISOString().split('T')[0]);
-    setArchivoPDF(null);
     setModalAbierto(true);
   }
 
@@ -270,12 +285,20 @@ export default function RecepcionFactura() {
       const nuevo = [...prev];
       nuevo[index][campo] = valor;
 
-      // Si se selecciona una presentación, actualizar datos relacionados
-      if (campo === 'presentacion_id' && valor) {
-        const presentacion = presentacionesProveedor.find(p => p.presentacion?.id === valor);
-        if (presentacion) {
-          nuevo[index].tiene_presentacion = true;
-          nuevo[index].precio_unitario = presentacion.precio_referencia || 0;
+      // Si se selecciona una presentación, auto-llenar precio y marcar tiene_presentacion
+      if (campo === 'presentacion_id') {
+        if (valor) {
+          const valorId = typeof valor === 'string' ? parseInt(valor) : valor;
+          const presProveedor = presentacionesProveedor.find(
+            p => p.presentacion?.id === valorId
+          );
+          if (presProveedor) {
+            nuevo[index].tiene_presentacion = true;
+            nuevo[index].precio_unitario = presProveedor.precio_referencia || 0;
+          }
+        } else {
+          // Sin presentación seleccionada
+          nuevo[index].tiene_presentacion = false;
         }
       }
 
@@ -775,25 +798,25 @@ function ResultadoStockModal({ resultado, onClose }) {
                         </td>
                         <td className="table-cell">
                           <span className="badge badge-success">
-                            +{mov.cantidad_base?.toFixed(2)} {mov.producto?.unidad_stock}
+                            +{(mov.cantidad_unidad_base ?? mov.cantidad_base)?.toFixed(2)} {mov.producto?.unidad_stock}
                           </span>
                         </td>
                         <td className="table-cell text-muted">
                           {mov.stock_anterior?.toFixed(2)} {mov.producto?.unidad_stock}
                         </td>
                         <td className="table-cell font-medium text-success">
-                          {mov.stock_nuevo?.toFixed(2)} {mov.producto?.unidad_stock}
+                          {(mov.stock_posterior ?? mov.stock_nuevo)?.toFixed(2)} {mov.producto?.unidad_stock}
                         </td>
                         <td className="table-cell">
                           <div className="flex items-center gap-1">
-                            {mov.costo_promedio_anterior !== mov.costo_promedio_nuevo && (
+                            {mov.costo_promedio_anterior !== (mov.costo_promedio_posterior ?? mov.costo_promedio_nuevo) && (
                               <TrendingUp size={14} className="text-primary" />
                             )}
                             <span className="font-medium">
-                              ${mov.costo_promedio_nuevo?.toFixed(2)}
+                              ${(mov.costo_promedio_posterior ?? mov.costo_promedio_nuevo)?.toFixed(2)}
                             </span>
                           </div>
-                          {mov.costo_promedio_anterior !== mov.costo_promedio_nuevo && (
+                          {mov.costo_promedio_anterior !== (mov.costo_promedio_posterior ?? mov.costo_promedio_nuevo) && (
                             <div className="text-xs text-muted">
                               Anterior: ${mov.costo_promedio_anterior?.toFixed(2)}
                             </div>
@@ -1008,7 +1031,10 @@ function DetalleModal({
                           <div>
                             <div className="text-sm font-medium">{item.nombre}</div>
                             <div className="text-xs text-secondary flex items-center gap-2">
-                              <span>Unidad: {item.unidad}</span>
+                              {item.codigo && (
+                                <span className="font-mono text-muted">{item.codigo}</span>
+                              )}
+                              <span>· {item.unidad}</span>
                               {item.tiene_presentacion && (
                                 <span className="inline-flex items-center gap-1 text-success">
                                   <Database size={10} />

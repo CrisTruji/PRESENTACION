@@ -72,6 +72,64 @@ export const usePedidoStore = create((set, get) => ({
     return { items: nuevosItems };
   }),
 
+  // Para carta-menu: actualizar la opcion (A/B) de un item especifico (dieta + componente)
+  actualizarOpcionItem: (tipoDietaId, menuComponenteId, opcion) => set((state) => {
+    const key = `${tipoDietaId}__${menuComponenteId}`;
+    const existe = state.items.find(
+      (i) => i.tipo_dieta_id === tipoDietaId && i.menu_componente_id === menuComponenteId
+    );
+    if (existe) {
+      return {
+        items: state.items.map((item) =>
+          item.tipo_dieta_id === tipoDietaId && item.menu_componente_id === menuComponenteId
+            ? { ...item, opcion_seleccionada: opcion }
+            : item
+        ),
+      };
+    }
+    // Si no existe, crear uno nuevo
+    return {
+      items: [
+        ...state.items,
+        {
+          tipo_dieta_id: tipoDietaId,
+          menu_componente_id: menuComponenteId,
+          cantidad: 0,
+          opcion_seleccionada: opcion,
+          observaciones: null,
+        },
+      ],
+    };
+  }),
+
+  // Para carta-menu: actualizar la cantidad de un item (dieta + componente)
+  actualizarCantidadCartaItem: (tipoDietaId, menuComponenteId, cantidad) => set((state) => {
+    const existe = state.items.find(
+      (i) => i.tipo_dieta_id === tipoDietaId && i.menu_componente_id === menuComponenteId
+    );
+    if (existe) {
+      return {
+        items: state.items.map((item) =>
+          item.tipo_dieta_id === tipoDietaId && item.menu_componente_id === menuComponenteId
+            ? { ...item, cantidad }
+            : item
+        ),
+      };
+    }
+    return {
+      items: [
+        ...state.items,
+        {
+          tipo_dieta_id: tipoDietaId,
+          menu_componente_id: menuComponenteId,
+          cantidad,
+          opcion_seleccionada: null,
+          observaciones: null,
+        },
+      ],
+    };
+  }),
+
   inicializarItems: (tiposDieta) => set({
     items: tiposDieta.map((td) => ({
       tipo_dieta_id: td.id,

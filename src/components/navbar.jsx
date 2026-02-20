@@ -131,6 +131,7 @@ export default function Navbar() {
       jefe_de_planta: [
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },
         { label: "Solicitudes", name: "solicitudes_planta", icon: icons.requests },
+        { label: "Proyección MP", name: "proyeccion_semanal", icon: icons.management },
         { label: "Productos", name: "productos", icon: icons.products },
         { label: "Presentaciones", name: "presentaciones_manager", icon: icons.products },
         { label: "Proveedores", name: "proveedores", icon: icons.suppliers },

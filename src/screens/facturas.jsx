@@ -93,6 +93,7 @@ export default function Facturas() {
       setError(null);
 
       // Construir consulta base
+      // NOTA: el filtro de proveedor se aplica en JS (PostgREST no filtra bien por joins anidados)
       let query = supabase.from("facturas").select(
         `
           id,
@@ -101,21 +102,31 @@ export default function Facturas() {
           valor_total,
           pdf_url,
           numero_romaneo,
-          solicitudes (
+          estado_recepcion,
+          estado_procesamiento,
+          proveedor_id,
+          proveedores (
             id,
-            proveedores (
-              id,
-              nombre,
-              nit
-            )
+            nombre,
+            nit
+          ),
+          solicitudes (
+            id
           ),
           factura_items (
             id,
             cantidad,
+            cantidad_recibida,
             precio_unitario,
             subtotal,
-            materia_prima_id,
-            arbol_materia_prima:materia_prima_id (
+            producto_arbol_id,
+            presentacion_id,
+            producto:producto_arbol_id (
+              id,
+              codigo,
+              nombre
+            ),
+            presentacion:presentacion_id (
               id,
               codigo,
               nombre
@@ -130,11 +141,9 @@ export default function Facturas() {
         query = query.ilike("numero_factura", `%${debouncedSearchTerm}%`);
       }
 
+      // Filtro proveedor directo en facturas.proveedor_id (columna propia)
       if (selectedProveedor !== "todos") {
-        query = query.eq(
-          "solicitudes.proveedor_id",
-          parseInt(selectedProveedor),
-        );
+        query = query.eq("proveedor_id", parseInt(selectedProveedor));
       }
 
       // Aplicar ordenamiento
@@ -154,12 +163,12 @@ export default function Facturas() {
       setFacturas(data || []);
       setTotalCount(count || 0);
 
-      // Extraer proveedores únicos
+      // Extraer proveedores únicos desde facturas.proveedores (join directo)
       if (!debouncedSearchTerm && selectedProveedor === "todos") {
         const provsUnicos = [];
         const idsVistos = new Set();
         data?.forEach((f) => {
-          const prov = f.solicitudes?.proveedores;
+          const prov = f.proveedores;
           if (prov && !idsVistos.has(prov.id)) {
             idsVistos.add(prov.id);
             provsUnicos.push(prov);
@@ -464,12 +473,12 @@ export default function Facturas() {
                 <tr>
                   <th
                     className="table-header-cell cursor-pointer hover:bg-app"
-                    onClick={() => handleSort("solicitudes.proveedores.nombre")}
+                    onClick={() => handleSort("proveedor_id")}
                   >
                     <div className="flex items-center gap-1">
                       <Building className="w-4 h-4" />
                       Proveedor
-                      {getSortIcon("solicitudes.proveedores.nombre")}
+                      {getSortIcon("proveedor_id")}
                     </div>
                   </th>
                   <th
@@ -543,12 +552,11 @@ export default function Facturas() {
                           </div>
                           <div>
                             <div className="font-medium text-primary">
-                              {factura.solicitudes?.proveedores?.nombre ||
-                                "N/A"}
+                              {factura.proveedores?.nombre || "N/A"}
                             </div>
                             <div className="text-xs text-muted">
                               NIT:{" "}
-                              {factura.solicitudes?.proveedores?.nit || "N/A"}
+                              {factura.proveedores?.nit || "N/A"}
                             </div>
                           </div>
                         </div>
@@ -746,7 +754,7 @@ export default function Facturas() {
                       Detalles de Factura
                     </h2>
                     <p className="text-sm text-muted">
-                      {facturaSeleccionada.solicitudes?.proveedores?.nombre} -
+                      {facturaSeleccionada.proveedores?.nombre} -
                       Factura #{facturaSeleccionada.numero_factura}
                     </p>
                   </div>
@@ -772,13 +780,13 @@ export default function Facturas() {
                       <div>
                         <p className="text-xs text-muted">Nombre</p>
                         <p className="font-medium text-primary">
-                          {facturaSeleccionada.solicitudes?.proveedores?.nombre}
+                          {facturaSeleccionada.proveedores?.nombre}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted">NIT</p>
                         <p className="font-mono text-secondary">
-                          {facturaSeleccionada.solicitudes?.proveedores?.nit}
+                          {facturaSeleccionada.proveedores?.nit}
                         </p>
                       </div>
                     </div>
@@ -850,12 +858,13 @@ export default function Facturas() {
                                     </div>
                                     <div>
                                       <div className="font-medium text-primary">
-                                        {item.arbol_materia_prima?.nombre ||
+                                        {item.producto?.nombre ||
+                                          item.presentacion?.nombre ||
                                           "Producto sin nombre"}
                                       </div>
-                                      {item.arbol_materia_prima?.codigo && (
+                                      {(item.producto?.codigo || item.presentacion?.codigo) && (
                                         <div className="text-xs text-muted font-mono">
-                                          {item.arbol_materia_prima.codigo}
+                                          {item.producto?.codigo || item.presentacion?.codigo}
                                         </div>
                                       )}
                                     </div>

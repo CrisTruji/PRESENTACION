@@ -28,6 +28,7 @@ function BuscadorMateriaPrima({ onSeleccionar }) {
       .select('id, codigo, nombre, unidad_medida')
       .ilike('nombre', `%${valor}%`)
       .eq('activo', true)
+      .eq('nivel_actual', 5)
       .limit(10)
       .order('nombre');
     setResultados(data || []);

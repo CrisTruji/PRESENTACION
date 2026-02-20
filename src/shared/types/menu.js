@@ -98,5 +98,9 @@ export const TIPOS_OPERACION = {
   CARTA_MENU: 'carta_menu',
 };
 
-// Operaciones que manejan datos de pacientes
+// Operaciones que usan flujo de carta-menu (opcion A/B por componente)
+export const OPERACIONES_CARTA_MENU = ['eiren'];
+
+// Operaciones que SIEMPRE requieren datos de paciente (obligatorio, expandido)
+// Para el resto, los datos de paciente son opcionales (acordeon colapsable)
 export const OPERACIONES_CON_PACIENTES = ['alcala', 'presentes'];

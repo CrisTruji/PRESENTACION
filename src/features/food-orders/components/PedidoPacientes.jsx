@@ -1,13 +1,18 @@
 // ========================================
-// PedidoPacientes - Tabla de pacientes (Alcala/Presentes)
+// PedidoPacientes - Tabla de pacientes
+// Props:
+//   opcional={false} (default) → siempre expandido, obligatorio (Alcala/Presentes)
+//   opcional={true}            → acordeon colapsable, puede omitirse
 // ========================================
 
-import React from 'react';
-import { Plus, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, X, ChevronDown, ChevronUp, Users } from 'lucide-react';
 import { usePedidoStore } from '../store/usePedidoStore';
 import { useTiposDieta } from '@features/menu-cycles';
 
-export default function PedidoPacientes() {
+export default function PedidoPacientes({ opcional = false }) {
+  const [expandido, setExpandido] = useState(!opcional); // abierto si no es opcional
+
   const {
     pacientes,
     agregarPaciente,
@@ -38,8 +43,82 @@ export default function PedidoPacientes() {
     }
   });
 
+  // ── Modo opcional: envuelto en acordeón ──
+  if (opcional) {
+    return (
+      <div className="border rounded-xl overflow-hidden mt-4" style={{ borderColor: 'var(--color-border)' }}>
+        {/* Cabecera del acordeón */}
+        <button
+          type="button"
+          onClick={() => setExpandido((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-app transition-colors"
+          style={{ backgroundColor: 'var(--color-bg-surface)' }}
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-text-muted" />
+            <span className="text-sm font-semibold text-primary">
+              Datos de pacientes
+              {pacientes.length > 0 && (
+                <span className="ml-2 text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ backgroundColor: 'rgba(99,102,241,0.12)', color: '#6366F1' }}>
+                  {pacientes.length} registrado{pacientes.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </span>
+            <span className="text-xs text-text-muted font-normal">(opcional)</span>
+          </div>
+          {expandido
+            ? <ChevronUp className="w-4 h-4 text-text-muted" />
+            : <ChevronDown className="w-4 h-4 text-text-muted" />
+          }
+        </button>
+
+        {/* Contenido expandible */}
+        {expandido && (
+          <div className="border-t px-4 py-4 space-y-4" style={{ borderColor: 'var(--color-border)' }}>
+            <ContenidoPacientes
+              pacientes={pacientes}
+              tiposDieta={tiposDieta}
+              resumenDietas={resumenDietas}
+              handleAgregar={handleAgregar}
+              actualizarPaciente={actualizarPaciente}
+              eliminarPaciente={eliminarPaciente}
+              getTotalPacientes={getTotalPacientes}
+            />
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Modo obligatorio: siempre visible (Alcala/Presentes) ──
   return (
     <div className="space-y-4">
+      <ContenidoPacientes
+        pacientes={pacientes}
+        tiposDieta={tiposDieta}
+        resumenDietas={resumenDietas}
+        handleAgregar={handleAgregar}
+        actualizarPaciente={actualizarPaciente}
+        eliminarPaciente={eliminarPaciente}
+        getTotalPacientes={getTotalPacientes}
+      />
+    </div>
+  );
+}
+
+// ── Sub-componente: contenido real de la tabla de pacientes ──
+function ContenidoPacientes({
+  pacientes,
+  tiposDieta,
+  resumenDietas,
+  handleAgregar,
+  actualizarPaciente,
+  eliminarPaciente,
+  getTotalPacientes,
+}) {
+  return (
+    <>
       <div className="flex items-center justify-between">
         <p className="text-sm text-text-muted">
           Agrega los datos de cada paciente que recibirá este servicio
@@ -51,7 +130,7 @@ export default function PedidoPacientes() {
       </div>
 
       {pacientes.length === 0 ? (
-        <div className="text-center py-10">
+        <div className="text-center py-8">
           <Plus className="w-10 h-10 mx-auto text-text-muted mb-3" />
           <h4 className="text-sm font-semibold text-primary mb-1">No hay pacientes agregados</h4>
           <p className="text-sm text-text-muted mb-4">
@@ -176,6 +255,6 @@ export default function PedidoPacientes() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

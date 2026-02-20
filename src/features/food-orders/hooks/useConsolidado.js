@@ -97,6 +97,17 @@ export function useMarcarPreparado() {
   });
 }
 
+export function useRecetasAlternativas(termino, componenteId) {
+  return useQuery({
+    queryKey: ['recetas-alternativas', termino, componenteId],
+    queryFn: () => consolidadoService.buscarRecetasAlternativas(termino, componenteId),
+    select: (response) => response.data,
+    // Solo ejecutar si hay término de búsqueda O si se especificó un componente
+    enabled: (termino?.length >= 2) || !!componenteId,
+    staleTime: 30_000,
+  });
+}
+
 export function useOperacionesConsolidado() {
   return useQuery({
     queryKey: ['operaciones-consolidado'],
@@ -111,6 +122,16 @@ export function useServiciosUnidad(operacionId = null) {
     queryKey: ['servicios-unidad', operacionId],
     queryFn: () => consolidadoService.getServiciosUnidad(operacionId),
     select: (response) => response.data,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useCicloActivoPorOperacion(operacionId) {
+  return useQuery({
+    queryKey: ['ciclo-activo-operacion', operacionId],
+    queryFn: () => consolidadoService.getCicloActivoPorOperacion(operacionId),
+    select: (response) => response.data,
+    enabled: !!operacionId,
     staleTime: 5 * 60_000,
   });
 }

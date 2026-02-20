@@ -26,6 +26,7 @@ import CrearSolicitud from "../screens/planta/crearsolicitud";
 import Productos from "../screens/planta/productos";
 import SolicitudesPlanta from "../screens/planta/solicitudes";
 import VerificarSolicitud from "../screens/planta/verificarsolicitud";
+import ProyeccionSemanal from "../screens/planta/ProyeccionSemanal";
 
 // COMPRAS
 import GestionCompras from "../screens/compras/gestioncompras";
@@ -116,6 +117,8 @@ export default function RoleRouter() {
         return <SolicitudesPlanta />;
       case "verificar_solicitud":
         return <VerificarSolicitud />;
+      case "proyeccion_semanal":
+        return <ProyeccionSemanal />;
 
       // AUXILIAR DE COMPRAS
       case "gestion_aux":

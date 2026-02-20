@@ -4,7 +4,7 @@
 // ========================================
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Scale } from 'lucide-react';
 import { useVistaRecetas } from '../hooks/useConsolidado';
 import { useSustituirReceta } from '../hooks/useConsolidado';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
@@ -203,28 +203,9 @@ export default function VistaRecetas({ consolidadoId, onCambiarReceta }) {
                   </div>
                 )}
 
-                {/* Desglose por dieta */}
+                {/* Desglose por dieta + gramajes */}
                 {item.desglose_dietas && Object.keys(item.desglose_dietas).length > 0 && (
-                  <div>
-                    <h5 className="text-xs font-semibold text-text-secondary uppercase mb-2">
-                      Por tipo de dieta:
-                    </h5>
-                    <div className="grid grid-cols-3 gap-2">
-                      {Object.entries(item.desglose_dietas).map(([dieta, cantidad]) => (
-                        cantidad > 0 && (
-                          <div
-                            key={dieta}
-                            className="bg-bg-surface rounded-lg p-2.5 border"
-                            style={{ borderColor: 'var(--color-border)' }}
-                          >
-                            <div className="text-xs font-medium text-text-secondary uppercase">{dieta}</div>
-                            <div className="text-base font-bold text-primary mt-1">{cantidad}</div>
-                            <div className="text-xs text-text-muted">porciones</div>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  </div>
+                  <DesgloseDietasGramajes item={item} />
                 )}
 
                 {/* Desglose por unidad */}
@@ -248,6 +229,9 @@ export default function VistaRecetas({ consolidadoId, onCambiarReceta }) {
                     </div>
                   </div>
                 )}
+
+                {/* Total MP estimado */}
+                <TotalMPEstimado item={item} />
               </div>
             )}
           </div>

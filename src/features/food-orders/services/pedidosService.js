@@ -30,7 +30,20 @@ export const pedidosService = {
   async getPedidosPorFecha(fecha, servicio = null) {
     let query = supabase
       .from('pedidos_servicio')
-      .select('*, operaciones(codigo, nombre)')
+      .select(`
+        *,
+        operaciones(codigo, nombre, tipo_operacion),
+        pedido_items_servicio(
+          id, cantidad, opcion_seleccionada,
+          tipos_dieta(codigo, nombre, categoria),
+          menu_componentes(
+            id,
+            componentes_plato(codigo, nombre, orden),
+            arbol_recetas(id, codigo, nombre),
+            opciones_carta
+          )
+        )
+      `)
       .eq('fecha', fecha)
       .order('created_at', { ascending: false });
 
