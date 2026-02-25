@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, RotateCcw, AlertCircle, RefreshCw } from 'lucide-react';
 import { useGramajeBASEComponentes, useGuardarGramajeBASEComponentes } from '../hooks/useMenuComponentes';
 import { useComponentesPlato } from '../hooks/useComponentesPlato';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function PanelGramajeBASE({ operacionId, operacionNombre }) {
   const { data: gramajeBASE, isLoading: cargandoGramajes, isError, refetch } = useGramajeBASEComponentes(operacionId);

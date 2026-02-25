@@ -8,7 +8,7 @@ import { X, Calendar, Save } from 'lucide-react';
 import { useCrearCiclo } from '../hooks/useCiclos';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
 import { useOperaciones } from '../hooks/useOperaciones';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function ModalNuevoCiclo({ onClose }) {
   const { data: operaciones } = useOperaciones();

@@ -17,7 +17,7 @@ import { useAsignarComponente } from '../hooks/useMenuComponentes';
 import { useDiaServicios } from '../hooks/useCiclos';
 import { useComponentesPlato } from '../hooks/useComponentesPlato';
 import { SERVICIOS } from '@/shared/types/menu';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function CicloEditor({ onVolver }) {
   const {

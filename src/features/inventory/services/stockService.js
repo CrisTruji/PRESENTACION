@@ -43,7 +43,8 @@ export const stockService = {
     let { data, error } = await supabase.rpc('obtener_stock_bajo');
 
     // Si RPC no existe, usar vista directamente
-    if (error && error.code === 'PGRST202') {
+    // PostgREST puede retornar PGRST202 o 42883 (undefined_function en PostgreSQL)
+    if (error && (error.code === 'PGRST202' || error.code === '42883')) {
       console.warn('[StockService] RPC obtener_stock_bajo no existe, usando vista');
       const result = await supabase
         .from('vista_stock_alertas')

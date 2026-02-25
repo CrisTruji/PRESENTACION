@@ -36,8 +36,8 @@ import CambioRecetaPanel from './CambioRecetaPanel';
 import ModalSustituirReceta from './ModalSustituirReceta';
 import PanelMenuUnidad from './PanelMenuUnidad';
 import ModalCicloCompleto from './ModalCicloCompleto';
-import { useAuth } from '@/context/auth';
-import notify from '@/utils/notifier';
+import { useAuth } from '@/features/auth';
+import notify from '@/shared/lib/notifier';
 
 // ----------------------------------------
 // Panel de Horarios (inline)

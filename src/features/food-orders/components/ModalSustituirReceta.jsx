@@ -8,8 +8,8 @@ import React, { useState } from 'react';
 import { X, Search, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, ArrowLeftRight } from 'lucide-react';
 import { useRecetasAlternativas, useSustituirReceta } from '../hooks/useConsolidado';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
-import { useAuth } from '@/context/auth';
-import notify from '@/utils/notifier';
+import { useAuth } from '@/features/auth';
+import notify from '@/shared/lib/notifier';
 
 export default function ModalSustituirReceta({ item, consolidadoId, onClose, onSuccess }) {
   const [termino, setTermino]       = useState('');

@@ -100,6 +100,25 @@ export class BaseArbolService {
   }
 
   /**
+   * Obtener todos los registros de un nivel
+   * @param {number} nivel - Número de nivel (nivel_actual)
+   * @param {boolean} soloActivos - Si true, filtra por activo=true (default: true)
+   */
+  async getByNivel(nivel, soloActivos = true) {
+    let query = supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('nivel_actual', nivel);
+
+    if (soloActivos) {
+      query = query.eq('activo', true);
+    }
+
+    const { data, error } = await query.order('codigo');
+    return { data, error };
+  }
+
+  /**
    * Contar registros por nivel
    */
   async contarPorNivel(nivel) {

@@ -1,56 +1,51 @@
 // src/router/rolerouter.jsx
 import React, { useEffect } from "react";
-import { useAuth } from "../context/auth";
-import { useRouter } from "../context/roleroutercontext";
+import { useAuth } from "@/features/auth";
+import { useRouter } from "@/router";
 
 // ================================
-// IMPORTS DE PANTALLAS POR ROL
+// IMPORTS DE PANTALLAS POR ROL (FSD)
 // ================================
-
-// CHEF / ARBOLES (admin)
-import ArbolMateriaPrima from "../screens/chef/arbol_materia_prima";
-import SelectorArboles from "../screens/chef/selector_arboles";
 
 // ADMIN
-import AdminDashboard from "../screens/admin/adminDashboard";
-import AdminRequests from "../screens/admin/admin_requests";
-import VincularPresentaciones from "../screens/admin/vincular_presentaciones";
-import Inventario from "../screens/admin/inventario";
-import EmpleadosSST from "../screens/empleados/EmpleadosSST";
-import EmpleadosTH from "../screens/empleados/EmpleadosTalentoHumano";
-import AnalisisCostos from "../screens/admin/AnalisisCostos";
-import Nomina from "../screens/admin/Nomina";
+import { AdminDashboard, AdminRequests, AnalisisCostos, Nomina } from "@/features/admin";
+
+// EMPLOYEES
+import { EmpleadosSST, EmpleadosTH } from "@/features/employees";
 
 // PLANTA (jefe de planta)
-import CrearSolicitud from "../screens/planta/crearsolicitud";
-import Productos from "../screens/planta/productos";
-import SolicitudesPlanta from "../screens/planta/solicitudes";
-import VerificarSolicitud from "../screens/planta/verificarsolicitud";
-import ProyeccionSemanal from "../screens/planta/ProyeccionSemanal";
+import { ProyeccionSemanal, CostosServicio, Productos } from "@/features/planta";
 
-// COMPRAS
-import GestionCompras from "../screens/compras/gestioncompras";
-import GestionAux from "../screens/aux_compras/gestionaux";
-import VerDetallesSolicitud from "../screens/aux_compras/verdetallessolicitudes";
+// PURCHASES (planta, compras, proveedores)
+import {
+  CrearSolicitud,
+  SolicitudesPlanta,
+  VerificarSolicitud,
+  GestionCompras,
+  GestionAux,
+  VerDetallesSolicitud,
+  Proveedores,
+} from "@/features/purchases";
 
-// ALMACEN
-import RecepcionFactura from "../screens/almacen/recepcionfactura"; // ← FIX
+// WAREHOUSE (almacén, facturas)
+import { RecepcionFactura, Facturas } from "@/features/warehouse";
 
-// PANTALLAS GLOBALES
-import Proveedores from "../screens/proveedores";
-import Facturas from "../screens/facturas";
+// CHEF / ARBOLES
+import { SelectorArboles, ArbolMateriaPrimaScreen as ArbolMateriaPrima } from "@/features/products";
 
-// SPRINT 3 - Stock & Auditoría (Admin)
-import { StockManager } from "@/features/inventory";
+// PRESENTATIONS
+import { VincularPresentaciones, PresentacionesManager } from "@/features/presentations";
+
+// INVENTORY
+import { Inventario, StockManager } from "@/features/inventory";
+
+// AUDIT
 import { AuditoriaViewer } from "@/features/audit";
 
-// SPRINT 5 - Presentaciones (Admin/Planta)
-import { PresentacionesManager } from "@/features/presentations";
-
-// SPRINT 7 - Ciclos de Menu (Chef)
+// CICLOS DE MENU (Chef)
 import { ChefDashboard } from "@/features/menu-cycles";
 
-// SPRINT 7 - Pedidos y Consolidado (Unidades/Supervisor)
+// PEDIDOS Y CONSOLIDADO (Unidades/Supervisor)
 import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-orders";
 
 export default function RoleRouter() {
@@ -119,6 +114,8 @@ export default function RoleRouter() {
         return <VerificarSolicitud />;
       case "proyeccion_semanal":
         return <ProyeccionSemanal />;
+      case "costos_servicio":
+        return <CostosServicio />;
 
       // AUXILIAR DE COMPRAS
       case "gestion_aux":

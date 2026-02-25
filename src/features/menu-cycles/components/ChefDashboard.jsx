@@ -17,7 +17,7 @@ import CicloEditor from './CicloEditor';
 import ModalNuevoCiclo from './ModalNuevoCiclo';
 import GramajeBASEModal from './GramajeBASEModal';
 import { SERVICIOS } from '@/shared/types/menu';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function ChefDashboard() {
   const { data: operaciones, isLoading, error, refetch } = useOperacionesConCiclo();

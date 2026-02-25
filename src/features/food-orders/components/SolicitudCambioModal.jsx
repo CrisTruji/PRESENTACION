@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
 import { useCrearSolicitudCambio } from '../hooks/useSolicitudesCambio';
 import { useBuscarRecetas } from '@features/menu-cycles';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function SolicitudCambioModal({ pedidoId, menuComponenteId, onClose }) {
   const [motivo, setMotivo] = useState('');

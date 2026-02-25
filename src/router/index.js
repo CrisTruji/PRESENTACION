@@ -1,2 +1,2 @@
-export { default as RouterProvider } from "./rolerouter";
-export { useRouter } from "../context/roleroutercontext";
+export { default as RoleRouter } from "./rolerouter";
+export { RouterProvider, useRouter } from "./RouterContext";

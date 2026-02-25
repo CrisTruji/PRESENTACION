@@ -69,7 +69,13 @@ export const consolidadoService = {
       .from('consolidado_items')
       .select(`
         *,
-        arbol_recetas (id, codigo, nombre, costo_porcion, rendimiento),
+        arbol_recetas (
+          id, codigo, nombre, costo_porcion, rendimiento,
+          receta_ingredientes (
+            id, cantidad_requerida, unidad_medida,
+            arbol_materia_prima (id, nombre, codigo, costo_promedio, unidad_stock)
+          )
+        ),
         componentes_plato (codigo, nombre, orden),
         menu_componentes (
           id,

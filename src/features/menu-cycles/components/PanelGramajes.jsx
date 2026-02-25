@@ -7,7 +7,7 @@ import { Save, RotateCcw } from 'lucide-react';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
 import { useGramajes, useGuardarGramajes } from '../hooks/useMenuComponentes';
 import { useTiposDieta } from '../hooks/useTiposDieta';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 export default function PanelGramajes() {
   const { componenteSeleccionado } = useCicloEditorStore();

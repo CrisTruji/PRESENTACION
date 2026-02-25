@@ -1,12 +1,10 @@
 import React, { useEffect } from "react";
 import { Toaster } from "sonner";
-import { useAuth } from "./context/auth";
-import Navbar from "./components/navbar";
-import RoleRouter from "./router/rolerouter";
-import Login from "./screens/ingreso/login";
-import Register from "./screens/ingreso/register";
-import WaitingRoleScreen from "./screens/ingreso/waiting_role";
-import ErrorBoundary from "./components/ErrorBoundary";
+import { useAuth } from "@/features/auth";
+import Navbar from "@/shared/ui/Navbar";
+import RoleRouter from "@/router/rolerouter";
+import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen } from "@/features/auth";
+import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 export default function App() {
   const { session, loading, roleName } = useAuth();

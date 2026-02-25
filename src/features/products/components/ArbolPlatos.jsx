@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { arbolPlatosService } from '@/services/arbolPlatosService';
+import { arbolPlatosService } from '@/features/products';
 import NodoArbol from './NodoArbol';
 
 /**

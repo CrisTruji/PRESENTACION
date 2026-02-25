@@ -9,7 +9,7 @@ import { X, Save, AlertCircle, Plus, Trash2, Search } from 'lucide-react';
 import { useRecetaConIngredientes, useCrearRecetaLocal, useActualizarReceta } from '../hooks/useMenuComponentes';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
 import { supabase } from '@/shared/api';
-import notify from '@/utils/notifier';
+import notify from '@/shared/lib/notifier';
 
 // ----------------------------------------
 // BuscadorMateriaPrima — busca ingredientes en arbol_materia_prima

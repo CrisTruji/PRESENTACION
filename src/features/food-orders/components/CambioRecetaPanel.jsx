@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { Check, X, MessageSquare } from 'lucide-react';
 import { useSolicitudesPendientes, useAprobarSolicitud, useRechazarSolicitud } from '../hooks/useSolicitudesCambio';
-import { useAuth } from '@/context/auth';
-import notify from '@/utils/notifier';
+import { useAuth } from '@/features/auth';
+import notify from '@/shared/lib/notifier';
 
 export default function CambioRecetaPanel() {
   const { data: solicitudes, isLoading } = useSolicitudesPendientes();

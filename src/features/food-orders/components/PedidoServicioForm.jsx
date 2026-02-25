@@ -24,8 +24,8 @@ import PedidoDietas from './PedidoDietas';
 import PedidoPacientes from './PedidoPacientes';
 import PedidoCartaMenu from './PedidoCartaMenu';
 import SolicitudCambioModal from './SolicitudCambioModal';
-import notify from '@/utils/notifier';
-import { useAuth } from '@/context/auth';
+import notify from '@/shared/lib/notifier';
+import { useAuth } from '@/features/auth';
 
 export default function PedidoServicioForm() {
   const { user } = useAuth();
