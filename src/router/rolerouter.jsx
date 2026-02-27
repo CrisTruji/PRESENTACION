@@ -51,6 +51,12 @@ import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-order
 // PRESUPUESTO (Admin / Jefe de Planta)
 import { DashboardPresupuesto } from "@/features/presupuesto";
 
+// PORTAL EMPLEADO (rol: usuario)
+import { PortalEmpleadoDashboard } from "@/features/portal-empleado";
+
+// PANEL NOMINA (rol: nomina)
+import { PanelNomina } from "@/features/nomina";
+
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
@@ -95,6 +101,14 @@ export default function RoleRouter() {
 
       case "coordinador_unidad":
         defaultScreen = "pedido_servicio";
+        break;
+
+      case "usuario":
+        defaultScreen = "portal_empleado";
+        break;
+
+      case "nomina":
+        defaultScreen = "panel_nomina";
         break;
 
       default:
@@ -191,6 +205,14 @@ case "consolidado_supervisor":
 // PRESUPUESTO (Admin / Jefe de Planta)
 case "presupuesto":
   return <DashboardPresupuesto />;
+
+// PORTAL EMPLEADO (rol: usuario)
+case "portal_empleado":
+  return <PortalEmpleadoDashboard />;
+
+// PANEL NOMINA (rol: nomina)
+case "panel_nomina":
+  return <PanelNomina />;
 
 default:
   return (

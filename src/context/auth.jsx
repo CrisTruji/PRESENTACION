@@ -117,6 +117,8 @@ export function AuthProvider({ children }) {
     "chef",
     "supervisor_produccion",
     "coordinador_unidad",
+    // Portal empleados
+    "nomina",
   ];
 
   const formatRoleName = (role) =>

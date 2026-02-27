@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import { useAuth } from "@/features/auth";
 import Navbar from "@/shared/ui/Navbar";
 import RoleRouter from "@/router/rolerouter";
-import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen } from "@/features/auth";
+import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen } from "@/features/auth";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 export default function App() {
@@ -57,6 +57,9 @@ export default function App() {
           <AuthViews />
         ) : !roleName ? (
           <WaitingRoleScreen />
+        ) : roleName === "usuario" ? (
+          // Portal empleados – tiene su propio header, sin navbar principal
+          <RoleRouter />
         ) : (
           <>
             <Navbar />
@@ -72,11 +75,19 @@ export default function App() {
 }
 
 function AuthViews() {
-  const [showRegister, setShowRegister] = React.useState(false);
+  // "login" | "register_admin" | "register_empleado"
+  const [vista, setVista] = React.useState("login");
 
-  return showRegister ? (
-    <Register goToLogin={() => setShowRegister(false)} />
-  ) : (
-    <Login goToSignup={() => setShowRegister(true)} />
+  if (vista === "register_admin") {
+    return <Register goToLogin={() => setVista("login")} />;
+  }
+  if (vista === "register_empleado") {
+    return <EmpleadoRegistroScreen goToLogin={() => setVista("login")} />;
+  }
+  return (
+    <Login
+      goToSignup={() => setVista("register_admin")}
+      goToEmpleadoRegistro={() => setVista("register_empleado")}
+    />
   );
 }

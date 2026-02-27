@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import notify from "@/shared/lib/notifier";
 
-export default function LoginScreen({ goToSignup }) {
+export default function LoginScreen({ goToSignup, goToEmpleadoRegistro }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -198,6 +198,19 @@ export default function LoginScreen({ goToSignup }) {
               <UserPlus size={18} />
               Crear cuenta nueva
             </button>
+
+            {goToEmpleadoRegistro && (
+              <button
+                type="button"
+                onClick={goToEmpleadoRegistro}
+                disabled={isLoading}
+                className="btn btn-outline w-full flex items-center justify-center gap-2 mt-2"
+                style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }}
+              >
+                <UserPlus size={16} />
+                Soy empleado · Crear mi acceso al portal
+              </button>
+            )}
           </form>
 
           <div className="mt-8 pt-6 border-t border-base">

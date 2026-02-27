@@ -9,6 +9,7 @@ export { AuthProvider, useAuth } from './context/AuthContext';
 export { default as LoginScreen } from './components/LoginScreen';
 export { default as RegisterScreen } from './components/RegisterScreen';
 export { default as WaitingRoleScreen } from './components/WaitingRoleScreen';
+export { default as EmpleadoRegistroScreen } from './components/EmpleadoRegistroScreen';
 
 // Services
 export {
