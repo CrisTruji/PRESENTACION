@@ -435,4 +435,100 @@ export const ciclosService = {
       .order('created_at', { ascending: false });
     return { data, error };
   },
+
+  // ========================================
+  // COPIAR CICLO (Sprint 6 — Plantillas)
+  // ========================================
+
+  async copiarCiclo(cicloOrigenId, nuevoNombre, nuevaFechaInicio) {
+    // 1. Obtener ciclo origen con estructura completa
+    const { data: origen, error: err1 } = await supabase
+      .from('ciclos_menu')
+      .select('*, operaciones(cantidad_ciclos)')
+      .eq('id', cicloOrigenId)
+      .single();
+
+    if (err1 || !origen) return { data: null, error: err1 || new Error('Ciclo no encontrado') };
+
+    // 2. Crear nuevo ciclo
+    const { data: nuevoCiclo, error: err2 } = await supabase
+      .from('ciclos_menu')
+      .insert({
+        operacion_id: origen.operacion_id,
+        nombre: nuevoNombre,
+        fecha_inicio: nuevaFechaInicio,
+        dia_actual_ciclo: 1,
+        estado: 'borrador',
+      })
+      .select()
+      .single();
+
+    if (err2) return { data: null, error: err2 };
+
+    // 3. Obtener dias+servicios del ciclo origen
+    const { data: diasOrigen } = await supabase
+      .from('ciclo_dia_servicios')
+      .select('id, numero_dia, servicio, menu_componentes(receta_id, componente_id, activo, gramajes_componente_menu(gramaje, unidad_medida, excluir, tipo_dieta_id))')
+      .eq('ciclo_id', cicloOrigenId)
+      .order('numero_dia')
+      .order('servicio');
+
+    if (!diasOrigen || diasOrigen.length === 0) return { data: nuevoCiclo, error: null };
+
+    // 4. Crear dias+servicios para el nuevo ciclo
+    const nuevosDias = diasOrigen.map((d) => ({
+      ciclo_id: nuevoCiclo.id,
+      numero_dia: d.numero_dia,
+      servicio: d.servicio,
+      completo: false,
+    }));
+
+    const { data: diasCreados, error: err3 } = await supabase
+      .from('ciclo_dia_servicios')
+      .insert(nuevosDias)
+      .select('id, numero_dia, servicio');
+
+    if (err3) return { data: nuevoCiclo, error: err3 };
+
+    // 5. Crear menu_componentes para cada dia nuevo
+    for (const diaOrigen of diasOrigen) {
+      const diaDestino = diasCreados.find(
+        (d) => d.numero_dia === diaOrigen.numero_dia && d.servicio === diaOrigen.servicio
+      );
+      if (!diaDestino) continue;
+
+      for (const mc of diaOrigen.menu_componentes || []) {
+        if (!mc.receta_id) continue;
+
+        const { data: nuevoMC } = await supabase
+          .from('menu_componentes')
+          .insert({
+            ciclo_dia_servicio_id: diaDestino.id,
+            receta_id: mc.receta_id,
+            componente_id: mc.componente_id,
+            activo: mc.activo ?? true,
+          })
+          .select()
+          .single();
+
+        if (!nuevoMC) continue;
+
+        // 6. Copiar gramajes
+        const gramajes = mc.gramajes_componente_menu || [];
+        if (gramajes.length > 0) {
+          await supabase.from('gramajes_componente_menu').insert(
+            gramajes.map((g) => ({
+              menu_componente_id: nuevoMC.id,
+              gramaje: g.gramaje,
+              unidad_medida: g.unidad_medida,
+              excluir: g.excluir,
+              tipo_dieta_id: g.tipo_dieta_id,
+            }))
+          );
+        }
+      }
+    }
+
+    return { data: nuevoCiclo, error: null };
+  },
 };

@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useStockConAlertas, useStockBajo, useActualizarStock } from '@/features/inventory';
+import notify from '@/shared/lib/notifier';
 import { VirtualizedTable, useTableColumns } from '@/shared/ui';
 
 const StockManagerVirtualized = () => {
@@ -45,21 +46,27 @@ const StockManagerVirtualized = () => {
 
   const handleActualizarStock = async () => {
     if (!cantidad || isNaN(cantidad) || parseFloat(cantidad) <= 0) {
-      alert('Ingresa una cantidad válida');
+      notify.error('Ingresa una cantidad válida mayor a 0');
       return;
     }
 
     try {
-      await actualizarStockMutation.mutateAsync({
+      const result = await actualizarStockMutation.mutateAsync({
         stockId: itemSeleccionado.id,
         cantidad: parseFloat(cantidad),
         operacion,
       });
 
+      const rpcData = Array.isArray(result?.data) ? result.data[0] : result?.data;
+      if (rpcData && !rpcData.success) {
+        notify.error(rpcData.mensaje || 'Error al actualizar stock');
+        return;
+      }
+
       setModalAbierto(false);
-      alert('Stock actualizado correctamente');
+      notify.success(rpcData?.mensaje || 'Stock actualizado correctamente');
     } catch (error) {
-      alert('Error al actualizar stock: ' + error.message);
+      notify.error('Error al actualizar stock: ' + error.message);
     }
   };
 
@@ -380,10 +387,10 @@ const StockManagerVirtualized = () => {
               </button>
               <button
                 onClick={handleActualizarStock}
-                disabled={actualizarStockMutation.isLoading}
+                disabled={actualizarStockMutation.isPending}
                 className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
               >
-                {actualizarStockMutation.isLoading ? 'Actualizando...' : 'Actualizar'}
+                {actualizarStockMutation.isPending ? 'Actualizando...' : 'Actualizar'}
               </button>
             </div>
           </div>

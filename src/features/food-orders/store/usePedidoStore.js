@@ -1,10 +1,14 @@
 // ========================================
 // ZUSTAND STORE - Pedido de Servicio UI State
+// Auto-save con persist (Sprint 6)
 // ========================================
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
-export const usePedidoStore = create((set, get) => ({
+export const usePedidoStore = create(
+  persist(
+    (set, get) => ({
   // ========================================
   // STATE
   // ========================================
@@ -185,4 +189,17 @@ export const usePedidoStore = create((set, get) => ({
     puedeEditar: true,
     modoEdicion: false,
   }),
-}));
+    }),
+    {
+      name: 'pedido-draft-v1',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        items: state.items,
+        fechaPedido: state.fechaPedido,
+        servicioPedido: state.servicioPedido,
+        operacionActual: state.operacionActual,
+        pacientes: state.pacientes,
+      }),
+    }
+  )
+);

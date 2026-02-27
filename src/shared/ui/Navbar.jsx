@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "@/router";
 import { useAuth } from "@/features/auth";
+import { BellIcon } from "@/features/notifications";
 
 // Iconos SVG
 const icons = {
@@ -114,6 +115,7 @@ export default function Navbar() {
       administrador: [
         { label: "Dashboard", name: "admin_dashboard", icon: icons.dashboard },
         { label: "Solicitudes de Acceso", name: "admin_requests", icon: icons.requests },
+        { label: "Presupuesto", name: "presupuesto", icon: icons.management },
         { label: "Inventario", name: "inventario", icon: icons.products },
         { label: "Gestión de Stock", name: "stock_manager", icon: icons.products },
         { label: "Presentaciones", name: "presentaciones_manager", icon: icons.products },
@@ -134,6 +136,7 @@ export default function Navbar() {
         { label: "Solicitudes", name: "solicitudes_planta", icon: icons.requests },
         { label: "Proyección MP", name: "proyeccion_semanal", icon: icons.management },
         { label: "Costos Servicio", name: "costos_servicio", icon: icons.management },
+        { label: "Presupuesto", name: "presupuesto", icon: icons.management },
         { label: "Productos", name: "productos", icon: icons.products },
         { label: "Presentaciones", name: "presentaciones_manager", icon: icons.products },
         { label: "Proveedores", name: "proveedores", icon: icons.suppliers },
@@ -292,8 +295,8 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Espacio derecho para balance */}
-        <div className="w-15"></div>
+        {/* Campanita de notificaciones */}
+        <BellIcon />
       </header>
 
       {/* Espacio para que el contenido no quede detrás del navbar */}

@@ -18,6 +18,7 @@ import ModalNuevoCiclo from './ModalNuevoCiclo';
 import GramajeBASEModal from './GramajeBASEModal';
 import { SERVICIOS } from '@/shared/types/menu';
 import notify from '@/shared/lib/notifier';
+import { ciclosService } from '../services/ciclosService';
 
 export default function ChefDashboard() {
   const { data: operaciones, isLoading, error, refetch } = useOperacionesConCiclo();
@@ -37,6 +38,8 @@ export default function ChefDashboard() {
   const [operacionParaGramaje, setOperacionParaGramaje] = useState(null);
   const [cicloParaVer, setCicloParaVer] = useState(null);          // { cicloId, operacionNombre }
   const [cicloParaEliminar, setCicloParaEliminar] = useState(null); // { cicloId, nombre }
+  const [modalCopiar, setModalCopiar] = useState(null); // { cicloId, nombre, operacionNombre, newNombre, newFecha }
+  const [copiando, setCopiando] = useState(false);
 
   const crearCiclo = useCrearCiclo();
   const eliminarCiclo = useEliminarCiclo();
@@ -107,6 +110,36 @@ export default function ChefDashboard() {
       nombre: operacion.cicloActivo.nombre,
       operacionNombre: operacion.nombre,
     });
+  };
+
+  const handleAbrirCopiarPlantilla = (operacion) => {
+    if (!operacion.cicloActivo) return;
+    const hoy = new Date().toISOString().split('T')[0];
+    setModalCopiar({
+      cicloId: operacion.cicloActivo.id,
+      nombre: operacion.cicloActivo.nombre,
+      operacionNombre: operacion.nombre,
+      newNombre: `${operacion.cicloActivo.nombre} (Plantilla)`,
+      newFecha: hoy,
+    });
+  };
+
+  const handleConfirmarCopiar = async () => {
+    if (!modalCopiar || copiando) return;
+    setCopiando(true);
+    const result = await ciclosService.copiarCiclo(
+      modalCopiar.cicloId,
+      modalCopiar.newNombre,
+      modalCopiar.newFecha,
+    );
+    setCopiando(false);
+    if (result.error) {
+      notify.error('Error al copiar: ' + result.error.message);
+      return;
+    }
+    notify.success(`Plantilla "${modalCopiar.newNombre}" creada exitosamente.`);
+    setModalCopiar(null);
+    refetch();
   };
 
   const confirmarEliminar = () => {
@@ -342,17 +375,17 @@ export default function ChefDashboard() {
                           Gramajes
                         </button>
                         <button
-                          onClick={() => handleDuplicarCiclo(operacion)}
-                          disabled={crearCiclo.isPending}
+                          onClick={() => handleAbrirCopiarPlantilla(operacion)}
+                          disabled={copiando}
                           className="btn btn-outline text-sm !py-1.5"
-                          title="Crear una copia de este ciclo"
+                          title="Copiar ciclo completo con todos sus menús y gramajes"
                         >
-                          {crearCiclo.isPending ? (
+                          {copiando ? (
                             <div className="spinner spinner-sm mr-1" />
                           ) : (
                             <Copy className="w-4 h-4 mr-1.5" />
                           )}
-                          Duplicar
+                          Plantilla
                         </button>
                         <button
                           onClick={() => handleVerCiclo(operacion)}
@@ -419,6 +452,69 @@ export default function ChefDashboard() {
           operacionNombre={cicloParaVer.operacionNombre}
           onClose={() => setCicloParaVer(null)}
         />
+      )}
+
+      {/* Modal Copiar como Plantilla */}
+      {modalCopiar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="card w-full max-w-sm">
+            <div className="card-header flex items-center justify-between">
+              <h2 className="text-base font-semibold text-primary">Copiar como plantilla</h2>
+              <button
+                onClick={() => setModalCopiar(null)}
+                className="p-1 rounded-md hover:bg-bg-surface text-text-muted hover:text-primary transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="card-body space-y-4">
+              <p className="text-sm text-text-secondary">
+                Crea una copia completa de{' '}
+                <span className="font-semibold">"{modalCopiar.nombre}"</span> incluyendo
+                todos los días, servicios y componentes.
+              </p>
+              <div>
+                <label className="form-label">Nombre del nuevo ciclo</label>
+                <input
+                  type="text"
+                  value={modalCopiar.newNombre}
+                  onChange={(e) => setModalCopiar((prev) => ({ ...prev, newNombre: e.target.value }))}
+                  className="form-input w-full"
+                  placeholder="Nombre de la plantilla..."
+                />
+              </div>
+              <div>
+                <label className="form-label">Fecha de inicio</label>
+                <input
+                  type="date"
+                  value={modalCopiar.newFecha}
+                  onChange={(e) => setModalCopiar((prev) => ({ ...prev, newFecha: e.target.value }))}
+                  className="form-input w-full"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setModalCopiar(null)}
+                  disabled={copiando}
+                  className="btn btn-ghost text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmarCopiar}
+                  disabled={copiando || !modalCopiar.newNombre.trim()}
+                  className="btn btn-primary text-sm flex items-center gap-2"
+                >
+                  {copiando ? (
+                    <><div className="spinner spinner-sm" /> Copiando...</>
+                  ) : (
+                    <><Copy className="w-4 h-4" /> Copiar</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Confirmar Eliminación */}

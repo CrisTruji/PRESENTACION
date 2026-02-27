@@ -22,6 +22,7 @@ import {
   Layers
 } from 'lucide-react';
 import { supabase } from '@/shared/api';
+import notify from '@/shared/lib/notifier';
 
 const PresentacionesManager = () => {
   // ========================================
@@ -48,11 +49,12 @@ const PresentacionesManager = () => {
     codigo: '',
     nombre: '',
     descripcion: '',
-    precio_venta: '',
-    precio_compra: '',
+    precio_unitario: '',
+    cantidad_por_unidad: '',
     presentacion: '',
     unidad_medida: 'unidad',
     parent_id: null,
+    codigo_barra: '',
   });
 
   // ========================================
@@ -137,8 +139,8 @@ const PresentacionesManager = () => {
           valorB = b.nombre?.toLowerCase() || '';
           break;
         case 'precio':
-          valorA = a.precio_venta || 0;
-          valorB = b.precio_venta || 0;
+          valorA = a.precio_unitario || 0;
+          valorB = b.precio_unitario || 0;
           break;
         case 'codigo':
           valorA = a.codigo?.toLowerCase() || '';
@@ -162,11 +164,11 @@ const PresentacionesManager = () => {
   // ========================================
   const estadisticas = useMemo(() => {
     const total = presentaciones.length;
-    const conPrecio = presentaciones.filter((p) => p.precio_venta > 0).length;
+    const conPrecio = presentaciones.filter((p) => p.precio_unitario > 0).length;
     const sinPrecio = total - conPrecio;
     const precioPromedio =
       conPrecio > 0
-        ? presentaciones.reduce((sum, p) => sum + (p.precio_venta || 0), 0) / conPrecio
+        ? presentaciones.reduce((sum, p) => sum + (p.precio_unitario || 0), 0) / conPrecio
         : 0;
 
     return { total, conPrecio, sinPrecio, precioPromedio };
@@ -189,11 +191,12 @@ const PresentacionesManager = () => {
       codigo: '',
       nombre: '',
       descripcion: '',
-      precio_venta: '',
-      precio_compra: '',
+      precio_unitario: '',
+      cantidad_por_unidad: '',
       presentacion: '',
       unidad_medida: 'unidad',
       parent_id: filtroStock || null,
+      codigo_barra: '',
     });
     setModalCrear(true);
   };
@@ -204,11 +207,12 @@ const PresentacionesManager = () => {
       codigo: presentacion.codigo || '',
       nombre: presentacion.nombre || '',
       descripcion: presentacion.descripcion || '',
-      precio_venta: presentacion.precio_venta || '',
-      precio_compra: presentacion.precio_compra || '',
+      precio_unitario: presentacion.precio_unitario || '',
+      cantidad_por_unidad: presentacion.cantidad_por_unidad || '',
       presentacion: presentacion.presentacion || '',
       unidad_medida: presentacion.unidad_medida || 'unidad',
       parent_id: presentacion.parent_id,
+      codigo_barra: presentacion.codigo_barra || '',
     });
     setModalEditar(true);
   };
@@ -220,33 +224,39 @@ const PresentacionesManager = () => {
 
   const handleCrear = async () => {
     if (!formulario.nombre || !formulario.parent_id) {
-      alert('Nombre y Stock son obligatorios');
+      notify.error('El nombre y el stock (nivel 5) son obligatorios');
       return;
     }
 
     try {
       const { error } = await supabase.from('arbol_materia_prima').insert({
-        ...formulario,
+        codigo: formulario.codigo,
+        nombre: formulario.nombre,
+        descripcion: formulario.descripcion,
+        presentacion: formulario.presentacion,
+        unidad_medida: formulario.unidad_medida,
+        parent_id: formulario.parent_id,
+        codigo_barra: formulario.codigo_barra || null,
+        precio_unitario: parseFloat(formulario.precio_unitario) || 0,
+        cantidad_por_unidad: parseFloat(formulario.cantidad_por_unidad) || 1,
         nivel_actual: 6,
         activo: true,
-        precio_venta: parseFloat(formulario.precio_venta) || 0,
-        precio_compra: parseFloat(formulario.precio_compra) || 0,
       });
 
       if (error) throw error;
 
       setModalCrear(false);
       cargarPresentaciones();
-      alert('Presentación creada exitosamente');
+      notify.success('Presentación creada exitosamente');
     } catch (err) {
-      alert('Error al crear presentación: ' + err.message);
+      notify.error('Error al crear presentación: ' + err.message);
       console.error(err);
     }
   };
 
   const handleEditar = async () => {
     if (!formulario.nombre) {
-      alert('El nombre es obligatorio');
+      notify.error('El nombre es obligatorio');
       return;
     }
 
@@ -257,11 +267,12 @@ const PresentacionesManager = () => {
           codigo: formulario.codigo,
           nombre: formulario.nombre,
           descripcion: formulario.descripcion,
-          precio_venta: parseFloat(formulario.precio_venta) || 0,
-          precio_compra: parseFloat(formulario.precio_compra) || 0,
+          precio_unitario: parseFloat(formulario.precio_unitario) || 0,
+          cantidad_por_unidad: parseFloat(formulario.cantidad_por_unidad) || 1,
           presentacion: formulario.presentacion,
           unidad_medida: formulario.unidad_medida,
           parent_id: formulario.parent_id,
+          codigo_barra: formulario.codigo_barra || null,
         })
         .eq('id', presentacionSeleccionada.id);
 
@@ -270,9 +281,9 @@ const PresentacionesManager = () => {
       setModalEditar(false);
       setPresentacionSeleccionada(null);
       cargarPresentaciones();
-      alert('Presentación actualizada exitosamente');
+      notify.success('Presentación actualizada exitosamente');
     } catch (err) {
-      alert('Error al actualizar presentación: ' + err.message);
+      notify.error('Error al actualizar presentación: ' + err.message);
       console.error(err);
     }
   };
@@ -289,9 +300,9 @@ const PresentacionesManager = () => {
       setModalEliminar(false);
       setPresentacionSeleccionada(null);
       cargarPresentaciones();
-      alert('Presentación eliminada exitosamente');
+      notify.success('Presentación desactivada correctamente');
     } catch (err) {
-      alert('Error al eliminar presentación: ' + err.message);
+      notify.error('Error al eliminar presentación: ' + err.message);
       console.error(err);
     }
   };
@@ -552,7 +563,7 @@ const PresentacionesManager = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-semibold text-green-600">
-                        ${presentacion.precio_venta?.toFixed(2) || '0.00'}
+                        ${(presentacion.precio_unitario || 0).toFixed(2)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -667,14 +678,14 @@ const PresentacionesManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">
-                    Precio Venta
+                    Precio Unitario
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    value={formulario.precio_venta}
+                    value={formulario.precio_unitario}
                     onChange={(e) =>
-                      setFormulario({ ...formulario, precio_venta: e.target.value })
+                      setFormulario({ ...formulario, precio_unitario: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-border rounded-lg bg-bg focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="0.00"
@@ -683,17 +694,17 @@ const PresentacionesManager = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">
-                    Precio Compra
+                    Cant. por Unidad
                   </label>
                   <input
                     type="number"
-                    step="0.01"
-                    value={formulario.precio_compra}
+                    step="0.001"
+                    value={formulario.cantidad_por_unidad}
                     onChange={(e) =>
-                      setFormulario({ ...formulario, precio_compra: e.target.value })
+                      setFormulario({ ...formulario, cantidad_por_unidad: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-border rounded-lg bg-bg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="0.00"
+                    placeholder="1"
                   />
                 </div>
 
@@ -830,14 +841,14 @@ const PresentacionesManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">
-                    Precio Venta
+                    Precio Unitario
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    value={formulario.precio_venta}
+                    value={formulario.precio_unitario}
                     onChange={(e) =>
-                      setFormulario({ ...formulario, precio_venta: e.target.value })
+                      setFormulario({ ...formulario, precio_unitario: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-border rounded-lg bg-bg focus:outline-none focus:ring-2 focus:ring-primary"
                   />
@@ -845,14 +856,14 @@ const PresentacionesManager = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">
-                    Precio Compra
+                    Cant. por Unidad
                   </label>
                   <input
                     type="number"
-                    step="0.01"
-                    value={formulario.precio_compra}
+                    step="0.001"
+                    value={formulario.cantidad_por_unidad}
                     onChange={(e) =>
-                      setFormulario({ ...formulario, precio_compra: e.target.value })
+                      setFormulario({ ...formulario, cantidad_por_unidad: e.target.value })
                     }
                     className="w-full px-3 py-2 border border-border rounded-lg bg-bg focus:outline-none focus:ring-2 focus:ring-primary"
                   />

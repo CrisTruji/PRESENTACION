@@ -19,6 +19,7 @@ import { crearSolicitud, agregarItemsSolicitud } from '@/features/purchases';
 import { getProveedores } from '@/features/purchases';
 import { useAuth } from '@/features/auth';
 import notify from '@/shared/lib/notifier';
+import { RecommendationWidget } from '@/features/recommendations';
 
 // ── Promedios base (hardcodeados como punto de partida) ──
 const PROMEDIOS_BASE = {
@@ -131,7 +132,12 @@ export default function ProyeccionSemanal() {
           <div className="card-body">
             {tabActiva === 'resumen'     && <TabResumenDietas fecha={fecha} servicio={servicio} />}
             {tabActiva === 'consolidado' && <TabConsolidadoDietas fecha={fecha} servicio={servicio} />}
-            {tabActiva === 'proyeccion'  && <TabProyeccionSemanal />}
+            {tabActiva === 'proyeccion'  && (
+            <>
+              <TabProyeccionSemanal />
+              <RecommendationWidget diasProyeccion={7} />
+            </>
+          )}
             {tabActiva === 'solicitud'   && <TabGenerarSolicitud userId={user?.id} />}
           </div>
         </div>

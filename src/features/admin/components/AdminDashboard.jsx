@@ -1,7 +1,7 @@
 // src/screens/admin/adminDashboard.jsx
 import React, { useEffect, useState } from "react";
-import { 
-  getPendingUsers, 
+import {
+  getPendingUsers,
   assignRole,
   getAllRoles,
   getUserStats,
@@ -11,6 +11,8 @@ import {
   deactivateUser
 } from "@/features/auth";
 import notify from "@/shared/lib/notifier";
+import { useAdminKPIs } from '../hooks/useAdminKPIs';
+import { RecommendationWidget } from '@/features/recommendations';
 import {
   Users,
   Clock,
@@ -31,7 +33,12 @@ import {
   ChevronDown,
   Search,
   Download,
-  Filter
+  Filter,
+  Package,
+  TrendingUp,
+  FileText,
+  ShoppingCart,
+  DollarSign
 } from "lucide-react";
 
 export default function AdminDashboard() {
@@ -47,7 +54,7 @@ export default function AdminDashboard() {
     rejected: 0,
     today: 0
   });
-  const [activeTab, setActiveTab] = useState('pending');
+  const [activeTab, setActiveTab] = useState('resumen');
   const [editingUser, setEditingUser] = useState(null);
   const [editForm, setEditForm] = useState({
     nombre: '',
@@ -326,6 +333,16 @@ export default function AdminDashboard() {
               <div className="flex border-b border-base">
                 <button
                   className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                    activeTab === 'resumen'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-muted hover:text-secondary'
+                  }`}
+                  onClick={() => setActiveTab('resumen')}
+                >
+                  Resumen
+                </button>
+                <button
+                  className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
                     activeTab === 'pending'
                       ? 'border-primary text-primary'
                       : 'border-transparent text-muted hover:text-secondary'
@@ -374,8 +391,11 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="card">
+          {/* Tab Resumen */}
+          {activeTab === 'resumen' && <TabResumen />}
+
+          {/* Main Content (Usuarios) */}
+          <div className={`card ${activeTab === 'resumen' ? 'hidden' : ''}`}>
             {/* Header */}
             <div className="card-header">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
@@ -612,7 +632,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Roles Summary */}
-          {allRoles.length > 0 && (
+          {activeTab !== 'resumen' && allRoles.length > 0 && (
             <div className="mt-6 card">
               <div className="card-header">
                 <div className="flex items-center justify-between">
@@ -726,6 +746,95 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ========================================
+// Tab Resumen — KPIs ejecutivos
+// ========================================
+function TabResumen() {
+  const {
+    pedidosHoy, ciclosActivos, solicitudesPendientes,
+    facturasSemanales, stockCritico, valorInventario, isLoading
+  } = useAdminKPIs();
+
+  const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
+
+  const kpis = [
+    {
+      label: 'Pedidos Hoy',
+      value: pedidosHoy,
+      icon: <FileText className="w-6 h-6" />,
+      bg: 'bg-primary/10 text-primary',
+      alert: false,
+    },
+    {
+      label: 'Productos Críticos',
+      value: stockCritico,
+      icon: <Package className="w-6 h-6" />,
+      bg: stockCritico > 0 ? 'bg-error/10 text-error' : 'bg-success/10 text-success',
+      alert: stockCritico > 0,
+    },
+    {
+      label: 'Ciclos Activos',
+      value: ciclosActivos,
+      icon: <TrendingUp className="w-6 h-6" />,
+      bg: 'bg-primary/10 text-primary',
+      alert: false,
+    },
+    {
+      label: 'Solicitudes Pendientes',
+      value: solicitudesPendientes,
+      icon: <ShoppingCart className="w-6 h-6" />,
+      bg: solicitudesPendientes > 0 ? 'bg-warning/10 text-warning' : 'bg-success/10 text-success',
+      alert: false,
+    },
+    {
+      label: 'Facturas (7 días)',
+      value: facturasSemanales,
+      icon: <FileText className="w-6 h-6" />,
+      bg: 'bg-primary/10 text-primary',
+      alert: false,
+    },
+    {
+      label: 'Valor Inventario',
+      value: fmtMoney(valorInventario),
+      icon: <DollarSign className="w-6 h-6" />,
+      bg: 'bg-success/10 text-success',
+      alert: false,
+      isMoney: true,
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="py-16 text-center">
+        <div className="spinner spinner-lg mx-auto mb-4" />
+        <p className="text-muted">Cargando KPIs...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className={`stats-card ${kpi.alert ? 'ring-1 ring-error/30' : ''}`}>
+            <div className={`stats-icon ${kpi.bg}`}>
+              {kpi.icon}
+            </div>
+            <div className="stats-content">
+              <div className={`stats-value ${kpi.isMoney ? 'text-xl' : ''} ${kpi.alert ? 'text-error' : ''}`}>
+                {kpi.value}
+              </div>
+              <div className="stats-label">{kpi.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <RecommendationWidget diasProyeccion={7} />
     </div>
   );
 }

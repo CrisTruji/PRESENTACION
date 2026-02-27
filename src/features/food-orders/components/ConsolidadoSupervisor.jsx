@@ -15,7 +15,9 @@ import {
   Building2,
   X,
   BookOpen,
+  Download,
 } from 'lucide-react';
+import { exportToExcel } from '@/shared/lib/exportService';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import {
   useConsolidadoPorFecha,
@@ -212,6 +214,23 @@ export default function ConsolidadoSupervisor() {
     });
   };
 
+  const handleExportarExcel = () => {
+    if (!pedidos || pedidos.length === 0) {
+      notify.error('No hay pedidos para exportar en esta fecha');
+      return;
+    }
+    const rows = pedidos.map((p) => ({
+      'Unidad': p.operaciones?.nombre || p.operacion_id || '—',
+      'Código': p.operaciones?.codigo || '—',
+      'Fecha': p.fecha || filtroFecha,
+      'Servicio': p.servicio || filtroServicio,
+      'Estado': p.estado || '—',
+      'Hora Envío': p.hora_envio || '—',
+      'En Hora': p.enviado_en_hora ? 'Sí' : 'No',
+    }));
+    exportToExcel(rows, `consolidado_${filtroFecha}_${filtroServicio}`, 'Pedidos');
+  };
+
   const handleCambiarReceta = (item) => {
     iniciarSustitucion(item.receta_id, consolidadoActual?.id);
     setItemSustituyendo(item);
@@ -230,6 +249,15 @@ export default function ConsolidadoSupervisor() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportarExcel}
+                disabled={!pedidos || pedidos.length === 0}
+                className="btn btn-outline flex items-center gap-2 text-sm !py-1.5"
+                title="Exportar pedidos a Excel"
+              >
+                <Download className="w-4 h-4" />
+                <span>Excel</span>
+              </button>
               <button
                 onClick={() => refetch()}
                 disabled={cargandoConsolidado}

@@ -48,6 +48,9 @@ import { ChefDashboard } from "@/features/menu-cycles";
 // PEDIDOS Y CONSOLIDADO (Unidades/Supervisor)
 import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-orders";
 
+// PRESUPUESTO (Admin / Jefe de Planta)
+import { DashboardPresupuesto } from "@/features/presupuesto";
+
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
   const { currentScreen, navigate } = useRouter();
@@ -184,6 +187,10 @@ case "pedido_servicio":
 // SPRINT 7 - Consolidado (Supervisor/Admin)
 case "consolidado_supervisor":
   return <ConsolidadoSupervisor />;
+
+// PRESUPUESTO (Admin / Jefe de Planta)
+case "presupuesto":
+  return <DashboardPresupuesto />;
 
 default:
   return (

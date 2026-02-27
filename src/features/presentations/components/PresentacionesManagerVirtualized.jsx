@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { useArbolRecetasStore } from '@/features/products';
 import { VirtualizedTable, useTableColumns } from '@/shared/ui';
 import { supabase } from '@/shared/api';
+import notify from '@/shared/lib/notifier';
 
 const PresentacionesManagerVirtualized = () => {
   // ========================================
@@ -32,8 +33,8 @@ const PresentacionesManagerVirtualized = () => {
     codigo: '',
     nombre: '',
     descripcion: '',
-    precio_venta: '',
-    precio_compra: '',
+    precio_unitario: '',
+    cantidad_por_unidad: '',
     presentacion: '',
     unidad_medida: 'unidad',
     parent_id: null,
@@ -119,11 +120,11 @@ const PresentacionesManagerVirtualized = () => {
   // ========================================
   const estadisticas = useMemo(() => {
     const total = presentaciones.length;
-    const conPrecio = presentaciones.filter((p) => p.precio_venta > 0).length;
+    const conPrecio = presentaciones.filter((p) => p.precio_unitario > 0).length;
     const sinPrecio = total - conPrecio;
     const precioPromedio =
       conPrecio > 0
-        ? presentaciones.reduce((sum, p) => sum + (p.precio_venta || 0), 0) / conPrecio
+        ? presentaciones.reduce((sum, p) => sum + (p.precio_unitario || 0), 0) / conPrecio
         : 0;
 
     return { total, conPrecio, sinPrecio, precioPromedio };
@@ -188,13 +189,13 @@ const PresentacionesManagerVirtualized = () => {
       ),
     },
     {
-      key: 'precio_venta',
+      key: 'precio_unitario',
       header: 'Precio Venta',
       width: '12%',
       align: 'right',
       render: (_, item) => (
         <span className="text-sm font-semibold text-green-600">
-          ${item.precio_venta?.toFixed(2) || '0.00'}
+          ${item.precio_unitario?.toFixed(2) || '0.00'}
         </span>
       ),
     },
@@ -248,8 +249,8 @@ const PresentacionesManagerVirtualized = () => {
       codigo: '',
       nombre: '',
       descripcion: '',
-      precio_venta: '',
-      precio_compra: '',
+      precio_unitario: '',
+      cantidad_por_unidad: '',
       presentacion: '',
       unidad_medida: 'unidad',
       parent_id: filtroStock || null,
@@ -263,8 +264,8 @@ const PresentacionesManagerVirtualized = () => {
       codigo: presentacion.codigo || '',
       nombre: presentacion.nombre || '',
       descripcion: presentacion.descripcion || '',
-      precio_venta: presentacion.precio_venta || '',
-      precio_compra: presentacion.precio_compra || '',
+      precio_unitario: presentacion.precio_unitario || '',
+      cantidad_por_unidad: presentacion.cantidad_por_unidad || '',
       presentacion: presentacion.presentacion || '',
       unidad_medida: presentacion.unidad_medida || 'unidad',
       parent_id: presentacion.parent_id,
@@ -288,8 +289,8 @@ const PresentacionesManagerVirtualized = () => {
         ...formulario,
         nivel_actual: 6,
         activo: true,
-        precio_venta: parseFloat(formulario.precio_venta) || 0,
-        precio_compra: parseFloat(formulario.precio_compra) || 0,
+        precio_unitario: parseFloat(formulario.precio_unitario) || 0,
+        cantidad_por_unidad: parseFloat(formulario.cantidad_por_unidad) || 0,
       });
 
       if (error) throw error;
@@ -316,8 +317,8 @@ const PresentacionesManagerVirtualized = () => {
           codigo: formulario.codigo,
           nombre: formulario.nombre,
           descripcion: formulario.descripcion,
-          precio_venta: parseFloat(formulario.precio_venta) || 0,
-          precio_compra: parseFloat(formulario.precio_compra) || 0,
+          precio_unitario: parseFloat(formulario.precio_unitario) || 0,
+          cantidad_por_unidad: parseFloat(formulario.cantidad_por_unidad) || 0,
           presentacion: formulario.presentacion,
           unidad_medida: formulario.unidad_medida,
           parent_id: formulario.parent_id,
@@ -564,8 +565,8 @@ const PresentacionesManagerVirtualized = () => {
                   <input
                     type="number"
                     step="0.01"
-                    value={formulario.precio_venta}
-                    onChange={(e) => setFormulario({ ...formulario, precio_venta: e.target.value })}
+                    value={formulario.precio_unitario}
+                    onChange={(e) => setFormulario({ ...formulario, precio_unitario: e.target.value })}
                     className="w-full px-4 py-2 border border-border rounded-lg bg-bg text-primary"
                     placeholder="0.00"
                   />
@@ -694,8 +695,8 @@ const PresentacionesManagerVirtualized = () => {
                   <input
                     type="number"
                     step="0.01"
-                    value={formulario.precio_venta}
-                    onChange={(e) => setFormulario({ ...formulario, precio_venta: e.target.value })}
+                    value={formulario.precio_unitario}
+                    onChange={(e) => setFormulario({ ...formulario, precio_unitario: e.target.value })}
                     className="w-full px-4 py-2 border border-border rounded-lg bg-bg text-primary"
                   />
                 </div>

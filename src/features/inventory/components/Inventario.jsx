@@ -91,8 +91,6 @@ export default function Inventario() {
         bajo_stock: bajoStock,
         sin_stock: sinStock
       });
-
-      notify.success(`Cargados ${totalProductos} productos`);
     } catch (error) {
       console.error('Error cargando inventario:', error);
       notify.error('Error al cargar inventario');

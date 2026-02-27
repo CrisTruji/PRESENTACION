@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useStockConAlertas, useStockBajo, useActualizarStock } from '@/features/inventory';
+import notify from '@/shared/lib/notifier';
 
 const StockManager = () => {
   const [vistaActual, setVistaActual] = useState('alertas'); // 'alertas' | 'todo'
@@ -47,21 +48,28 @@ const StockManager = () => {
 
   const handleActualizarStock = async () => {
     if (!cantidad || isNaN(cantidad) || parseFloat(cantidad) <= 0) {
-      alert('Ingresa una cantidad válida');
+      notify.error('Ingresa una cantidad válida mayor a 0');
       return;
     }
 
     try {
-      await actualizarStockMutation.mutateAsync({
+      const result = await actualizarStockMutation.mutateAsync({
         stockId: itemSeleccionado.id,
         cantidad: parseFloat(cantidad),
         operacion,
       });
 
+      // RPC devuelve TABLE(success, nuevo_stock, mensaje) → data es un array
+      const rpcData = Array.isArray(result?.data) ? result.data[0] : result?.data;
+      if (rpcData && !rpcData.success) {
+        notify.error(rpcData.mensaje || 'Error al actualizar stock');
+        return;
+      }
+
       setModalAbierto(false);
-      alert('Stock actualizado correctamente');
+      notify.success(rpcData?.mensaje || 'Stock actualizado correctamente');
     } catch (error) {
-      alert('Error al actualizar stock: ' + error.message);
+      notify.error('Error al actualizar stock: ' + error.message);
     }
   };
 
@@ -386,16 +394,16 @@ const StockManager = () => {
               <button
                 onClick={() => setModalAbierto(false)}
                 className="flex-1 px-4 py-2 bg-gray-200 rounded-lg"
-                disabled={actualizarStockMutation.isLoading}
+                disabled={actualizarStockMutation.isPending}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleActualizarStock}
-                disabled={actualizarStockMutation.isLoading}
+                disabled={actualizarStockMutation.isPending}
                 className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg disabled:opacity-50"
               >
-                {actualizarStockMutation.isLoading ? 'Guardando...' : 'Guardar'}
+                {actualizarStockMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
           </div>

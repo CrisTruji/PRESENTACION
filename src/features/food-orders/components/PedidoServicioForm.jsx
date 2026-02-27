@@ -156,9 +156,16 @@ export default function PedidoServicioForm() {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
             <div className="section-header">
-              <h1 className="section-title">
-                Pedido de Servicio
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="section-title">
+                  Pedido de Servicio
+                </h1>
+                {items.some((i) => i.cantidad > 0) && !pedidoActual && (
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+                    Borrador guardado
+                  </span>
+                )}
+              </div>
               <p className="section-subtitle">
                 {operacionActual
                   ? `${operacionActual.nombre} — ${servicioPedido ? (SERVICIOS.find(s => s.value === servicioPedido)?.label ?? servicioPedido) : 'Selecciona servicio'}`
