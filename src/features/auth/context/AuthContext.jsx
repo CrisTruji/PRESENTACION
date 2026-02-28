@@ -38,7 +38,9 @@ export function AuthProvider({ children }) {
 
             debug("🟣 JWT PAYLOAD:", payload);
 
-            setRoleName(payload.role ?? null);
+            // app_metadata.role contiene el rol real de la app (usuario, administrador, etc.)
+            // payload.role es siempre "authenticated" en Supabase (rol postgres, no el app-role)
+            setRoleName(payload.app_metadata?.role ?? null);
           } catch (e) {
             console.error("❌ Error decodificando JWT:", e);
             setRoleName(null);
@@ -113,10 +115,10 @@ export function AuthProvider({ children }) {
     "auxiliar_de_compras",
     "almacenista",
     "usuario",
-    // Nuevos roles - Sistema de pedidos de servicios
     "chef",
     "supervisor_produccion",
     "coordinador_unidad",
+    "nomina",
   ];
 
   const formatRoleName = (role) =>

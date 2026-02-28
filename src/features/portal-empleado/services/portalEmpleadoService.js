@@ -25,23 +25,51 @@ export async function crearCuentaEmpleado(cedula, email, password) {
   return res.json();
 }
 
+export async function getEmailPorCedula(cedula) {
+  const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/employee-register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "obtener_correo", cedula }),
+  });
+  return res.json();
+}
+
 // ── Perfil del empleado autenticado ──────────────────────────────────────────
 
 export async function getEmpleadoByAuthUser() {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) return { data: null, error: "No autenticado" };
 
-  return supabaseRequest(
-    supabase
-      .from("empleados")
-      .select(`
-        *,
-        empleados_talento_humano (*),
-        empleados_sst (*)
-      `)
-      .eq("auth_user_id", user.id)
-      .single()
-  );
+  const SELECT_QUERY = `*, empleados_talento_humano (*), empleados_sst (*)`;
+
+  // 1️⃣ Intento principal: buscar por auth_user_id (empleados ya vinculados)
+  const { data: byId } = await supabase
+    .from("empleados")
+    .select(SELECT_QUERY)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (byId) return { data: byId, error: null };
+
+  // 2️⃣ Fallback: buscar por correo (empleados corporativos que entran por primera vez)
+  if (!user.email) return { data: null, error: "Perfil no encontrado" };
+
+  const { data: byEmail, error: emailError } = await supabase
+    .from("empleados")
+    .select(SELECT_QUERY)
+    .eq("correo", user.email)
+    .maybeSingle();
+
+  if (!byEmail) return { data: null, error: emailError?.message || "Perfil no encontrado" };
+
+  // 3️⃣ Auto-vincular auth_user_id para acelerar futuros accesos
+  supabase
+    .from("empleados")
+    .update({ auth_user_id: user.id })
+    .eq("id", byEmail.id)
+    .then(() => {});  // fire-and-forget, no bloqueamos el render
+
+  return { data: byEmail, error: null };
 }
 
 // ── Actualizar datos personales (solo correo, teléfono, dirección) ───────────

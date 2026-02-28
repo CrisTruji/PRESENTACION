@@ -4,10 +4,15 @@ import { useAuth } from "@/features/auth";
 import Navbar from "@/shared/ui/Navbar";
 import RoleRouter from "@/router/rolerouter";
 import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen, PortalEmpleadoLogin } from "@/features/auth";
+import { PortalEmpleadoDashboard } from "@/features/portal-empleado";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 export default function App() {
   const { session, loading, roleName } = useAuth();
+
+  // Determinar si el usuario ingresó por el portal de empleados
+  // (se activa en PortalEmpleadoLogin y EmpleadoRegistroScreen)
+  const portalMode = session && sessionStorage.getItem("portal_mode") === "1";
 
   // Detectar y aplicar tema inicial
   useEffect(() => {
@@ -55,12 +60,17 @@ export default function App() {
 
         {!session ? (
           <AuthViews />
+        ) : portalMode ? (
+          // Ingresó por el portal de empleados (cédula o pantalla portal)
+          // Se muestra el portal sin importar el rol corporativo del JWT
+          <PortalEmpleadoDashboard />
         ) : !roleName ? (
           <WaitingRoleScreen />
         ) : roleName === "usuario" ? (
-          // Portal empleados – tiene su propio header, sin navbar principal
+          // Empleado puro (sin rol corporativo) – portal sin navbar
           <RoleRouter />
         ) : (
+          // Acceso corporativo con rol (admin, chef, almacén, etc.)
           <>
             <Navbar />
             <div className="navbar-spacer"></div>

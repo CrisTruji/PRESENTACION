@@ -1,30 +1,58 @@
 // src/features/auth/components/PortalEmpleadoLogin.jsx
 // Pantalla principal de ingreso para empleados (default al abrir la app)
+// Acepta cédula (solo números) O correo electrónico
 import React, { useState } from "react";
 import {
-  Mail, Key, LogIn, UserPlus, Building2,
-  Loader2, HelpCircle, Users
+  Key, LogIn, UserPlus, Building2,
+  Loader2, HelpCircle, Users, CreditCard
 } from "lucide-react";
 import { useAuth } from "@/features/auth";
+import { getEmailPorCedula } from "@/features/portal-empleado/services/portalEmpleadoService";
 import notify from "@/shared/lib/notifier";
+
+// Si el input es solo dígitos → es cédula. Si tiene @ → es correo.
+function esCedula(valor) {
+  return /^\d+$/.test(valor.trim());
+}
 
 export default function PortalEmpleadoLogin({ goToRegistro, goToLoginCorporativo }) {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [identificador, setIdentificador] = useState(""); // cédula o correo
+  const [password, setPassword]           = useState("");
+  const [isLoading, setIsLoading]         = useState(false);
 
   async function handleLogin(e) {
     e.preventDefault();
+    const valor = identificador.trim();
+    if (!valor) return;
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await signIn(email, password);
+      let emailParaLogin = valor;
+
+      // Si es cédula (solo números) → consultar correo Y marcar portal_mode
+      // Si es correo → accede al rol corporativo (sin portal_mode)
+      if (esCedula(valor)) {
+        const res = await getEmailPorCedula(valor);
+        if (res.error) {
+          notify.error(res.error);
+          return;
+        }
+        emailParaLogin = res.correo;
+        // Cédula siempre abre el portal de empleado
+        sessionStorage.setItem("portal_mode", "1");
+      }
+
+      await signIn(emailParaLogin, password);
     } catch (error) {
-      notify.error(error.message || "Correo o contraseña incorrectos");
+      sessionStorage.removeItem("portal_mode"); // Limpiar si el login falla
+      notify.error(error.message || "Credenciales incorrectas. Verifica e intenta de nuevo.");
     } finally {
       setIsLoading(false);
     }
   }
+
+  const esCedulaActual = esCedula(identificador) && identificador.length > 0;
 
   return (
     <div className="min-h-screen bg-app flex items-center justify-center p-4">
@@ -48,29 +76,45 @@ export default function PortalEmpleadoLogin({ goToRegistro, goToLoginCorporativo
             <Users size={26} className="mx-auto text-primary mb-2" />
             <h2 className="font-semibold text-primary">Ingresa a tu portal</h2>
             <p className="text-xs text-muted mt-1">
-              Usa el correo y contraseña que registraste
+              Cédula → accedes a tu información personal
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
+
+            {/* Campo cédula o correo */}
             <div className="form-group">
               <label className="form-label flex items-center gap-1.5">
-                <Mail size={13} />
-                Correo electrónico
+                {esCedulaActual
+                  ? <CreditCard size={13} className="text-primary" />
+                  : <span className="text-xs font-medium">@</span>
+                }
+                {esCedulaActual ? "Cédula" : "Cédula o correo electrónico"}
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                inputMode="text"
+                value={identificador}
+                onChange={(e) => setIdentificador(e.target.value)}
                 className="form-input"
-                placeholder="tu@correo.com"
+                placeholder="Ej: 1029142426  ó  tu@correo.com"
                 required
                 disabled={isLoading}
                 autoComplete="username"
                 autoFocus
               />
+              {esCedulaActual ? (
+                <p className="text-xs text-primary mt-1">
+                  ✓ Ingresarás a tu portal personal de empleado
+                </p>
+              ) : identificador.includes("@") ? (
+                <p className="text-xs text-muted mt-1">
+                  ℹ️ Ingresarás según tu rol en el sistema
+                </p>
+              ) : null}
             </div>
 
+            {/* Contraseña */}
             <div className="form-group">
               <div className="flex justify-between items-center mb-1">
                 <label className="form-label flex items-center gap-1.5">
@@ -81,9 +125,7 @@ export default function PortalEmpleadoLogin({ goToRegistro, goToLoginCorporativo
                   type="button"
                   className="text-xs text-primary hover:text-primary-hover font-medium"
                   onClick={() =>
-                    notify.info(
-                      "Contacta a Talento Humano para restablecer tu contraseña"
-                    )
+                    notify.info("Contacta a Talento Humano para restablecer tu contraseña")
                   }
                 >
                   <HelpCircle size={12} className="inline mr-1" />
@@ -104,18 +146,18 @@ export default function PortalEmpleadoLogin({ goToRegistro, goToLoginCorporativo
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !identificador.trim() || !password}
               className="btn btn-primary w-full flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Ingresando...</span>
+                  <span>{esCedulaActual ? "Buscando cuenta..." : "Ingresando..."}</span>
                 </>
               ) : (
                 <>
                   <LogIn size={16} />
-                  <span>Ingresar al portal</span>
+                  <span>{esCedulaActual ? "Ingresar al portal" : "Ingresar"}</span>
                 </>
               )}
             </button>

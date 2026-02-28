@@ -20,8 +20,14 @@ const TABS = [
 
 export default function PortalEmpleadoDashboard() {
   const [tabActiva, setTabActiva] = useState("info");
-  const { signOut } = useAuth();
+  const { signOut: authSignOut } = useAuth();
   const { empleado, loading } = useEmpleadoPerfil();
+
+  // Al cerrar sesión desde el portal, limpiar el flag de portal_mode
+  function signOut() {
+    sessionStorage.removeItem("portal_mode");
+    authSignOut();
+  }
 
   if (loading) {
     return (

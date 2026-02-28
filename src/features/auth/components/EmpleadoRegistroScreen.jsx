@@ -97,8 +97,11 @@ export default function EmpleadoRegistroScreen({ goToLogin }) {
   async function handleIrAlPortal() {
     setLoading(true);
     try {
+      // Marcar ingreso por portal antes del signIn
+      sessionStorage.setItem("portal_mode", "1");
       await signIn(email.trim().toLowerCase(), password);
     } catch {
+      sessionStorage.removeItem("portal_mode");
       notify.info("Cuenta creada. Inicia sesión con tus credenciales.");
       goToLogin();
     } finally {
