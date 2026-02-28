@@ -1,0 +1,21 @@
+INSERT INTO empleados_talento_humano (empleado_id, eps, afp, talla_camisa, talla_pantalon, talla_zapatos) VALUES
+(  (SELECT id FROM empleados WHERE documento_identidad = '52105373' LIMIT 1), 'SANITAS', 'PROTECCION', 'M', 'M', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1014251750' LIMIT 1), NULL, NULL, 'XL', 'XL', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1042431585' LIMIT 1), 'SALUD TOTAL S.A. E.P.S.', 'PROTECCIÓN', 'L', NULL, NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1233913402' LIMIT 1), 'COMPEMSAR', 'PORVENIR', 'M', 'M', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1007780752' LIMIT 1), 'SALUD TOTAL', 'PROTECCION', 'S', 'S', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1125472809' LIMIT 1), 'FAMISANAR', 'PORVENIR', 'S', 'S', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1019109503' LIMIT 1), 'SANITAS', 'PORVENIR', 'M', 'M', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '55301846' LIMIT 1), 'FAMISANAR', 'Colpensiones', 'XL', 'XL', 'BOTAS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1102815457' LIMIT 1), 'SALUD TOTAL', 'PORVENIR NUEVO', 'S', 'M', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1026558476' LIMIT 1), 'COMPENSAR', 'COLFONDOS', 'L', 'L', 'BOTAS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1074190249' LIMIT 1), 'FAMISANAR', 'PROTECCION', 'XL', 'XL', 'BOTAS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1045667059' LIMIT 1), 'SANITAS', 'PORVENIR', 'S', 'S', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1067095793' LIMIT 1), 'NUEVA EPS', 'COLFONDOS', '36', NULL, NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1090421910' LIMIT 1), 'SANITAS', 'PORVENIR', 'L', 'L', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1104776771' LIMIT 1), 'FAMISANAR', 'COLFONDOS', NULL, NULL, NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '39784841' LIMIT 1), 'SURA', 'PORVENIR', 'M', 'M', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '73183720' LIMIT 1), 'SALUD TOTAL', 'PROTECCION', 'XXL', 'XXL', 'BOTAS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1000695957' LIMIT 1), 'CAPITAL SALUD', 'PROTECCION', 'S', 'S', 'ZAPATOS'),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1030700728' LIMIT 1), 'FAMISANAR', 'PORVENIR', NULL, NULL, NULL)
+ON CONFLICT (empleado_id) DO UPDATE SET eps=EXCLUDED.eps, afp=EXCLUDED.afp, talla_camisa=EXCLUDED.talla_camisa, talla_pantalon=EXCLUDED.talla_pantalon, talla_zapatos=EXCLUDED.talla_zapatos;

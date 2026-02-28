@@ -38,7 +38,9 @@ export function AuthProvider({ children }) {
 
             debug("🟣 JWT PAYLOAD:", payload);
 
-            setRoleName(payload.role ?? null);
+            // app_metadata.role contiene el rol de la app (usuario, administrador, etc.)
+            // payload.role es siempre "authenticated" en Supabase y no refleja el rol real
+            setRoleName(payload.app_metadata?.role ?? null);
           } catch (e) {
             console.error("❌ Error decodificando JWT:", e);
             setRoleName(null);

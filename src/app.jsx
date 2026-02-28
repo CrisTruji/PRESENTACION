@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import { useAuth } from "@/features/auth";
 import Navbar from "@/shared/ui/Navbar";
 import RoleRouter from "@/router/rolerouter";
-import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen } from "@/features/auth";
+import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen, PortalEmpleadoLogin } from "@/features/auth";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
 export default function App() {
@@ -75,19 +75,38 @@ export default function App() {
 }
 
 function AuthViews() {
-  // "login" | "register_admin" | "register_empleado"
-  const [vista, setVista] = React.useState("login");
+  // "portal_empleado" | "register_empleado" | "login_corporativo" | "register_admin"
+  const [vista, setVista] = React.useState("portal_empleado");
 
-  if (vista === "register_admin") {
-    return <Register goToLogin={() => setVista("login")} />;
-  }
+  // Registro cédula → crear cuenta de empleado
   if (vista === "register_empleado") {
-    return <EmpleadoRegistroScreen goToLogin={() => setVista("login")} />;
+    return (
+      <EmpleadoRegistroScreen
+        goToLogin={() => setVista("portal_empleado")}
+      />
+    );
   }
+
+  // Registro de admin/usuario corporativo
+  if (vista === "register_admin") {
+    return <Register goToLogin={() => setVista("login_corporativo")} />;
+  }
+
+  // Login corporativo (admin, planta, compras, etc.)
+  if (vista === "login_corporativo") {
+    return (
+      <Login
+        goToSignup={() => setVista("register_admin")}
+        goToPortalEmpleado={() => setVista("portal_empleado")}
+      />
+    );
+  }
+
+  // Default: Portal de empleados (email + contraseña)
   return (
-    <Login
-      goToSignup={() => setVista("register_admin")}
-      goToEmpleadoRegistro={() => setVista("register_empleado")}
+    <PortalEmpleadoLogin
+      goToRegistro={() => setVista("register_empleado")}
+      goToLoginCorporativo={() => setVista("login_corporativo")}
     />
   );
 }

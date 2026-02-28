@@ -10,11 +10,12 @@ import {
   FileText,
   UserPlus,
   HelpCircle,
-  LogIn
+  LogIn,
+  ArrowLeft
 } from "lucide-react";
 import notify from "@/shared/lib/notifier";
 
-export default function LoginScreen({ goToSignup, goToEmpleadoRegistro }) {
+export default function LoginScreen({ goToSignup, goToPortalEmpleado }) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -199,16 +200,15 @@ export default function LoginScreen({ goToSignup, goToEmpleadoRegistro }) {
               Crear cuenta nueva
             </button>
 
-            {goToEmpleadoRegistro && (
+            {goToPortalEmpleado && (
               <button
                 type="button"
-                onClick={goToEmpleadoRegistro}
+                onClick={goToPortalEmpleado}
                 disabled={isLoading}
-                className="btn btn-outline w-full flex items-center justify-center gap-2 mt-2"
-                style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }}
+                className="btn btn-outline w-full flex items-center justify-center gap-2 mt-2 text-sm text-muted"
               >
-                <UserPlus size={16} />
-                Soy empleado · Crear mi acceso al portal
+                <ArrowLeft size={15} />
+                Volver al Portal de Empleados
               </button>
             )}
           </form>

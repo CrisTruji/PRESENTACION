@@ -8,6 +8,12 @@ export const permissions = {
   aprobar_solicitud: ["administrador", "jefe de compras"],
   ver_todo: ["administrador"],
 
+  // Portal Empleados (Sprint Portal)
+  ver_portal_empleado: ["usuario"],
+  gestionar_desprendibles: ["nomina", "administrador"],
+  aprobar_vacaciones: ["nomina", "administrador"],
+  ver_incapacidades_admin: ["nomina", "administrador"],
+
   // Sprint 7 - Ciclos de Menu / Pedidos / Consolidado
   gestionar_ciclos_menu: ["chef", "administrador"],
   crear_pedido_servicio: ["coordinador_unidad", "administrador"],

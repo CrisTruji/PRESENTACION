@@ -27,7 +27,10 @@ export async function crearCuentaEmpleado(cedula, email, password) {
 
 // ── Perfil del empleado autenticado ──────────────────────────────────────────
 
-export function getEmpleadoByAuthUser() {
+export async function getEmpleadoByAuthUser() {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) return { data: null, error: "No autenticado" };
+
   return supabaseRequest(
     supabase
       .from("empleados")
@@ -36,6 +39,7 @@ export function getEmpleadoByAuthUser() {
         empleados_talento_humano (*),
         empleados_sst (*)
       `)
+      .eq("auth_user_id", user.id)
       .single()
   );
 }

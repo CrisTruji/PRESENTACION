@@ -1,0 +1,21 @@
+INSERT INTO empleados_sst (empleado_id, examenes_medicos, fecha_examen, estado_examen, observaciones_em, curso_manipulacion, observaciones_cma, induccion, reinduccion, covid, covid_dosis, hepatitis_a, tetano, arl, caja_compensacion, observaciones) VALUES
+(  (SELECT id FROM empleados WHERE documento_identidad = '52105373' LIMIT 1), true, '2024-03-18', 'VENCIDO', 'F', true, 'VENCIDO', true, NULL, true, 3, true, true, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1014251750' LIMIT 1), true, '2022-11-26', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, NULL, NULL, NULL, NULL, 'POSITIVA', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1042431585' LIMIT 1), true, '2025-08-15', 'VIGENTE', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1233913402' LIMIT 1), true, '2023-04-14', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, true, 2, NULL, NULL, 'POSITIVA', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1007780752' LIMIT 1), true, '2024-11-19', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1125472809' LIMIT 1), true, '2024-11-26', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1019109503' LIMIT 1), NULL, NULL, NULL, NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '55301846' LIMIT 1), true, '2024-12-20', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1102815457' LIMIT 1), true, '2022-03-16', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, NULL, NULL, NULL, NULL, 'POSITIVA', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1026558476' LIMIT 1), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1074190249' LIMIT 1), true, '2024-11-05', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, true, NULL, false, false, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1045667059' LIMIT 1), true, '2025-05-19', 'VIGENTE', NULL, NULL, NULL, true, NULL, NULL, NULL, NULL, NULL, 'COLSANITAS', 'CAFAM', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1067095793' LIMIT 1), true, '2024-06-26', 'VENCIDO', NULL, true, 'VENCIDO', NULL, NULL, NULL, NULL, NULL, true, 'COLSANITAS', 'COMFACESAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1090421910' LIMIT 1), true, '2024-07-25', 'VENCIDO', NULL, NULL, NULL, true, NULL, true, 3, true, true, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1104776771' LIMIT 1), NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'POSITIVA', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '39784841' LIMIT 1), true, '2024-07-30', 'VENCIDO', 'F', true, 'VENCIDO', true, NULL, false, NULL, false, false, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '73183720' LIMIT 1), true, '2024-08-03', 'VENCIDO', NULL, NULL, NULL, NULL, NULL, true, 1, false, false, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1000695957' LIMIT 1), true, '2023-12-11', 'VENCIDO', 'F', NULL, NULL, true, NULL, true, 2, false, false, 'COLSANITAS', 'COMPENSAR', NULL),
+(  (SELECT id FROM empleados WHERE documento_identidad = '1030700728' LIMIT 1), true, '2023-01-05', 'VENCIDO', NULL, true, 'VENCIDO', true, NULL, true, 3, true, true, 'POSITIVA', 'COMPENSAR', NULL)
+ON CONFLICT (empleado_id) DO UPDATE SET arl=EXCLUDED.arl, caja_compensacion=EXCLUDED.caja_compensacion, fecha_examen=EXCLUDED.fecha_examen, estado_examen=EXCLUDED.estado_examen;
