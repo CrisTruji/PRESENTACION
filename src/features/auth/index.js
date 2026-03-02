@@ -11,6 +11,7 @@ export { default as RegisterScreen } from './components/RegisterScreen';
 export { default as WaitingRoleScreen } from './components/WaitingRoleScreen';
 export { default as EmpleadoRegistroScreen } from './components/EmpleadoRegistroScreen';
 export { default as PortalEmpleadoLogin } from './components/PortalEmpleadoLogin';
+export { default as LoginUnificado } from './components/LoginUnificado';
 
 // Services
 export {

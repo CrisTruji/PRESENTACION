@@ -89,6 +89,21 @@ export async function updateDatosPersonales(empleadoId, datos) {
       .single();
 
     if (error) throw error;
+
+    // Si el empleado cambió su correo, sincronizar también en Supabase Auth
+    // para que su próximo login con cédula use el nuevo email (fire-and-forget)
+    if (datos.correo && data?.auth_user_id) {
+      fetch(`${SUPABASE_FUNCTIONS_URL}/employee-register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync_auth_email",
+          empleadoId,
+          nuevoCorreo: datos.correo,
+        }),
+      }).catch(e => console.warn("sync_auth_email falló:", e));
+    }
+
     notify.success("Datos actualizados correctamente");
     return { data, error: null };
   } catch (error) {

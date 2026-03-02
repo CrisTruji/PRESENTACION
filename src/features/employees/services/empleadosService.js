@@ -3,6 +3,23 @@ import { supabase } from "@/shared/api";
 import { supabaseRequest } from "@/shared/api";
 import notify from "@/shared/lib/notifier";
 
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_URL + "/functions/v1";
+
+// Sincroniza el correo de un empleado en Supabase Auth (service role via Edge Function)
+// Se llama en silencio después de cualquier update que cambie el campo correo
+async function syncAuthEmail(empleadoId, nuevoCorreo) {
+  try {
+    await fetch(`${SUPABASE_FUNCTIONS_URL}/employee-register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "sync_auth_email", empleadoId, nuevoCorreo }),
+    });
+  } catch (e) {
+    // No interrumpimos el flujo principal si la sincronización falla
+    console.warn("sync_auth_email falló:", e);
+  }
+}
+
 // Obtener empleados base
 export function getEmpleadosBase() {
   return supabaseRequest(
@@ -166,7 +183,13 @@ export async function updateEmpleado(id, empleadoData) {
       .single();
 
     if (error) throw error;
-    
+
+    // Si se cambió el correo y el empleado tiene cuenta de portal,
+    // sincronizar también el email en Supabase Auth (fire-and-forget)
+    if (empleadoData.correo && data?.auth_user_id) {
+      syncAuthEmail(id, empleadoData.correo);
+    }
+
     notify.success("Datos del empleado actualizados");
     return { data, error: null };
   } catch (error) {

@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import { useAuth } from "@/features/auth";
 import Navbar from "@/shared/ui/Navbar";
 import RoleRouter from "@/router/rolerouter";
-import { LoginScreen as Login, RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen, PortalEmpleadoLogin } from "@/features/auth";
+import { RegisterScreen as Register, WaitingRoleScreen, EmpleadoRegistroScreen, LoginUnificado } from "@/features/auth";
 import { PortalEmpleadoDashboard } from "@/features/portal-empleado";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 
@@ -85,38 +85,22 @@ export default function App() {
 }
 
 function AuthViews() {
-  // "portal_empleado" | "register_empleado" | "login_corporativo" | "register_admin"
-  const [vista, setVista] = React.useState("portal_empleado");
+  // "login" | "register_empleado" | "register_admin"
+  const [vista, setVista] = React.useState("login");
 
-  // Registro cédula → crear cuenta de empleado
   if (vista === "register_empleado") {
-    return (
-      <EmpleadoRegistroScreen
-        goToLogin={() => setVista("portal_empleado")}
-      />
-    );
+    return <EmpleadoRegistroScreen goToLogin={() => setVista("login")} />;
   }
 
-  // Registro de admin/usuario corporativo
   if (vista === "register_admin") {
-    return <Register goToLogin={() => setVista("login_corporativo")} />;
+    return <Register goToLogin={() => setVista("login")} />;
   }
 
-  // Login corporativo (admin, planta, compras, etc.)
-  if (vista === "login_corporativo") {
-    return (
-      <Login
-        goToSignup={() => setVista("register_admin")}
-        goToPortalEmpleado={() => setVista("portal_empleado")}
-      />
-    );
-  }
-
-  // Default: Portal de empleados (email + contraseña)
+  // Default: login unificado (empleados + corporativo en un solo diseño)
   return (
-    <PortalEmpleadoLogin
+    <LoginUnificado
       goToRegistro={() => setVista("register_empleado")}
-      goToLoginCorporativo={() => setVista("login_corporativo")}
+      goToRegistroAdmin={() => setVista("register_admin")}
     />
   );
 }
