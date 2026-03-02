@@ -23,28 +23,39 @@ export function AuthProvider({ children }) {
   // =====================================================
   // 🟢 AUTH → SOLO EVENTOS + JWT (SIN DB)
   // =====================================================
+
+  // Decodifica el JWT y extrae el rol de app_metadata
+  function extractRoleFromToken(accessToken) {
+    try {
+      const payload = JSON.parse(atob(accessToken.split(".")[1]));
+      debug("🟣 JWT PAYLOAD:", payload);
+      return payload.app_metadata?.role ?? null;
+    } catch (e) {
+      console.error("❌ Error decodificando JWT:", e);
+      return null;
+    }
+  }
+
   useEffect(() => {
+    // 1. Cargar sesión inicial de forma sincrónica antes de suscribir eventos
+    //    Esto evita el flash de WaitingRoleScreen en recargas con sesión activa
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.access_token) {
+        setSession(session);
+        setRoleName(extractRoleFromToken(session.access_token));
+      }
+      setLoading(false);
+    });
+
+    // 2. Suscribirse a cambios posteriores (login, logout, token refresh)
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         debug("🔔 AUTH EVENT:", event);
 
         setSession(session);
 
         if (session?.access_token) {
-          try {
-            const payload = JSON.parse(
-              atob(session.access_token.split(".")[1])
-            );
-
-            debug("🟣 JWT PAYLOAD:", payload);
-
-            // app_metadata.role contiene el rol real de la app (usuario, administrador, etc.)
-            // payload.role es siempre "authenticated" en Supabase (rol postgres, no el app-role)
-            setRoleName(payload.app_metadata?.role ?? null);
-          } catch (e) {
-            console.error("❌ Error decodificando JWT:", e);
-            setRoleName(null);
-          }
+          setRoleName(extractRoleFromToken(session.access_token));
         } else {
           setRoleName(null);
           setFakeRole(null);
@@ -57,6 +68,7 @@ export function AuthProvider({ children }) {
     return () => {
       listener.subscription.unsubscribe();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // =====================================================
