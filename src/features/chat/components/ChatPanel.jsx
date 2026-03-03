@@ -36,15 +36,19 @@ export function ChatPanel() {
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cerrar al hacer click fuera del panel
+  // Cerrar al hacer click fuera del panel.
+  // EXCEPCIÓN: si hay un visor de imagen abierto (data-visor-abierto en el body)
+  // no cerramos el chat — el click es para interactuar con el visor.
   useEffect(() => {
     if (!isOpen) return;
     function handleOutside(e) {
+      // El visor usa portal al body → su contenido está fuera del panelRef.
+      // Lo identificamos por el atributo que VisorImagen pone en el body.
+      if (document.body.dataset.visorAbierto === '1') return;
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         cerrarChat();
       }
     }
-    // Pequeño delay para que el click que abrió el panel no lo cierre inmediatamente
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleOutside);
     }, 100);
@@ -75,6 +79,8 @@ export function ChatPanel() {
     setVista('lista');
     setOtroUsuarioActivo(null);
     useChatStore.getState().volverALista();
+    // Refrescar lista sin spinner para que refleje el último mensaje y no leídos
+    cargarConversaciones(true);
   };
 
   // ── Estilos compartidos para botones del header ───────

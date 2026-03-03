@@ -84,7 +84,10 @@ export function useMensajes(conversacionId) {
   }, [conversacionId, user?.id, cargarMensajes, cargarUltimoVistoOtro]);
 
   // ── Enviar mensaje con actualización optimista ────────
-  const enviarMensaje = useCallback(async (contenido) => {
+  // El segundo parámetro `_tipoHint` es ignorado intencionalmente:
+  // chat_mensajes.tipo solo acepta 'texto'|'sistema' en la DB.
+  // Los metadatos de archivos viajan dentro del contenido como JSON.
+  const enviarMensaje = useCallback(async (contenido, _tipoHint) => {
     if (!contenido?.trim() || !conversacionId || !user?.id) return;
     setEnviando(true);
 

@@ -29,12 +29,25 @@ export default function ConversacionItem({ conversacion, miUserId, onAbrir }) {
   const nombreMostrar = otroUsuario?.nombre || otroUsuario?.email || 'Usuario';
   const inicial = nombreMostrar.charAt(0).toUpperCase();
 
+  // Genera preview legible: si el contenido es JSON de archivo muestra el nombre,
+  // si es texto plano lo trunca normalmente.
+  function previewMensaje(contenido) {
+    if (!contenido) return 'Sin mensajes aún';
+    try {
+      const p = JSON.parse(contenido);
+      if (p._tipo === 'archivo') {
+        const esImagen = p.mimeType?.startsWith('image/');
+        return esImagen ? `📷 ${p.nombre || 'Imagen'}` : `📎 ${p.nombre || 'Archivo'}`;
+      }
+    } catch (_) {}
+    return contenido.length > 40 ? contenido.slice(0, 40) + '…' : contenido;
+  }
+
   let preview = 'Sin mensajes aún';
   if (ultimoMensaje) {
-    const esMio = ultimoMensaje.remitente_id === miUserId;
-    const texto = ultimoMensaje.contenido || '';
-    const corto = texto.length > 40 ? texto.slice(0, 40) + '…' : texto;
-    preview = esMio ? `Tú: ${corto}` : corto;
+    const esMio  = ultimoMensaje.remitente_id === miUserId;
+    const texto  = previewMensaje(ultimoMensaje.contenido);
+    preview = esMio ? `Tú: ${texto}` : texto;
   }
 
   return (

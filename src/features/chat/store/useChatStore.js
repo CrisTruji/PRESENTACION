@@ -11,7 +11,16 @@ export const useChatStore = create((set, get) => ({
   abrirChat:    () => set({ isOpen: true }),
   cerrarChat:   () => set({ isOpen: false, conversacionActivaId: null }),
   volverALista: () => set({ conversacionActivaId: null }),
-  abrirConversacion: (id) => set({ isOpen: true, conversacionActivaId: id }),
+  abrirConversacion: (id) => set((s) => ({
+    isOpen: true,
+    conversacionActivaId: id,
+    // Limpiar badge al abrir la conversación
+    mensajesNoLeidos: (() => {
+      const next = { ...s.mensajesNoLeidos };
+      delete next[id];
+      return next;
+    })(),
+  })),
 
   incrementarNoLeidos: (conversacionId) =>
     set((s) => ({

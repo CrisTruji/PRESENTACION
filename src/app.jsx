@@ -54,6 +54,7 @@ export default function App() {
             style: {
               padding: '16px',
               borderRadius: '12px',
+              marginTop: '64px',
             },
           }}
         />
