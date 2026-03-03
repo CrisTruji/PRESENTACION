@@ -55,7 +55,7 @@ import { DashboardPresupuesto } from "@/features/presupuesto";
 import { PortalEmpleadoDashboard } from "@/features/portal-empleado";
 
 // PANEL NOMINA (rol: nomina)
-import { PanelNomina } from "@/features/nomina";
+import { PanelNomina, SubirDesprendiblesMasivos } from "@/features/nomina";
 
 export default function RoleRouter() {
   const { roleName, loading } = useAuth();
@@ -213,6 +213,8 @@ case "portal_empleado":
 // PANEL NOMINA (rol: nomina)
 case "panel_nomina":
   return <PanelNomina />;
+case "subir_desprendibles":
+  return <SubirDesprendiblesMasivos />;
 
 default:
   return (

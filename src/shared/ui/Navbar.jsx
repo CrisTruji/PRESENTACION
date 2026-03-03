@@ -172,6 +172,10 @@ export default function Navbar() {
       coordinador_unidad: [
         { label: "Pedido de Servicio", name: "pedido_servicio", icon: icons.order },
       ],
+      nomina: [
+        { label: "Panel Nómina", name: "panel_nomina", icon: icons.management },
+        { label: "Subir Desprendibles", name: "subir_desprendibles", icon: icons.invoices },
+      ],
     };
 
     return tabs[roleName] || [
