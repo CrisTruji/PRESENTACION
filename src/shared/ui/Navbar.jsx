@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "@/router";
 import { useAuth } from "@/features/auth";
 import { BellIcon } from "@/features/notifications";
+import { ChatButton, ChatPanel, useChatNotifications } from "@/features/chat";
 
 // Iconos SVG
 const icons = {
@@ -76,6 +77,11 @@ const icons = {
     </svg>
   ),
 };
+
+function ChatNotificationsInit() {
+  useChatNotifications();
+  return null;
+}
 
 export default function Navbar() {
   const { navigate, currentScreen } = useRouter();
@@ -295,12 +301,19 @@ export default function Navbar() {
           </div>
         )}
 
-        {/* Campanita de notificaciones */}
-        <BellIcon />
+        {/* Iconos de la derecha: notificaciones + chat */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <BellIcon />
+          <ChatButton />
+        </div>
       </header>
 
       {/* Espacio para que el contenido no quede detrás del navbar */}
       <div className="navbar-spacer"></div>
+
+      {/* Panel flotante del chat + listener global de notificaciones */}
+      <ChatNotificationsInit />
+      <ChatPanel />
     </>
   );
 }

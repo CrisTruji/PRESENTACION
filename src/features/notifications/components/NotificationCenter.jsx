@@ -28,7 +28,10 @@ function TipoIcon({ tipo }) {
   }
 }
 
-export default function NotificationCenter({ notifications, onMarkRead, onMarkAllRead, onClose }) {
+const NotificationCenter = React.forwardRef(function NotificationCenter(
+  { notifications, onMarkRead, onMarkAllRead, onClose, style },
+  ref
+) {
   const { navigate } = useRouter();
 
   const handleClick = (notif) => {
@@ -38,8 +41,20 @@ export default function NotificationCenter({ notifications, onMarkRead, onMarkAl
 
   return (
     <div
-      className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-card border z-50"
-      style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      ref={ref}
+      style={{
+        position: 'fixed',
+        top: style?.top ?? 60,
+        right: style?.right ?? 16,
+        width: '320px',
+        zIndex: 2000,
+        background: 'var(--color-bg-surface)',
+        borderColor: 'var(--color-border)',
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderRadius: 'var(--radius-card)',
+        boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+      }}
     >
       {/* Header */}
       <div
@@ -109,4 +124,6 @@ export default function NotificationCenter({ notifications, onMarkRead, onMarkAl
       )}
     </div>
   );
-}
+});
+
+export default NotificationCenter;
