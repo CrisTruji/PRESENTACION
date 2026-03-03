@@ -41,7 +41,9 @@ import {
   MapPin,
   DollarSign,
   Clock,
-  Thermometer
+  Thermometer,
+  MessageSquare,
+  PencilLine
 } from "lucide-react";
 
 const Toggle = ({ checked, onChange, disabled, id, label }) => {
@@ -117,6 +119,7 @@ const TIPOS_DOCUMENTO_SST = [
 
 export default function EmpleadosSST() {
   const [empleados, setEmpleados] = useState([]);
+  const [todosEmpleados, setTodosEmpleados] = useState([]); // sin filtrar → para stats
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [empleadoDetalle, setEmpleadoDetalle] = useState(null);
@@ -151,55 +154,64 @@ export default function EmpleadosSST() {
   async function fetchEmpleados() {
     setLoading(true);
     try {
-      let data = await getEmpleadosSST();
-      
+      const rawData = await getEmpleadosSST();
+
+      // ── Normalizar: Supabase devuelve relaciones 1:1 como array ──
+      const normalizada = (rawData || []).map(emp => ({
+        ...emp,
+        empleados_sst: Array.isArray(emp.empleados_sst)
+          ? (emp.empleados_sst[0] ?? null)
+          : emp.empleados_sst,
+        activo: emp.activo === true || emp.activo === 'true' || emp.activo === 1,
+      }));
+
+      setTodosEmpleados(normalizada); // guardar sin filtrar para stats
+
+      let data = [...normalizada];
+
       // Aplicar filtro de búsqueda
       if (debouncedSearchTerm) {
         const searchLower = debouncedSearchTerm.toLowerCase();
         data = data.filter(e =>
-          e.nombres.toLowerCase().includes(searchLower) ||
-          e.apellidos.toLowerCase().includes(searchLower) ||
-          e.documento_identidad.includes(searchLower) ||
-          e.cargo?.toLowerCase().includes(searchLower)
+          (e.nombres ?? '').toLowerCase().includes(searchLower) ||
+          (e.apellidos ?? '').toLowerCase().includes(searchLower) ||
+          (e.documento_identidad ?? '').includes(searchLower) ||
+          (e.cargo ?? '').toLowerCase().includes(searchLower)
         );
       }
 
-      // Aplicar filtro de estado
-      if (selectedEstado !== "todos") {
-        const activoFilter = selectedEstado === "activo";
-        data = data.filter(e => e.activo === activoFilter);
-      }
+      // Aplicar filtro de estado (usar === true/false con booleano normalizado)
+      if (selectedEstado === "activo") data = data.filter(e => e.activo === true);
+      else if (selectedEstado === "inactivo") data = data.filter(e => e.activo === false);
 
       // Aplicar filtro de exámenes
-      if (selectedExamen !== "todos") {
-        const examenFilter = selectedExamen === "si";
-        data = data.filter(e => e.empleados_sst?.examenes_medicos === examenFilter);
-      }
+      if (selectedExamen === "si")
+        data = data.filter(e => e.empleados_sst?.examenes_medicos === true);
+      else if (selectedExamen === "no")
+        data = data.filter(e => !e.empleados_sst?.examenes_medicos);
 
       // Aplicar filtro de curso
-      if (selectedCurso !== "todos") {
-        const cursoFilter = selectedCurso === "si";
-        data = data.filter(e => e.empleados_sst?.curso_manipulacion === cursoFilter);
-      }
+      if (selectedCurso === "si")
+        data = data.filter(e => e.empleados_sst?.curso_manipulacion === true);
+      else if (selectedCurso === "no")
+        data = data.filter(e => !e.empleados_sst?.curso_manipulacion);
 
       // Aplicar ordenamiento
       data.sort((a, b) => {
-        let aVal = a[sortField];
-        let bVal = b[sortField];
-
+        let aVal, bVal;
         if (sortField === "apellidos") {
-          aVal = a.apellidos.toLowerCase();
-          bVal = b.apellidos.toLowerCase();
+          aVal = (a.apellidos ?? '').toLowerCase();
+          bVal = (b.apellidos ?? '').toLowerCase();
         } else if (sortField === "fecha_examen") {
           aVal = a.empleados_sst?.fecha_examen || "";
           bVal = b.empleados_sst?.fecha_examen || "";
-        }
-
-        if (sortDirection === "asc") {
-          return aVal > bVal ? 1 : -1;
         } else {
-          return aVal < bVal ? 1 : -1;
+          aVal = a[sortField] ?? '';
+          bVal = b[sortField] ?? '';
         }
+        return sortDirection === "asc"
+          ? aVal > bVal ? 1 : -1
+          : aVal < bVal ? 1 : -1;
       });
 
       setEmpleados(data);
@@ -211,6 +223,14 @@ export default function EmpleadosSST() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function limpiarFiltros() {
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setSelectedEstado("todos");
+    setSelectedExamen("todos");
+    setSelectedCurso("todos");
   }
 
   async function handleVerDetalle(empleadoId) {
@@ -311,32 +331,46 @@ export default function EmpleadosSST() {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <StatsCard
-            title="Total Empleados"
-            value={empleados.length}
+            title="Total"
+            value={todosEmpleados.length}
             icon={<User className="w-5 h-5 text-primary" />}
           />
           <StatsCard
-            title="Con Exámenes"
-            value={empleados.filter(e => e.empleados_sst?.examenes_medicos).length}
+            title="Activos"
+            value={todosEmpleados.filter(e => e.activo === true).length}
             icon={<CheckCircle className="w-5 h-5 text-success" />}
+            color="success"
+          />
+          <StatsCard
+            title="Inactivos"
+            value={todosEmpleados.filter(e => e.activo === false).length}
+            icon={<XCircle className="w-5 h-5 text-error" />}
+            color="error"
+          />
+          <StatsCard
+            title="Con Exámenes"
+            value={todosEmpleados.filter(e => e.empleados_sst?.examenes_medicos).length}
+            icon={<Thermometer className="w-5 h-5 text-info" />}
+            color="info"
           />
           <StatsCard
             title="Con Curso"
-            value={empleados.filter(e => e.empleados_sst?.curso_manipulacion).length}
+            value={todosEmpleados.filter(e => e.empleados_sst?.curso_manipulacion).length}
             icon={<BookOpen className="w-5 h-5 text-warning" />}
+            color="warning"
           />
           <StatsCard
             title="Con Inducción"
-            value={empleados.filter(e => e.empleados_sst?.induccion).length}
-            icon={<Shield className="w-5 h-5 text-info" />}
+            value={todosEmpleados.filter(e => e.empleados_sst?.induccion).length}
+            icon={<Shield className="w-5 h-5 text-primary" />}
           />
         </div>
 
         {/* Filtros */}
         <div className="card p-compact mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
             {/* Búsqueda */}
             <div className="relative">
               <Search
@@ -346,7 +380,7 @@ export default function EmpleadosSST() {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Buscar..."
+                placeholder="Nombre, cédula o cargo..."
                 className="form-input pl-10 pr-10 !py-2.5"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -377,7 +411,7 @@ export default function EmpleadosSST() {
                 value={selectedEstado}
                 onChange={(e) => setSelectedEstado(e.target.value)}
               >
-                <option value="todos">Estados: Todos</option>
+                <option value="todos">Estado: Todos</option>
                 <option value="activo">Activos</option>
                 <option value="inactivo">Inactivos</option>
               </select>
@@ -385,7 +419,7 @@ export default function EmpleadosSST() {
 
             {/* Filtro por exámenes */}
             <div className="relative">
-              <Filter
+              <Thermometer
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
                 size={20}
               />
@@ -400,13 +434,48 @@ export default function EmpleadosSST() {
               </select>
             </div>
 
-            {/* Botón actualizar */}
-            <div className="flex items-center justify-center md:justify-end">
+            {/* Filtro por curso */}
+            <div className="relative">
+              <BookOpen
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={20}
+              />
+              <select
+                className="form-input pl-10 !py-2.5 appearance-none"
+                value={selectedCurso}
+                onChange={(e) => setSelectedCurso(e.target.value)}
+              >
+                <option value="todos">Curso: Todos</option>
+                <option value="si">Con curso</option>
+                <option value="no">Sin curso</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Contador y acciones rápidas */}
+          <div className="flex items-center justify-between pt-2 border-t border-[var(--color-border-light)]">
+            <p className="text-sm text-secondary">
+              Mostrando{" "}
+              <span className="font-semibold text-primary">{empleados.length}</span>
+              {" "}de{" "}
+              <span className="font-semibold text-primary">{todosEmpleados.length}</span>
+              {" "}empleados
+            </p>
+            <div className="flex items-center gap-2">
+              {(searchTerm || selectedEstado !== "todos" || selectedExamen !== "todos" || selectedCurso !== "todos") && (
+                <button
+                  onClick={limpiarFiltros}
+                  className="text-xs text-error hover:underline font-medium"
+                  type="button"
+                >
+                  Limpiar filtros
+                </button>
+              )}
               <button
                 onClick={fetchEmpleados}
-                className="btn btn-outline flex items-center gap-2"
+                className="btn btn-outline btn-sm flex items-center gap-1.5 text-xs py-1.5 px-3"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3.5 h-3.5" />
                 Actualizar
               </button>
             </div>
@@ -465,21 +534,31 @@ export default function EmpleadosSST() {
                     </td>
                   </tr>
                 ) : (
-                  empleados.map((e, index) => (
-                    <tr key={e.id} className="border-b border-[var(--color-border-light)] hover:bg-[var(--color-bg-active)] transition-colors">
+                  empleados.map((e, index) => {
+                    const iniciales = [e.nombres?.[0], e.apellidos?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+                    const sst = e.empleados_sst;
+                    return (
+                    <tr
+                      key={e.id}
+                      className={`border-b border-[var(--color-border-light)] hover:bg-[var(--color-bg-active)] transition-colors border-l-4 ${
+                        e.activo ? 'border-l-green-400' : 'border-l-red-400'
+                      }`}
+                    >
                       <td className="px-3 py-2 text-sm text-secondary">
                         {index + 1}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2 max-w-[220px]">
-                          <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User size={16} className="text-primary" />
+                          <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                            e.activo ? 'bg-green-500' : 'bg-red-400'
+                          }`}>
+                            {iniciales}
                           </div>
                           <div className="truncate">
                             <p className="font-medium text-sm text-primary truncate">
                               {e.nombres} {e.apellidos}
                             </p>
-                            <p className="text-xs text-secondary truncate">{e.correo}</p>
+                            <p className="text-xs text-secondary truncate">{e.correo || e.cargo}</p>
                           </div>
                         </div>
                       </td>
@@ -492,44 +571,48 @@ export default function EmpleadosSST() {
                         </div>
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {e.empleados_sst?.examenes_medicos ? (
+                        {sst?.examenes_medicos ? (
                           <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <XCircle size={18} className="text-error mx-auto opacity-50" />
+                          <XCircle size={18} className="text-error mx-auto opacity-40" />
                         )}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {e.empleados_sst?.curso_manipulacion ? (
+                        {sst?.curso_manipulacion ? (
                           <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <XCircle size={18} className="text-error mx-auto opacity-50" />
+                          <XCircle size={18} className="text-error mx-auto opacity-40" />
                         )}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {e.empleados_sst?.induccion ? (
+                        {sst?.induccion ? (
                           <CheckCircle size={18} className="text-success mx-auto" />
                         ) : (
-                          <XCircle size={18} className="text-error mx-auto opacity-50" />
+                          <XCircle size={18} className="text-error mx-auto opacity-40" />
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        {e.empleados_sst?.arl ? (
-                          <span className="text-xs font-medium text-success truncate block max-w-[100px]" title={e.empleados_sst.arl}>
-                            {e.empleados_sst.arl}
+                        {sst?.arl ? (
+                          <span className="text-xs font-medium text-success truncate block max-w-[100px]" title={sst.arl}>
+                            {sst.arl}
                           </span>
                         ) : (
-                          <span className="text-secondary text-xs">-</span>
+                          <span className="text-secondary text-xs italic">Sin ARL</span>
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <span 
+                        <button
                           onClick={() => handleToggleEstado(e.id, e.activo)}
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer ${
-                            e.activo ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80 ${
+                            e.activo
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300"
                           }`}
+                          title={e.activo ? "Click para desactivar" : "Click para activar"}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full ${e.activo ? 'bg-green-500' : 'bg-red-400'}`} />
                           {e.activo ? "Activo" : "Inactivo"}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-3 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -561,7 +644,8 @@ export default function EmpleadosSST() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -598,15 +682,22 @@ export default function EmpleadosSST() {
 }
 
 // Componente de Estadísticas
-function StatsCard({ title, value, icon }) {
+function StatsCard({ title, value, icon, color }) {
+  const bgMap = {
+    success: 'bg-green-50 dark:bg-green-900/20',
+    error:   'bg-red-50 dark:bg-red-900/20',
+    warning: 'bg-yellow-50 dark:bg-yellow-900/20',
+    info:    'bg-blue-50 dark:bg-blue-900/20',
+  };
+  const bg = bgMap[color] ?? 'bg-surface';
   return (
     <div className="card-hover p-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-medium text-secondary mb-1">{title}</p>
+          <p className="text-xs font-medium text-secondary mb-1 uppercase tracking-wide">{title}</p>
           <p className="text-2xl font-bold text-primary">{value}</p>
         </div>
-        <div className="w-12 h-12 rounded-base flex items-center justify-center bg-surface">
+        <div className={`w-10 h-10 rounded-base flex items-center justify-center ${bg}`}>
           {icon}
         </div>
       </div>
@@ -779,28 +870,48 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
       <div className="bg-surface rounded-card shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="card-header">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">
-                {empleado.nombres} {empleado.apellidos}
-              </h2>
-              <p className="text-secondary">
-                Documento: {empleado.documento_identidad} • 
-                Cargo: {empleado.cargo} • 
-                Estado: 
-                <span className={`badge ml-2 ${empleado.activo ? "badge-success" : "badge-error"}`}>
-                  {empleado.activo ? "Activo" : "Inactivo"}
-                </span>
-                {esModoEdicion && <span className="ml-2 badge badge-warning">Modo Edición</span>}
-              </p>
+          <div className="flex items-start justify-between gap-4">
+            {/* Avatar + info */}
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0 ${
+                empleado.activo
+                  ? 'bg-gradient-to-br from-primary to-primary/70'
+                  : 'bg-muted'
+              }`}>
+                {(empleado.nombres?.[0] ?? '?').toUpperCase()}
+                {(empleado.apellidos?.[0] ?? '').toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold leading-tight">
+                  {empleado.nombres} {empleado.apellidos}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className="font-mono text-xs text-muted bg-base px-2 py-0.5 rounded">
+                    CC {empleado.documento_identidad}
+                  </span>
+                  {empleado.cargo && (
+                    <span className="badge badge-outline text-xs">{empleado.cargo}</span>
+                  )}
+                  <span className={`badge text-xs ${empleado.activo ? 'badge-success' : 'badge-error'}`}>
+                    {empleado.activo ? '● Activo' : '○ Inactivo'}
+                  </span>
+                  {esModoEdicion && (
+                    <span className="badge badge-warning text-xs flex items-center gap-1">
+                      <PencilLine size={10} />
+                      Editando
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Acciones */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               {!esModoEdicion ? (
                 <button
                   onClick={() => onCambiarModo?.("editar")}
-                  className="btn btn-outline flex items-center gap-2"
+                  className="btn btn-primary flex items-center gap-2 text-sm"
                 >
-                  <Edit size={16} />
+                  <Edit size={15} />
                   Editar
                 </button>
               ) : null}
@@ -950,166 +1061,201 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
               </section>
             </div>
           ) : activeTab === "sst" ? (
-            <div className="space-y-6">
-              {/* Exámenes Médicos */}
+            <div className="space-y-5">
+
+              {/* ── Banner modo edición ── */}
+              {esModoEdicion && (
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning font-medium">
+                  <PencilLine className="w-4 h-4 flex-shrink-0" />
+                  Modo edición activo — los cambios se guardan al presionar "Guardar cambios"
+                </div>
+              )}
+
+              {/* ── Examen Médico ── */}
               <section>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Syringe className="w-5 h-5" />
-                  Exámenes Médicos
+                <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Syringe className="w-3.5 h-3.5" />
+                  Examen Médico Ocupacional
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
+                <div className={`rounded-xl border-2 p-4 transition-all duration-200 ${
+                  sstData.examenes_medicos ? 'border-success/40 bg-success/5' : 'border-base bg-surface'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        sstData.examenes_medicos ? 'bg-success/15' : 'bg-base'
+                      }`}>
+                        {sstData.examenes_medicos
+                          ? <CheckCircle className="w-5 h-5 text-success" />
+                          : <Syringe className="w-5 h-5 text-muted" />
+                        }
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Exámenes Médicos Realizados</p>
+                        <p className={`text-xs mt-0.5 ${sstData.examenes_medicos ? 'text-success' : 'text-muted'}`}>
+                          {sstData.examenes_medicos
+                            ? (sstData.estado_examen ? `Estado: ${sstData.estado_examen}` : '✓ Registrado')
+                            : 'Sin registrar'}
+                        </p>
+                      </div>
+                    </div>
                     <Toggle
                       id="examenes_medicos"
                       checked={sstData.examenes_medicos || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'examenes_medicos', newChecked)}
+                      onChange={(v) => handleToggleChange(setSstData, 'examenes_medicos', v)}
                       disabled={!esModoEdicion}
-                      label="Exámenes Médicos Realizados"
-                    />
-                    <label htmlFor="examenes_medicos" className="cursor-pointer text-sm">
-                      Exámenes Médicos Realizados
-                    </label>
-                  </div>
-                  <div>
-                    <label className="form-label">Fecha Examen</label>
-                    <input
-                      type="date"
-                      name="fecha_examen"
-                      value={sstData.fecha_examen || ""}
-                      onChange={handleInputChange(setSstData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
+                      label="Exámenes realizados"
                     />
                   </div>
-                  <div>
-                    <label className="form-label">Estado Examen</label>
-                    <select
-                      name="estado_examen"
-                      value={sstData.estado_examen || ""}
-                      onChange={handleInputChange(setSstData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {OPCIONES_ESTADO_EXAMEN.map((estado) => (
-                        <option key={estado} value={estado}>{estado}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {sstData.examenes_medicos && (
+                    <div className="mt-4 pt-4 border-t border-base grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="form-label text-xs">Fecha del Examen</label>
+                        <input
+                          type="date"
+                          name="fecha_examen"
+                          value={sstData.fecha_examen || ""}
+                          onChange={handleInputChange(setSstData)}
+                          className="form-input"
+                          disabled={!esModoEdicion}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label text-xs">Estado del Examen</label>
+                        <select
+                          name="estado_examen"
+                          value={sstData.estado_examen || ""}
+                          onChange={handleInputChange(setSstData)}
+                          className="form-input"
+                          disabled={!esModoEdicion}
+                        >
+                          <option value="">Seleccionar...</option>
+                          {OPCIONES_ESTADO_EXAMEN.map((e) => (
+                            <option key={e} value={e}>{e}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
 
-              {/* Capacitaciones */}
+              {/* ── Capacitaciones (cards clickables) ── */}
               <section>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5" />
+                <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <BookOpen className="w-3.5 h-3.5" />
                   Capacitaciones
+                  {esModoEdicion && (
+                    <span className="text-[10px] text-muted font-normal normal-case">
+                      — clic en la tarjeta para marcar/desmarcar
+                    </span>
+                  )}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="curso_manipulacion"
-                      checked={sstData.curso_manipulacion || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'curso_manipulacion', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Curso Manipulación de Alimentos"
-                    />
-                    <label htmlFor="curso_manipulacion" className="cursor-pointer text-sm">
-                      Curso Manipulación de Alimentos
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="induccion"
-                      checked={sstData.induccion || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'induccion', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Inducción realizada"
-                    />
-                    <label htmlFor="induccion" className="cursor-pointer text-sm">
-                      Inducción realizada
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="reinduccion"
-                      checked={sstData.reinduccion || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'reinduccion', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Reinducción necesaria"
-                    />
-                    <label htmlFor="reinduccion" className="cursor-pointer text-sm">
-                      Reinducción necesaria
-                    </label>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    { key: 'curso_manipulacion', label: 'Curso Manipulación de Alimentos', desc: 'Certificación INVIMA' },
+                    { key: 'induccion',           label: 'Inducción',                        desc: 'Inducción a la empresa' },
+                    { key: 'reinduccion',         label: 'Reinducción',                      desc: 'Reinducción periódica'  },
+                  ].map(({ key, label, desc }) => {
+                    const done = sstData[key] || false;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => esModoEdicion && handleToggleChange(setSstData, key, !done)}
+                        className={`w-full p-4 rounded-xl border-2 text-left transition-all duration-200 group ${
+                          done ? 'border-success/40 bg-success/5' : 'border-base bg-surface'
+                        } ${esModoEdicion ? 'cursor-pointer hover:border-primary/40 hover:shadow-sm' : 'cursor-default'}`}
+                      >
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                          done ? 'bg-success/15' : 'bg-base group-hover:bg-primary/10'
+                        }`}>
+                          {done
+                            ? <CheckCircle className="w-5 h-5 text-success" />
+                            : <BookOpen className="w-5 h-5 text-muted" />
+                          }
+                        </div>
+                        <p className={`font-medium text-sm leading-tight ${done ? 'text-success' : ''}`}>
+                          {label}
+                        </p>
+                        <p className="text-xs text-muted mt-1">{desc}</p>
+                        <span className={`inline-flex items-center gap-1 mt-3 text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                          done ? 'bg-success/15 text-success' : 'bg-base text-muted'
+                        }`}>
+                          {done ? '✓ Completado' : '○ Pendiente'}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </section>
 
-              {/* Vacunas */}
+              {/* ── Vacunas (cards clickables) ── */}
               <section>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Syringe className="w-5 h-5" />
+                <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Thermometer className="w-3.5 h-3.5" />
                   Vacunas
+                  {esModoEdicion && (
+                    <span className="text-[10px] text-muted font-normal normal-case">
+                      — clic para marcar/desmarcar
+                    </span>
+                  )}
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="covid"
-                      checked={sstData.covid || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'covid', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Vacuna COVID-19"
-                    />
-                    <label htmlFor="covid" className="cursor-pointer text-sm">
-                      Vacuna COVID-19
-                    </label>
-                  </div>
-                  <div>
-                    <label className="form-label">Dosis COVID</label>
-                    <input
-                      type="number"
-                      name="covid_dosis"
-                      value={sstData.covid_dosis || 0}
-                      onChange={handleInputChange(setSstData)}
-                      className="form-input"
-                      min="0"
-                      disabled={!esModoEdicion}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="hepatitis_a"
-                      checked={sstData.hepatitis_a || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'hepatitis_a', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Hepatitis A"
-                    />
-                    <label htmlFor="hepatitis_a" className="cursor-pointer text-sm">
-                      Hepatitis A
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Toggle
-                      id="tetano"
-                      checked={sstData.tetano || false}
-                      onChange={(newChecked) => handleToggleChange(setSstData, 'tetano', newChecked)}
-                      disabled={!esModoEdicion}
-                      label="Tétano"
-                    />
-                    <label htmlFor="tetano" className="cursor-pointer text-sm">
-                      Tétano
-                    </label>
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { key: 'covid',      label: 'COVID-19'    },
+                    { key: 'hepatitis_a', label: 'Hepatitis A' },
+                    { key: 'tetano',     label: 'Tétano'      },
+                  ].map(({ key, label }) => {
+                    const done = sstData[key] || false;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => esModoEdicion && handleToggleChange(setSstData, key, !done)}
+                        className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${
+                          done ? 'border-success/40 bg-success/5' : 'border-base bg-surface'
+                        } ${esModoEdicion ? 'cursor-pointer hover:border-primary/40' : 'cursor-default'}`}
+                      >
+                        <div className={`w-8 h-8 rounded-full mx-auto flex items-center justify-center mb-2 ${done ? 'bg-success/15' : 'bg-base'}`}>
+                          {done
+                            ? <CheckCircle className="w-4 h-4 text-success" />
+                            : <Thermometer className="w-4 h-4 text-muted" />
+                          }
+                        </div>
+                        <p className={`text-sm font-medium ${done ? 'text-success' : ''}`}>{label}</p>
+                        <span className={`text-[11px] mt-1 block ${done ? 'text-success' : 'text-muted'}`}>
+                          {done ? 'Aplicada' : 'No registrada'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {/* Dosis COVID — aparece solo si COVID está marcado */}
+                  {sstData.covid && (
+                    <div className="p-4 rounded-xl border-2 border-success/40 bg-success/5 flex flex-col justify-center items-center gap-2">
+                      <p className="text-xs text-muted">Dosis COVID</p>
+                      <input
+                        type="number"
+                        name="covid_dosis"
+                        value={sstData.covid_dosis || 0}
+                        onChange={handleInputChange(setSstData)}
+                        className="form-input text-center w-20 text-xl font-bold"
+                        min="0"
+                        max="5"
+                        disabled={!esModoEdicion}
+                      />
+                    </div>
+                  )}
                 </div>
               </section>
 
-              {/* Seguridad Social */}
+              {/* ── Seguridad Social ── */}
               <section>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
+                <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Shield className="w-3.5 h-3.5" />
                   Seguridad Social
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border border-base bg-surface">
                   <div>
                     <label className="form-label">ARL</label>
                     <select
@@ -1126,7 +1272,7 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                     </select>
                   </div>
                   <div>
-                    <label className="form-label">Caja Compensación</label>
+                    <label className="form-label">Caja de Compensación</label>
                     <select
                       name="caja_compensacion"
                       value={sstData.caja_compensacion || ""}
@@ -1134,7 +1280,7 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                       className="form-input"
                       disabled={!esModoEdicion}
                     >
-                      <option value="">Seleccionar Caja...</option>
+                      <option value="">Seleccionar...</option>
                       {OPCIONES_CAJA_COMPENSACION.map((caja) => (
                         <option key={caja} value={caja}>{caja}</option>
                       ))}
@@ -1143,9 +1289,12 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                 </div>
               </section>
 
-              {/* Observaciones */}
+              {/* ── Observaciones ── */}
               <section>
-                <label className="form-label">Observaciones SST</label>
+                <label className="form-label flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-muted" />
+                  Observaciones SST
+                </label>
                 <textarea
                   name="observaciones"
                   value={sstData.observaciones || ""}
@@ -1153,6 +1302,7 @@ function EmpleadoDetalleSST({ empleado, modo = "ver", onClose, onRefresh, onCamb
                   className="form-input"
                   rows={3}
                   disabled={!esModoEdicion}
+                  placeholder={esModoEdicion ? "Agregar observaciones, novedades o notas de SST..." : "Sin observaciones"}
                 />
               </section>
             </div>

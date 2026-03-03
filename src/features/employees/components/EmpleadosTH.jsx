@@ -43,7 +43,10 @@ import {
   AlertCircle,
   Shield,
   Syringe,
-  BookOpen
+  BookOpen,
+  MessageSquare,
+  PencilLine,
+  Award
 } from "lucide-react";
 import notify from "@/shared/lib/notifier";
 
@@ -171,8 +174,12 @@ export default function EmpleadosTalentoHumano() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [selectedEstado, setSelectedEstado] = useState("todos");
+  const [selectedContrato, setSelectedContrato] = useState("todos");
   const [sortField, setSortField] = useState("apellidos");
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // Lista completa sin filtros (para stats correctas siempre)
+  const [todosEmpleados, setTodosEmpleados] = useState([]);
   
   // Ref para búsqueda
   const searchInputRef = useRef(null);
@@ -193,43 +200,65 @@ export default function EmpleadosTalentoHumano() {
   async function fetchEmpleados() {
     setLoading(true);
     try {
-      let data = await getEmpleadosTalentoHumano();
-      
-      // Aplicar filtro de búsqueda
+      let rawData = await getEmpleadosTalentoHumano();
+
+      // ── Fix 1: Supabase puede retornar relaciones 1:1 como array ──────────
+      // Si empleados_talento_humano viene como [] lo convertimos a objeto/null
+      const normalizada = (rawData || []).map(emp => ({
+        ...emp,
+        empleados_talento_humano: Array.isArray(emp.empleados_talento_humano)
+          ? (emp.empleados_talento_humano[0] ?? null)
+          : emp.empleados_talento_humano,
+        // Normalizar activo a boolean real (por si viene como string o null)
+        activo: emp.activo === true || emp.activo === 'true' || emp.activo === 1,
+      }));
+
+      // ── Guardar total sin filtros para stats precisas ─────────────────────
+      setTodosEmpleados(normalizada);
+
+      // ── Fix 2: Aplicar filtros sobre la copia normalizada ─────────────────
+      let data = [...normalizada];
+
       if (debouncedSearchTerm) {
-        const searchLower = debouncedSearchTerm.toLowerCase();
+        const q = debouncedSearchTerm.toLowerCase();
         data = data.filter(e =>
-          e.nombres.toLowerCase().includes(searchLower) ||
-          e.apellidos.toLowerCase().includes(searchLower) ||
-          e.documento_identidad.includes(searchLower) ||
-          e.cargo?.toLowerCase().includes(searchLower)
+          (e.nombres ?? '').toLowerCase().includes(q) ||
+          (e.apellidos ?? '').toLowerCase().includes(q) ||
+          (e.documento_identidad ?? '').includes(q) ||
+          (e.cargo ?? '').toLowerCase().includes(q)
         );
       }
 
-      // Aplicar filtro de estado
-      if (selectedEstado !== "todos") {
-        const activoFilter = selectedEstado === "activo";
-        data = data.filter(e => e.activo === activoFilter);
+      // ── Fix 3: Filtro activo con comparación robusta ──────────────────────
+      if (selectedEstado === "activo") {
+        data = data.filter(e => e.activo === true);
+      } else if (selectedEstado === "inactivo") {
+        data = data.filter(e => e.activo === false);
       }
 
-      // Aplicar ordenamiento
+      // Filtro por contrato
+      if (selectedContrato === "con_contrato") {
+        data = data.filter(e => !!e.empleados_talento_humano?.tipo_contrato);
+      } else if (selectedContrato === "sin_contrato") {
+        data = data.filter(e => !e.empleados_talento_humano?.tipo_contrato);
+      }
+
+      // Ordenamiento
       data.sort((a, b) => {
-        let aVal = a[sortField];
-        let bVal = b[sortField];
-
+        let aVal, bVal;
         if (sortField === "apellidos") {
-          aVal = a.apellidos.toLowerCase();
-          bVal = b.apellidos.toLowerCase();
+          aVal = (a.apellidos ?? '').toLowerCase();
+          bVal = (b.apellidos ?? '').toLowerCase();
         } else if (sortField === "salario") {
-          aVal = a.empleados_talento_humano?.salario || 0;
-          bVal = b.empleados_talento_humano?.salario || 0;
-        }
-
-        if (sortDirection === "asc") {
-          return aVal > bVal ? 1 : -1;
+          aVal = parseFloat(a.empleados_talento_humano?.salario ?? 0);
+          bVal = parseFloat(b.empleados_talento_humano?.salario ?? 0);
         } else {
-          return aVal < bVal ? 1 : -1;
+          aVal = a[sortField] ?? '';
+          bVal = b[sortField] ?? '';
         }
+        return sortDirection === "asc"
+          ? (aVal > bVal ? 1 : -1)
+          : (aVal < bVal ? 1 : -1);
       });
 
       setEmpleados(data);
@@ -349,38 +378,38 @@ export default function EmpleadosTalentoHumano() {
           </div>
         </div>
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        {/* Estadísticas — siempre sobre el total real, no sobre los filtrados */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <StatsCard
             title="Total Empleados"
-            value={empleados.length}
+            value={todosEmpleados.length}
             icon={<User className="w-5 h-5 text-primary" />}
           />
           <StatsCard
             title="Activos"
-            value={empleados.filter(e => e.activo).length}
+            value={todosEmpleados.filter(e => e.activo === true).length}
             icon={<CheckCircle className="w-5 h-5 text-success" />}
           />
           <StatsCard
             title="Inactivos"
-            value={empleados.filter(e => !e.activo).length}
+            value={todosEmpleados.filter(e => e.activo === false).length}
             icon={<XCircle className="w-5 h-5 text-error" />}
           />
           <StatsCard
             title="Con Contrato"
-            value={empleados.filter(e => e.empleados_talento_humano?.tipo_contrato).length}
+            value={todosEmpleados.filter(e => !!e.empleados_talento_humano?.tipo_contrato).length}
             icon={<FileText className="w-5 h-5 text-warning" />}
           />
         </div>
 
         {/* Filtros */}
         <div className="card p-compact mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {/* Búsqueda */}
-            <div className="relative">
+            <div className="relative md:col-span-2">
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
-                size={20}
+                size={18}
               />
               <input
                 ref={searchInputRef}
@@ -400,16 +429,16 @@ export default function EmpleadosTalentoHumano() {
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted hover:text-primary"
                   type="button"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               )}
             </div>
 
-            {/* Filtro por estado */}
+            {/* Filtro por estado activo */}
             <div className="relative">
               <Filter
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
-                size={20}
+                size={18}
               />
               <select
                 className="form-input pl-10 !py-2.5 appearance-none"
@@ -417,21 +446,47 @@ export default function EmpleadosTalentoHumano() {
                 onChange={(e) => setSelectedEstado(e.target.value)}
               >
                 <option value="todos">Todos los estados</option>
-                <option value="activo">Activos</option>
-                <option value="inactivo">Inactivos</option>
+                <option value="activo">✓ Activos</option>
+                <option value="inactivo">✗ Inactivos</option>
               </select>
             </div>
 
-            {/* Botón actualizar */}
-            <div className="flex items-center justify-center md:justify-end">
-              <button
-                onClick={fetchEmpleados}
-                className="btn btn-outline flex items-center gap-2"
+            {/* Filtro por contrato */}
+            <div className="relative">
+              <FileText
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
+                size={18}
+              />
+              <select
+                className="form-input pl-10 !py-2.5 appearance-none"
+                value={selectedContrato}
+                onChange={(e) => setSelectedContrato(e.target.value)}
               >
-                <RefreshCw className="w-4 h-4" />
-                Actualizar
-              </button>
+                <option value="todos">Todos los contratos</option>
+                <option value="con_contrato">Con contrato</option>
+                <option value="sin_contrato">Sin contrato</option>
+              </select>
             </div>
+          </div>
+
+          {/* Contador + resetear filtros */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-base">
+            <span className="text-sm text-muted">
+              Mostrando <strong className="text-primary">{empleados.length}</strong> de {todosEmpleados.length} empleados
+            </span>
+            {(selectedEstado !== "todos" || selectedContrato !== "todos" || debouncedSearchTerm) && (
+              <button
+                onClick={() => {
+                  setSelectedEstado("todos");
+                  setSelectedContrato("todos");
+                  setSearchTerm("");
+                  setDebouncedSearchTerm("");
+                }}
+                className="text-xs text-error hover:underline flex items-center gap-1"
+              >
+                <X size={12} /> Limpiar filtros
+              </button>
+            )}
           </div>
         </div>
 
@@ -499,49 +554,83 @@ export default function EmpleadosTalentoHumano() {
                     </td>
                   </tr>
                 ) : (
-                  empleados.map((e, index) => (
-                    <tr key={e.id} className="table-row hover:bg-app/50">
+                  empleados.map((e, index) => {
+                    const th = e.empleados_talento_humano; // alias para legibilidad
+                    return (
+                    <tr
+                      key={e.id}
+                      className={`table-row hover:bg-app/50 border-l-4 ${
+                        e.activo
+                          ? 'border-l-success/40'
+                          : 'border-l-error/40 opacity-75'
+                      }`}
+                    >
                       <td className="table-cell">
                         <div className="text-sm text-secondary">{index + 1}</div>
                       </td>
+
+                      {/* Nombre con avatar de iniciales */}
                       <td className="table-cell">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-primary/10 rounded-base flex items-center justify-center">
-                            <User size={20} className="text-primary" />
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 ${
+                            e.activo
+                              ? 'bg-gradient-to-br from-primary to-primary/70'
+                              : 'bg-muted'
+                          }`}>
+                            {(e.nombres?.[0] ?? '?').toUpperCase()}
+                            {(e.apellidos?.[0] ?? '').toUpperCase()}
                           </div>
                           <div>
-                            <p className="font-medium">
+                            <p className="font-medium text-sm">
                               {e.nombres} {e.apellidos}
                             </p>
                             <p className="text-xs text-secondary">{e.correo || "Sin correo"}</p>
                           </div>
                         </div>
                       </td>
+
                       <td className="table-cell">
-                        <span className="font-mono">{e.documento_identidad}</span>
+                        <span className="font-mono text-xs">{e.documento_identidad}</span>
                       </td>
+
                       <td className="table-cell">
-                        <span className="badge badge-outline">{e.cargo || "Sin cargo"}</span>
+                        <span className="badge badge-outline text-xs">{e.cargo || "Sin cargo"}</span>
                       </td>
+
+                      {/* Tipo contrato — badge coloreado */}
                       <td className="table-cell">
-                        {e.empleados_talento_humano?.tipo_contrato || (
-                          <span className="text-secondary">-</span>
-                        )}
-                      </td>
-                      <td className="table-cell">
-                        {e.empleados_talento_humano?.salario ? (
-                          <span className="font-medium">
-                            ${parseFloat(e.empleados_talento_humano.salario).toLocaleString()}
+                        {th?.tipo_contrato ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                            {th.tipo_contrato}
                           </span>
                         ) : (
-                          <span className="text-secondary">-</span>
+                          <span className="text-xs text-muted italic">Sin contrato</span>
                         )}
                       </td>
+
+                      {/* Salario */}
+                      <td className="table-cell">
+                        {th?.salario ? (
+                          <span className="font-semibold text-success text-sm">
+                            ${parseFloat(th.salario).toLocaleString('es-CO')}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted italic">No registrado</span>
+                        )}
+                      </td>
+
+                      {/* Estado activo/inactivo — clickeable */}
                       <td className="table-cell">
                         <button
                           onClick={() => handleToggleEstado(e.id, e.activo)}
-                          className={`badge cursor-pointer ${e.activo ? "badge-success" : "badge-error"}`}
+                          title="Clic para cambiar estado"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all border ${
+                            e.activo
+                              ? 'bg-success/10 text-success border-success/30 hover:bg-success/20'
+                              : 'bg-error/10 text-error border-error/30 hover:bg-error/20'
+                          }`}
                         >
+                          <span className={`w-1.5 h-1.5 rounded-full ${e.activo ? 'bg-success' : 'bg-error'}`} />
                           {e.activo ? "Activo" : "Inactivo"}
                         </button>
                       </td>
@@ -575,7 +664,8 @@ export default function EmpleadosTalentoHumano() {
                         </div>
                       </td>
                     </tr>
-                  ))
+                  );
+                  })
                 )}
               </tbody>
             </table>
@@ -780,28 +870,53 @@ function EmpleadoDetalleTH({ empleado, modo = "ver", onClose, onRefresh, onCambi
       <div className="bg-surface rounded-card shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="card-header">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold">
-                {empleado.nombres} {empleado.apellidos}
-              </h2>
-              <p className="text-secondary">
-                Documento: {empleado.documento_identidad} • 
-                Cargo: {empleado.cargo} • 
-                Estado: 
-                <span className={`badge ml-2 ${empleado.activo ? "badge-success" : "badge-error"}`}>
-                  {empleado.activo ? "Activo" : "Inactivo"}
-                </span>
-                {esModoEdicion && <span className="ml-2 badge badge-warning">Modo Edición</span>}
-              </p>
+          <div className="flex items-start justify-between gap-4">
+            {/* Avatar + info */}
+            <div className="flex items-center gap-4">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white flex-shrink-0 ${
+                empleado.activo
+                  ? 'bg-gradient-to-br from-primary to-primary/70'
+                  : 'bg-muted'
+              }`}>
+                {(empleado.nombres?.[0] ?? '?').toUpperCase()}
+                {(empleado.apellidos?.[0] ?? '').toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold leading-tight">
+                  {empleado.nombres} {empleado.apellidos}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className="font-mono text-xs text-muted bg-base px-2 py-0.5 rounded">
+                    CC {empleado.documento_identidad}
+                  </span>
+                  {empleado.cargo && (
+                    <span className="badge badge-outline text-xs">{empleado.cargo}</span>
+                  )}
+                  {empleado.empleados_talento_humano?.tipo_contrato && (
+                    <span className="badge badge-outline text-xs">
+                      {empleado.empleados_talento_humano.tipo_contrato}
+                    </span>
+                  )}
+                  <span className={`badge text-xs ${empleado.activo ? 'badge-success' : 'badge-error'}`}>
+                    {empleado.activo ? '● Activo' : '○ Inactivo'}
+                  </span>
+                  {esModoEdicion && (
+                    <span className="badge badge-warning text-xs flex items-center gap-1">
+                      <PencilLine size={10} />
+                      Editando
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Acciones */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               {!esModoEdicion ? (
                 <button
                   onClick={() => onCambiarModo?.("editar")}
-                  className="btn btn-outline flex items-center gap-2"
+                  className="btn btn-primary flex items-center gap-2 text-sm"
                 >
-                  <Edit size={16} />
+                  <Edit size={15} />
                   Editar
                 </button>
               ) : null}
@@ -988,189 +1103,242 @@ function EmpleadoDetalleTH({ empleado, modo = "ver", onClose, onRefresh, onCambi
                 </div>
               </section>
 
-              {/* Datos de Talento Humano */}
-              <section>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Briefcase className="w-5 h-5" />
-                  Talento Humano
+              {/* ── Talento Humano ── */}
+              <section className="space-y-5">
+                <h3 className="text-xs font-semibold text-secondary uppercase tracking-wider flex items-center gap-2">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  Contrato & Beneficios
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="form-label">Tipo Contrato</label>
-                    <select
-                      name="tipo_contrato"
-                      value={talentoHumanoData.tipo_contrato}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="Contratistas">Contratistas</option>
-                      <option value="Contrato aprendizaje">Contrato aprendizaje</option>
-                      <option value="Fijo">Fijo</option>
-                      <option value="Indefinido">Indefinido</option>
-                      <option value="Obra o Labor">Obra o Labor</option>
-                    </select>
+
+                {/* Banner edición */}
+                {esModoEdicion && (
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-warning/10 border border-warning/30 rounded-lg text-sm text-warning font-medium">
+                    <PencilLine className="w-4 h-4 flex-shrink-0" />
+                    Modo edición — guarda los cambios al finalizar
                   </div>
-                  <div>
-                    <label className="form-label">Salario</label>
-                    <input
-                      type="number"
-                      name="salario"
-                      value={talentoHumanoData.salario}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      min="0"
-                      step="0.01"
-                      disabled={!esModoEdicion}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">Fecha Nacimiento</label>
-                    <input
-                      type="date"
-                      name="fecha_nacimiento"
-                      value={talentoHumanoData.fecha_nacimiento}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    />
-                  </div>
-                  <div>
-                    <label className="form-label">EPS</label>
-                    <select
-                      name="eps"
-                      value={talentoHumanoData.eps}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar EPS...</option>
-                      {OPCIONES_EPS.map((eps) => (
-                        <option key={eps} value={eps}>{eps}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">AFP</label>
-                    <select
-                      name="afp"
-                      value={talentoHumanoData.afp}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar AFP...</option>
-                      {OPCIONES_AFP.map((afp) => (
-                        <option key={afp} value={afp}>{afp}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Servicio Funerario</label>
-                    <select
-                      name="entidad_fa"
-                      value={talentoHumanoData.entidad_fa}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {OPCIONES_SERVICIO_FUNERARIO.map((opcion) => (
-                        <option key={opcion} value={opcion}>{opcion}</option>
-                      ))}
-                    </select>
+                )}
+
+                {/* Card de salario + contrato */}
+                <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-muted mb-1 flex items-center gap-1">
+                        <DollarSign className="w-3 h-3" /> Salario
+                      </p>
+                      {esModoEdicion ? (
+                        <input
+                          type="number"
+                          name="salario"
+                          value={talentoHumanoData.salario || ''}
+                          onChange={handleInputChange(setTalentoHumanoData)}
+                          className="form-input font-bold text-lg"
+                          min="0"
+                          step="1000"
+                          placeholder="0"
+                        />
+                      ) : (
+                        <p className="text-2xl font-bold text-primary">
+                          {talentoHumanoData.salario
+                            ? `$${parseFloat(talentoHumanoData.salario).toLocaleString('es-CO')}`
+                            : <span className="text-muted text-base font-normal">Sin registrar</span>
+                          }
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted mb-1">Tipo de Contrato</p>
+                      {esModoEdicion ? (
+                        <select
+                          name="tipo_contrato"
+                          value={talentoHumanoData.tipo_contrato || ''}
+                          onChange={handleInputChange(setTalentoHumanoData)}
+                          className="form-input"
+                        >
+                          <option value="">Seleccionar...</option>
+                          <option value="Contratistas">Contratistas</option>
+                          <option value="Contrato aprendizaje">Contrato aprendizaje</option>
+                          <option value="Fijo">Fijo</option>
+                          <option value="Indefinido">Indefinido</option>
+                          <option value="Obra o Labor">Obra o Labor</option>
+                        </select>
+                      ) : (
+                        <span className={`badge badge-outline text-sm ${talentoHumanoData.tipo_contrato ? '' : 'text-muted'}`}>
+                          {talentoHumanoData.tipo_contrato || 'Sin contrato'}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted mb-1">Fecha de Nacimiento</p>
+                      <input
+                        type="date"
+                        name="fecha_nacimiento"
+                        value={talentoHumanoData.fecha_nacimiento || ''}
+                        onChange={handleInputChange(setTalentoHumanoData)}
+                        className="form-input"
+                        disabled={!esModoEdicion}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Tallas y Observaciones */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="form-label">Talla Camisa</label>
-                    <select
-                      name="talla_camisa"
-                      value={talentoHumanoData.talla_camisa}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar talla...</option>
-                      {TALLAS_CAMISA.map((talla) => (
-                        <option key={talla} value={talla}>{talla}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Talla Pantalón</label>
-                    <select
-                      name="talla_pantalon"
-                      value={talentoHumanoData.talla_pantalon}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar talla...</option>
-                      {TALLAS_PANTALON.map((talla) => (
-                        <option key={talla} value={talla}>{talla}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="form-label">Talla Zapatos</label>
-                    <select
-                      name="talla_zapatos"
-                      value={talentoHumanoData.talla_zapatos}
-                      onChange={handleInputChange(setTalentoHumanoData)}
-                      className="form-input"
-                      disabled={!esModoEdicion}
-                    >
-                      <option value="">Seleccionar talla...</option>
-                      {TALLAS_ZAPATOS.map((talla) => (
-                        <option key={talla} value={talla}>{talla}</option>
-                      ))}
-                    </select>
+                {/* Beneficios — EPS / AFP / Funerario */}
+                <div>
+                  <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5" />
+                    Seguridad Social & Beneficios
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl border border-base bg-surface">
+                    <div>
+                      <label className="form-label text-xs">EPS</label>
+                      <select
+                        name="eps"
+                        value={talentoHumanoData.eps || ''}
+                        onChange={handleInputChange(setTalentoHumanoData)}
+                        className="form-input"
+                        disabled={!esModoEdicion}
+                      >
+                        <option value="">Seleccionar EPS...</option>
+                        {OPCIONES_EPS.map((eps) => (
+                          <option key={eps} value={eps}>{eps}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label text-xs">AFP / Pensión</label>
+                      <select
+                        name="afp"
+                        value={talentoHumanoData.afp || ''}
+                        onChange={handleInputChange(setTalentoHumanoData)}
+                        className="form-input"
+                        disabled={!esModoEdicion}
+                      >
+                        <option value="">Seleccionar AFP...</option>
+                        {OPCIONES_AFP.map((afp) => (
+                          <option key={afp} value={afp}>{afp}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="form-label text-xs">Servicio Funerario</label>
+                      <select
+                        name="entidad_fa"
+                        value={talentoHumanoData.entidad_fa || ''}
+                        onChange={handleInputChange(setTalentoHumanoData)}
+                        className="form-input"
+                        disabled={!esModoEdicion}
+                      >
+                        <option value="">Seleccionar...</option>
+                        {OPCIONES_SERVICIO_FUNERARIO.map((op) => (
+                          <option key={op} value={op}>{op}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                {/* Sección de Prórrogas */}
-                <section className="mt-6">
-                  <h4 className="font-semibold mb-3">Prórrogas de Contrato</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map((num) => {
-                      const isEnabled = num === 1 || talentoHumanoData[`prorroga_${num - 1}`];
-                      const isDisabled = !esModoEdicion || !isEnabled;
-                      
-                      return (
-                        <div key={`prorroga-${num}`}>
-                          <label className="form-label">Prórroga {num}</label>
-                          <input
-                            type="date"
-                            name={`prorroga_${num}`}
-                            value={talentoHumanoData[`prorroga_${num}`] || ''}
+                {/* Tallas dotación */}
+                <div>
+                  <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Award className="w-3.5 h-3.5" />
+                    Dotación — Tallas
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3 p-4 rounded-xl border border-base bg-surface">
+                    {[
+                      { name: 'talla_camisa',   label: 'Camisa',   opciones: TALLAS_CAMISA   },
+                      { name: 'talla_pantalon', label: 'Pantalón', opciones: TALLAS_PANTALON },
+                      { name: 'talla_zapatos',  label: 'Zapatos',  opciones: TALLAS_ZAPATOS  },
+                    ].map(({ name, label, opciones }) => (
+                      <div key={name}>
+                        <label className="form-label text-xs">{label}</label>
+                        {esModoEdicion ? (
+                          <select
+                            name={name}
+                            value={talentoHumanoData[name] || ''}
                             onChange={handleInputChange(setTalentoHumanoData)}
-                            className={`form-input ${isDisabled ? 'bg-muted text-secondary' : ''}`}
-                            disabled={isDisabled}
-                          />
-                          {isDisabled && num > 1 && !talentoHumanoData[`prorroga_${num - 1}`] && (
-                            <p className="text-xs text-secondary mt-1">
-                              Requiere fecha en prórroga {num - 1}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
+                            className="form-input"
+                          >
+                            <option value="">Talla...</option>
+                            {opciones.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className={`mt-1 px-3 py-2 rounded-lg text-center font-bold text-lg border-2 ${
+                            talentoHumanoData[name]
+                              ? 'border-primary/30 bg-primary/5 text-primary'
+                              : 'border-dashed border-base text-muted text-sm font-normal'
+                          }`}>
+                            {talentoHumanoData[name] || 'N/A'}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </section>
+                </div>
 
-                <div className="mt-4">
-                  <label className="form-label">Observaciones</label>
+                {/* Prórrogas — timeline visual */}
+                <div>
+                  <h4 className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Prórrogas de Contrato
+                  </h4>
+                  <div className="relative">
+                    {/* Línea conectora */}
+                    <div className="absolute left-5 top-6 bottom-0 w-0.5 bg-base" />
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4].map((num) => {
+                        const hayFecha    = !!talentoHumanoData[`prorroga_${num}`];
+                        const hayAnterior = num === 1 || !!talentoHumanoData[`prorroga_${num - 1}`];
+                        const isDisabled  = !esModoEdicion || !hayAnterior;
+                        return (
+                          <div key={num} className="flex items-center gap-3">
+                            {/* Dot */}
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 z-10 border-2 text-xs font-bold transition-colors ${
+                              hayFecha
+                                ? 'border-success bg-success/10 text-success'
+                                : hayAnterior
+                                ? 'border-primary/40 bg-primary/5 text-primary'
+                                : 'border-base bg-surface text-muted'
+                            }`}>
+                              P{num}
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-xs text-muted mb-1 block">Prórroga {num}</label>
+                              <input
+                                type="date"
+                                name={`prorroga_${num}`}
+                                value={talentoHumanoData[`prorroga_${num}`] || ''}
+                                onChange={handleInputChange(setTalentoHumanoData)}
+                                className={`form-input text-sm ${isDisabled ? 'opacity-50' : ''}`}
+                                disabled={isDisabled}
+                              />
+                              {!hayAnterior && esModoEdicion && (
+                                <p className="text-[10px] text-muted mt-0.5">
+                                  Requiere Prórroga {num - 1} primero
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observaciones */}
+                <div>
+                  <label className="form-label flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-muted" />
+                    Observaciones
+                  </label>
                   <textarea
                     name="observaciones"
-                    value={talentoHumanoData.observaciones}
+                    value={talentoHumanoData.observaciones || ''}
                     onChange={handleInputChange(setTalentoHumanoData)}
                     className="form-input"
                     rows={3}
                     disabled={!esModoEdicion}
+                    placeholder={esModoEdicion ? "Notas, observaciones o novedades del empleado..." : "Sin observaciones"}
                   />
                 </div>
               </section>

@@ -132,3 +132,45 @@ export async function getEstadisticasPeriodo(periodo) {
     porcentaje: total ? Math.round(((conDesprendible ?? 0) / total) * 100) : 0,
   };
 }
+
+/**
+ * Obtiene el historial de cobertura para los últimos N meses.
+ * Devuelve array ordenado de más reciente a más antiguo.
+ */
+export async function getHistorialPeriodos(meses = 13) {
+  // Generar lista de períodos a consultar
+  const periodos = [];
+  const now = new Date();
+  for (let i = 0; i < meses; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    periodos.push(`${y}-${m}`);
+  }
+
+  // Obtener total de empleados activos y todos los desprendibles de esos períodos en paralelo
+  const [{ count: total }, { data: rows }] = await Promise.all([
+    supabase.from("empleados").select("id", { count: "exact", head: true }).eq("activo", "true"),
+    supabase
+      .from("empleado_desprendibles")
+      .select("periodo")
+      .in("periodo", periodos),
+  ]);
+
+  // Contar cuántos hay por período
+  const conteo = {};
+  for (const row of (rows ?? [])) {
+    conteo[row.periodo] = (conteo[row.periodo] ?? 0) + 1;
+  }
+
+  return periodos.map((p) => {
+    const cantidad = conteo[p] ?? 0;
+    const totalEmp = total ?? 0;
+    return {
+      periodo: p,
+      cantidad,
+      total: totalEmp,
+      porcentaje: totalEmp ? Math.round((cantidad / totalEmp) * 100) : 0,
+    };
+  });
+}

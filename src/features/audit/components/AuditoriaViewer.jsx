@@ -1,5 +1,5 @@
 // ========================================
-// AUDITORÍA VIEWER - Sprint 3
+// AUDITORÍA VIEWER - Reescrito con sistema de diseño del app
 // Timeline de cambios y búsqueda de auditoría
 // ========================================
 
@@ -8,480 +8,538 @@ import {
   useAuditoriaLegible,
   useBuscarAuditoria,
   useEstadisticasAuditoria,
-  useHistorialRegistro,
 } from '@/features/audit';
-import { auditoriaService } from '@/features/audit';
+import {
+  Clock,
+  Search,
+  BarChart2,
+  Download,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Edit,
+  Trash2,
+  AlertCircle,
+  User,
+  Database,
+  Activity,
+  Calendar,
+  Filter,
+  X,
+} from 'lucide-react';
+
+// ─── helpers ───────────────────────────────────────────────────────────────────
+
+const OP_META = {
+  INSERT: {
+    label: 'Creación',
+    icon: <Plus  size={14} />,
+    bg:   'bg-green-100 dark:bg-green-900/30',
+    text: 'text-green-700 dark:text-green-300',
+    border: 'border-l-green-500',
+    dot: 'bg-green-500',
+  },
+  UPDATE: {
+    label: 'Actualización',
+    icon: <Edit  size={14} />,
+    bg:   'bg-blue-100 dark:bg-blue-900/30',
+    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-l-blue-500',
+    dot: 'bg-blue-500',
+  },
+  DELETE: {
+    label: 'Eliminación',
+    icon: <Trash2 size={14} />,
+    bg:   'bg-red-100 dark:bg-red-900/30',
+    text: 'text-red-700 dark:text-red-300',
+    border: 'border-l-red-500',
+    dot: 'bg-red-500',
+  },
+};
+
+function fmtFecha(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-CO', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+// ─── Componente principal ───────────────────────────────────────────────────────
 
 const AuditoriaViewer = () => {
-  // Estados de filtros
-  const [tabla, setTabla] = useState('');
-  const [operacion, setOperacion] = useState('');
+  // Filtros búsqueda avanzada
+  const [tabla, setTabla]             = useState('');
+  const [operacion, setOperacion]     = useState('');
   const [usuarioEmail, setUsuarioEmail] = useState('');
-  const [fechaDesde, setFechaDesde] = useState('');
-  const [fechaHasta, setFechaHasta] = useState('');
-  const [limite, setLimite] = useState(50);
+  const [fechaDesde, setFechaDesde]   = useState('');
+  const [fechaHasta, setFechaHasta]   = useState('');
+  const [limite, setLimite]           = useState(50);
 
-  // Vista actual
-  const [vistaActual, setVistaActual] = useState('recientes'); // 'recientes' | 'buscar' | 'estadisticas'
+  // Tab activo
+  const [vista, setVista] = useState('recientes'); // 'recientes' | 'buscar' | 'estadisticas'
 
-  // Query para auditoría reciente
+  // ── Datos recientes ──────────────────────────────────────────────────────────
   const {
-    data: auditoriaReciente,
-    isLoading: cargandoReciente,
-    error: errorReciente,
-    refetch: refrescarReciente,
+    data: recientes,
+    isLoading: cargandoRecientes,
+    error: errorRecientes,
+    refetch: refrescar,
   } = useAuditoriaLegible(limite);
 
-  // Query para estadísticas
-  const { data: estadisticas, isLoading: cargandoEstadisticas } = useEstadisticasAuditoria(30);
+  // ── Estadísticas ─────────────────────────────────────────────────────────────
+  const {
+    data: stats,
+    isLoading: cargandoStats,
+  } = useEstadisticasAuditoria(30);
 
-  // Query para búsqueda (solo si hay filtros)
-  const filtrosBusqueda = React.useMemo(() => {
-    if (!tabla && !operacion && !usuarioEmail && !fechaDesde) {
-      return {};
-    }
-
+  // ── Búsqueda con filtros ─────────────────────────────────────────────────────
+  const filtros = React.useMemo(() => {
+    if (!tabla && !operacion && !usuarioEmail && !fechaDesde) return {};
     return {
-      tabla: tabla || null,
-      operacion: operacion || null,
+      tabla:         tabla || null,
+      operacion:     operacion || null,
       usuario_email: usuarioEmail || null,
-      fecha_desde: fechaDesde ? new Date(fechaDesde).toISOString() : null,
-      fecha_hasta: fechaHasta ? new Date(fechaHasta).toISOString() : null,
+      fecha_desde:   fechaDesde ? new Date(fechaDesde).toISOString() : null,
+      fecha_hasta:   fechaHasta ? new Date(fechaHasta).toISOString() : null,
       limite,
     };
   }, [tabla, operacion, usuarioEmail, fechaDesde, fechaHasta, limite]);
 
   const {
-    data: resultadosBusqueda,
+    data: resultados,
     isLoading: buscando,
     error: errorBusqueda,
-  } = useBuscarAuditoria(filtrosBusqueda);
+  } = useBuscarAuditoria(filtros);
 
-  // ========================================
-  // HANDLERS
-  // ========================================
+  // ── Exportar CSV ─────────────────────────────────────────────────────────────
+  function handleExportarCSV() {
+    const datos = vista === 'buscar' ? resultados : recientes;
+    if (!datos?.length) { alert('No hay datos para exportar'); return; }
 
-  const handleLimpiarFiltros = () => {
-    setTabla('');
-    setOperacion('');
-    setUsuarioEmail('');
-    setFechaDesde('');
-    setFechaHasta('');
-  };
-
-  const handleExportarCSV = () => {
-    const datos = vistaActual === 'buscar' ? resultadosBusqueda : auditoriaReciente;
-    if (!datos || datos.length === 0) {
-      alert('No hay datos para exportar');
-      return;
-    }
-
-    // Generar CSV
     const headers = ['Fecha', 'Tabla', 'Operación', 'Usuario', 'Resumen'];
-    const rows = datos.map((item) => [
-      new Date(item.created_at).toLocaleString(),
-      item.tabla,
-      item.operacion,
-      item.usuario_email || 'N/A',
-      item.resumen || 'N/A',
+    const rows = datos.map(r => [
+      fmtFecha(r.created_at),
+      r.tabla,
+      r.operacion,
+      r.usuario_email ?? 'N/A',
+      r.resumen ?? 'N/A',
     ]);
-
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
-
-    // Descargar
+    const csv  = [headers, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `auditoria_${new Date().toISOString().split('T')[0]}.csv`;
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement('a'), {
+      href: url, download: `auditoria_${new Date().toISOString().split('T')[0]}.csv`,
+    });
     a.click();
-  };
+    URL.revokeObjectURL(url);
+  }
 
-  // ========================================
-  // RENDER: Contenido según vista
-  // ========================================
+  function limpiarFiltros() {
+    setTabla(''); setOperacion(''); setUsuarioEmail('');
+    setFechaDesde(''); setFechaHasta('');
+  }
 
-  const renderContenido = () => {
-    if (vistaActual === 'recientes') {
-      if (cargandoReciente) {
-        return (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent mx-auto"></div>
-          </div>
-        );
-      }
-
-      if (errorReciente) {
-        return (
-          <div className="text-center py-12">
-            <p className="text-red-600 mb-4">Error al cargar auditoría</p>
-            <button
-              onClick={refrescarReciente}
-              className="px-4 py-2 bg-orange-500 text-white rounded-lg"
-            >
-              Reintentar
-            </button>
-          </div>
-        );
-      }
-
-      return <TimelineAuditoria items={auditoriaReciente} />;
-    }
-
-    if (vistaActual === 'buscar') {
-      if (buscando) {
-        return (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent mx-auto"></div>
-            <p className="text-gray-600 mt-4">Buscando...</p>
-          </div>
-        );
-      }
-
-      if (errorBusqueda) {
-        return (
-          <div className="text-center py-12">
-            <p className="text-red-600">Error en la búsqueda</p>
-          </div>
-        );
-      }
-
-      if (!resultadosBusqueda || resultadosBusqueda.length === 0) {
-        return (
-          <div className="text-center py-12">
-            <span className="text-6xl mb-4 block">🔍</span>
-            <p className="text-gray-500">
-              {Object.keys(filtrosBusqueda).length > 0
-                ? 'No se encontraron resultados'
-                : 'Configura los filtros para buscar'}
-            </p>
-          </div>
-        );
-      }
-
-      return <TimelineAuditoria items={resultadosBusqueda} />;
-    }
-
-    if (vistaActual === 'estadisticas') {
-      if (cargandoEstadisticas) {
-        return (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent mx-auto"></div>
-          </div>
-        );
-      }
-
-      return <EstadisticasPanel estadisticas={estadisticas} />;
-    }
-  };
-
-  // ========================================
-  // RENDER: Interfaz principal
-  // ========================================
+  // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
-      {/* Header */}
-      <div className="p-6 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              📜 Auditoría de Cambios
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Trazabilidad completa de operaciones
-            </p>
+    <div className="min-h-content bg-app">
+      <div className="page-container">
+
+        {/* ── Header ──────────────────────────────────────────────────────────── */}
+        <div className="section-header">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="section-title">Auditoría de Cambios</h1>
+              <p className="section-subtitle">
+                Trazabilidad completa de operaciones INSERT · UPDATE · DELETE
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleExportarCSV}
+                className="btn btn-outline flex items-center gap-2 text-sm"
+              >
+                <Download size={15} />
+                Exportar CSV
+              </button>
+              <button
+                onClick={() => refrescar()}
+                className="btn btn-outline flex items-center gap-2 text-sm"
+              >
+                <RefreshCw size={15} />
+                Refrescar
+              </button>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleExportarCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              📥 Exportar CSV
-            </button>
-            <button
-              onClick={refrescarReciente}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              🔄 Refrescar
-            </button>
+          {/* Tabs */}
+          <div className="flex gap-1 border-b border-[var(--color-border)]">
+            {[
+              { id: 'recientes',    label: 'Cambios Recientes',  icon: <Clock     size={15} /> },
+              { id: 'buscar',       label: 'Búsqueda Avanzada',  icon: <Search    size={15} /> },
+              { id: 'estadisticas', label: 'Estadísticas',       icon: <BarChart2 size={15} /> },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setVista(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                  vista === tab.id
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-secondary hover:text-primary'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setVistaActual('recientes')}
-            className={`px-4 py-2 rounded-lg ${
-              vistaActual === 'recientes'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            🕐 Cambios Recientes
-          </button>
-          <button
-            onClick={() => setVistaActual('buscar')}
-            className={`px-4 py-2 rounded-lg ${
-              vistaActual === 'buscar'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            🔍 Búsqueda Avanzada
-          </button>
-          <button
-            onClick={() => setVistaActual('estadisticas')}
-            className={`px-4 py-2 rounded-lg ${
-              vistaActual === 'estadisticas'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            📊 Estadísticas
-          </button>
-        </div>
+        {/* ── Filtros (solo búsqueda avanzada) ────────────────────────────────── */}
+        {vista === 'buscar' && (
+          <div className="card p-compact mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+              <div className="relative">
+                <Database className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+                <select
+                  value={tabla}
+                  onChange={e => setTabla(e.target.value)}
+                  className="form-input pl-9 !py-2 appearance-none text-sm"
+                >
+                  <option value="">Tabla: Todas</option>
+                  <option value="arbol_recetas">Recetas</option>
+                  <option value="receta_ingredientes">Ingredientes</option>
+                  <option value="arbol_materia_prima">Materia Prima</option>
+                  <option value="arbol_platos">Platos</option>
+                  <option value="empleados">Empleados</option>
+                  <option value="empleados_talento_humano">TH</option>
+                  <option value="empleados_sst">SST</option>
+                </select>
+              </div>
+
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+                <select
+                  value={operacion}
+                  onChange={e => setOperacion(e.target.value)}
+                  className="form-input pl-9 !py-2 appearance-none text-sm"
+                >
+                  <option value="">Operación: Todas</option>
+                  <option value="INSERT">Inserciones</option>
+                  <option value="UPDATE">Actualizaciones</option>
+                  <option value="DELETE">Eliminaciones</option>
+                </select>
+              </div>
+
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+                <input
+                  type="text"
+                  value={usuarioEmail}
+                  onChange={e => setUsuarioEmail(e.target.value)}
+                  placeholder="Email del usuario..."
+                  className="form-input pl-9 !py-2 text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={limite}
+                  onChange={e => setLimite(parseInt(e.target.value) || 50)}
+                  min="10" max="500"
+                  className="form-input !py-2 text-sm w-24"
+                  title="Límite de resultados"
+                />
+                <button
+                  onClick={limpiarFiltros}
+                  className="btn btn-outline btn-sm flex items-center gap-1 text-xs"
+                >
+                  <X size={12} /> Limpiar
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+                <input
+                  type="datetime-local"
+                  value={fechaDesde}
+                  onChange={e => setFechaDesde(e.target.value)}
+                  className="form-input pl-9 !py-2 text-sm"
+                  placeholder="Desde"
+                />
+              </div>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
+                <input
+                  type="datetime-local"
+                  value={fechaHasta}
+                  onChange={e => setFechaHasta(e.target.value)}
+                  className="form-input pl-9 !py-2 text-sm"
+                  placeholder="Hasta"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Contenido según tab ──────────────────────────────────────────────── */}
+        {vista === 'recientes' && (
+          <TimelineAuditoria
+            items={recientes}
+            loading={cargandoRecientes}
+            error={errorRecientes}
+            onRetry={refrescar}
+          />
+        )}
+
+        {vista === 'buscar' && (
+          <TimelineAuditoria
+            items={resultados}
+            loading={buscando}
+            error={errorBusqueda}
+            onRetry={() => {}}
+            emptyMsg={
+              Object.keys(filtros).length > 0
+                ? 'No se encontraron resultados para los filtros aplicados'
+                : 'Configura los filtros de arriba para buscar'
+            }
+          />
+        )}
+
+        {vista === 'estadisticas' && (
+          <EstadisticasPanel stats={stats} loading={cargandoStats} />
+        )}
+
       </div>
-
-      {/* Panel de filtros (solo en vista buscar) */}
-      {vistaActual === 'buscar' && (
-        <div className="p-4 border-b dark:border-gray-700 bg-white dark:bg-gray-800">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Tabla</label>
-              <select
-                value={tabla}
-                onChange={(e) => setTabla(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="">Todas</option>
-                <option value="arbol_recetas">Recetas</option>
-                <option value="receta_ingredientes">Ingredientes</option>
-                <option value="arbol_materia_prima">Materia Prima</option>
-                <option value="arbol_platos">Platos</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Operación</label>
-              <select
-                value={operacion}
-                onChange={(e) => setOperacion(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              >
-                <option value="">Todas</option>
-                <option value="INSERT">INSERT</option>
-                <option value="UPDATE">UPDATE</option>
-                <option value="DELETE">DELETE</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Usuario Email</label>
-              <input
-                type="text"
-                value={usuarioEmail}
-                onChange={(e) => setUsuarioEmail(e.target.value)}
-                placeholder="email@ejemplo.com"
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Límite</label>
-              <input
-                type="number"
-                value={limite}
-                onChange={(e) => setLimite(parseInt(e.target.value) || 50)}
-                min="10"
-                max="500"
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Fecha Desde</label>
-              <input
-                type="datetime-local"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Fecha Hasta</label>
-              <input
-                type="datetime-local"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={handleLimpiarFiltros}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Limpiar Filtros
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Contenido */}
-      <div className="flex-1 overflow-y-auto p-4">{renderContenido()}</div>
     </div>
   );
 };
 
-// ========================================
-// COMPONENTE: Timeline de Auditoría
-// ========================================
+// ─── Timeline ─────────────────────────────────────────────────────────────────
 
-const TimelineAuditoria = ({ items }) => {
-  const [detalleExpandido, setDetalleExpandido] = useState(null);
+const TimelineAuditoria = ({ items, loading, error, onRetry, emptyMsg }) => {
+  const [expandido, setExpandido] = useState(null);
 
-  if (!items || items.length === 0) {
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <span className="text-6xl mb-4 block">📭</span>
-        <p className="text-gray-500">No hay cambios registrados</p>
+      <div className="card p-12 text-center">
+        <div className="spinner spinner-lg mx-auto mb-3" />
+        <p className="text-muted text-sm">Cargando registros de auditoría…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card p-12 text-center">
+        <AlertCircle size={40} className="mx-auto mb-3 text-error" />
+        <p className="text-error font-medium mb-4">Error al cargar auditoría</p>
+        <button onClick={onRetry} className="btn btn-primary">Reintentar</button>
+      </div>
+    );
+  }
+
+  if (!items?.length) {
+    return (
+      <div className="card p-12 text-center">
+        <Activity size={48} className="mx-auto mb-4 text-muted opacity-40" />
+        <p className="text-secondary">
+          {emptyMsg ?? 'No hay cambios registrados'}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {items.map((item) => (
-        <div
-          key={item.id}
-          className="border dark:border-gray-700 rounded-lg p-4 hover:shadow-lg transition-shadow"
-        >
-          <div className="flex items-start gap-4">
-            {/* Icono de operación */}
-            <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                item.operacion === 'INSERT'
-                  ? 'bg-green-100 text-green-600'
-                  : item.operacion === 'UPDATE'
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'bg-red-100 text-red-600'
-              }`}
-            >
-              {item.operacion === 'INSERT' ? '➕' : item.operacion === 'UPDATE' ? '✏️' : '🗑️'}
-            </div>
+    <div className="space-y-2">
+      {/* Contador */}
+      <p className="text-xs text-secondary mb-3">
+        <span className="font-semibold text-primary">{items.length}</span> registro{items.length !== 1 ? 's' : ''}
+      </p>
 
-            {/* Contenido */}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="font-mono text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">
-                  {item.tabla}
-                </span>
-                <span
-                  className={`text-xs px-2 py-1 rounded font-medium ${
-                    item.operacion === 'INSERT'
-                      ? 'bg-green-100 text-green-700'
-                      : item.operacion === 'UPDATE'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {item.operacion}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {new Date(item.created_at).toLocaleString()}
-                </span>
+      {items.map(item => {
+        const meta = OP_META[item.operacion] ?? OP_META.UPDATE;
+        const isOpen = expandido === item.id;
+
+        return (
+          <div
+            key={item.id}
+            className={`card border-l-4 ${meta.border} hover:shadow-sm transition-shadow`}
+          >
+            <div className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                {/* Info principal */}
+                <div className="flex items-start gap-3 min-w-0">
+                  {/* Operación badge */}
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${meta.bg} ${meta.text}`}>
+                    {meta.icon}
+                    {meta.label}
+                  </span>
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      {/* Tabla */}
+                      <span className="font-mono text-xs bg-[var(--color-bg-hover)] px-2 py-0.5 rounded text-secondary">
+                        {item.tabla}
+                      </span>
+                      {/* Usuario */}
+                      <span className="text-xs text-secondary flex items-center gap-1">
+                        <User size={11} />
+                        {item.usuario_email ?? 'Sistema'}
+                      </span>
+                    </div>
+
+                    {/* Resumen */}
+                    {item.resumen && (
+                      <p className="text-sm text-primary truncate">{item.resumen}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Fecha + expand */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-muted whitespace-nowrap">
+                    {fmtFecha(item.created_at)}
+                  </span>
+                  {item.cambios_json && (
+                    <button
+                      onClick={() => setExpandido(isOpen ? null : item.id)}
+                      className="p-1 text-secondary hover:text-primary rounded transition-colors"
+                      title="Ver detalles del cambio"
+                    >
+                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <p className="text-gray-800 dark:text-white mb-1">
-                {item.usuario_email || 'Sistema'}
-              </p>
-
-              {/* Cambios en formato legible */}
-              {item.cambios_json && (
-                <div className="mt-2">
-                  <button
-                    onClick={() =>
-                      setDetalleExpandido(detalleExpandido === item.id ? null : item.id)
-                    }
-                    className="text-sm text-orange-600 hover:text-orange-700"
-                  >
-                    {detalleExpandido === item.id ? '▼ Ocultar detalles' : '▶ Ver detalles'}
-                  </button>
-
-                  {detalleExpandido === item.id && (
-                    <pre className="mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-x-auto">
-                      {JSON.stringify(JSON.parse(item.cambios_json), null, 2)}
-                    </pre>
-                  )}
+              {/* Detalle expandible */}
+              {isOpen && item.cambios_json && (
+                <div className="mt-3 pt-3 border-t border-[var(--color-border-light)]">
+                  <p className="text-xs font-semibold text-secondary mb-2 uppercase tracking-wide">
+                    Detalle del cambio
+                  </p>
+                  <pre className="text-xs bg-[var(--color-bg-hover)] p-3 rounded overflow-x-auto text-secondary leading-relaxed">
+                    {(() => {
+                      try { return JSON.stringify(JSON.parse(item.cambios_json), null, 2); }
+                      catch { return item.cambios_json; }
+                    })()}
+                  </pre>
                 </div>
               )}
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
 
-// ========================================
-// COMPONENTE: Panel de Estadísticas
-// ========================================
+// ─── Panel de estadísticas ────────────────────────────────────────────────────
 
-const EstadisticasPanel = ({ estadisticas }) => {
-  if (!estadisticas) return null;
+const EstadisticasPanel = ({ stats, loading }) => {
+  if (loading) {
+    return (
+      <div className="card p-12 text-center">
+        <div className="spinner spinner-lg mx-auto mb-3" />
+        <p className="text-muted text-sm">Calculando estadísticas…</p>
+      </div>
+    );
+  }
+
+  // El RPC devuelve un array [{ total_operaciones, ... }] — extraer primer elemento
+  const s = Array.isArray(stats) ? (stats[0] ?? null) : (stats ?? null);
+
+  if (!s) {
+    return (
+      <div className="card p-12 text-center">
+        <BarChart2 size={40} className="mx-auto mb-3 text-muted opacity-40" />
+        <p className="text-secondary">No hay estadísticas disponibles</p>
+        <p className="text-xs text-muted mt-1">
+          Es posible que la función RPC <code>estadisticas_auditoria</code> no esté configurada
+        </p>
+      </div>
+    );
+  }
+
+  const metricasPrincipales = [
+    {
+      label: 'Total Operaciones',
+      valor: s.total_operaciones ?? 0,
+      sub:   `Promedio: ${s.promedio_diario ?? 0}/día`,
+      icon:  <Activity size={18} className="text-primary" />,
+      bg:    'bg-surface',
+    },
+    {
+      label: 'Inserciones',
+      valor: s.total_inserts ?? 0,
+      icon:  <Plus  size={18} className="text-green-600" />,
+      bg:    'bg-green-50 dark:bg-green-900/20',
+      borde: 'border-l-4 border-l-green-500',
+    },
+    {
+      label: 'Actualizaciones',
+      valor: s.total_updates ?? 0,
+      icon:  <Edit  size={18} className="text-blue-600" />,
+      bg:    'bg-blue-50 dark:bg-blue-900/20',
+      borde: 'border-l-4 border-l-blue-500',
+    },
+    {
+      label: 'Eliminaciones',
+      valor: s.total_deletes ?? 0,
+      icon:  <Trash2 size={18} className="text-red-600" />,
+      bg:    'bg-red-50 dark:bg-red-900/20',
+      borde: 'border-l-4 border-l-red-500',
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Tarjetas de métricas */}
+      {/* Cards métricas principales */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border">
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Operaciones</p>
-          <p className="text-3xl font-bold text-gray-800 dark:text-white">
-            {estadisticas.total_operaciones}
-          </p>
-          <p className="text-xs text-gray-500 mt-1">
-            Promedio: {estadisticas.promedio_diario || 0}/día
-          </p>
-        </div>
-
-        <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-lg shadow border-l-4 border-green-500">
-          <p className="text-xs text-green-700 dark:text-green-300 mb-1">Inserciones</p>
-          <p className="text-3xl font-bold text-green-600">{estadisticas.total_inserts}</p>
-        </div>
-
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-lg shadow border-l-4 border-blue-500">
-          <p className="text-xs text-blue-700 dark:text-blue-300 mb-1">Actualizaciones</p>
-          <p className="text-3xl font-bold text-blue-600">{estadisticas.total_updates}</p>
-        </div>
-
-        <div className="bg-red-50 dark:bg-red-900/20 p-6 rounded-lg shadow border-l-4 border-red-500">
-          <p className="text-xs text-red-700 dark:text-red-300 mb-1">Eliminaciones</p>
-          <p className="text-3xl font-bold text-red-600">{estadisticas.total_deletes}</p>
-        </div>
+        {metricasPrincipales.map(m => (
+          <div key={m.label} className={`card p-5 ${m.borde ?? ''} ${m.bg}`}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-secondary uppercase tracking-wide">{m.label}</p>
+              <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center">
+                {m.icon}
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-primary">{(m.valor ?? 0).toLocaleString()}</p>
+            {m.sub && <p className="text-xs text-muted mt-1">{m.sub}</p>}
+          </div>
+        ))}
       </div>
 
-      {/* Información adicional */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <h3 className="text-lg font-bold mb-4">Información Adicional</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Usuarios Activos</p>
-            <p className="text-2xl font-bold">{estadisticas.usuarios_activos}</p>
+      {/* Info adicional */}
+      <div className="card p-6">
+        <h3 className="font-semibold text-primary mb-4 flex items-center gap-2">
+          <Database size={16} />
+          Información Adicional — últimos 30 días
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="text-center p-4 bg-[var(--color-bg-hover)] rounded-xl">
+            <p className="text-xs text-secondary uppercase tracking-wide mb-2">Usuarios Activos</p>
+            <p className="text-3xl font-bold text-primary">
+              {s.usuarios_activos ?? '—'}
+            </p>
           </div>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Tablas Afectadas</p>
-            <p className="text-2xl font-bold">{estadisticas.tablas_afectadas}</p>
+          <div className="text-center p-4 bg-[var(--color-bg-hover)] rounded-xl">
+            <p className="text-xs text-secondary uppercase tracking-wide mb-2">Tablas Afectadas</p>
+            <p className="text-3xl font-bold text-primary">
+              {s.tablas_afectadas ?? '—'}
+            </p>
           </div>
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Operaciones Hoy</p>
-            <p className="text-2xl font-bold text-orange-600">{estadisticas.operaciones_hoy}</p>
+          <div className="text-center p-4 bg-primary/5 rounded-xl border border-primary/20">
+            <p className="text-xs text-secondary uppercase tracking-wide mb-2">Operaciones Hoy</p>
+            <p className="text-3xl font-bold text-primary">
+              {s.operaciones_hoy ?? '—'}
+            </p>
           </div>
         </div>
       </div>

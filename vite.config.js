@@ -23,6 +23,27 @@ export default defineConfig({
   },
 
   // ========================================
+  // CONFIGURACIÓN DE BUILD (Producción)
+  // ========================================
+  build: {
+    target: 'es2020',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendors pesados van en chunks separados para mejor caching
+          'vendor-react':    ['react', 'react-dom'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+          'vendor-query':    ['@tanstack/react-query'],
+          'vendor-router':   ['react-router'],
+          'vendor-xlsx':     ['xlsx'],
+          'vendor-misc':     ['zustand', 'react-window'],
+        },
+      },
+    },
+  },
+
+  // ========================================
   // CONFIGURACIÓN DE TESTS (Vitest)
   // ========================================
   test: {

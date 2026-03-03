@@ -90,126 +90,131 @@ export default function AnalisisCostos() {
       const inicioB = new Date(anioB, mesB, 1).toISOString();
       const finB    = new Date(anioB, mesB + 1, 0, 23, 59, 59).toISOString();
 
-      // Traer movimientos de ambos períodos en paralelo
-      // Usamos movimientos_inventario que ya existe en tu DB
-      const [{ data: movA, error: errA }, { data: movB, error: errB }] = await Promise.all([
-        supabase
-          .from("movimientos_inventario")
-          .select(`
-            producto_id,
-            tipo_movimiento,
-            cantidad_unidad_base,
-            costo_unitario,
-            arbol_materia_prima:producto_id ( id, nombre, codigo, tipo_rama, unidad_stock )
-          `)
-          .eq("tipo_movimiento", "entrada")
-          .gte("created_at", inicioA)
-          .lte("created_at", finA),
-        supabase
-          .from("movimientos_inventario")
-          .select(`
-            producto_id,
-            tipo_movimiento,
-            cantidad_unidad_base,
-            costo_unitario,
-            arbol_materia_prima:producto_id ( id, nombre, codigo, tipo_rama, unidad_stock )
-          `)
-          .eq("tipo_movimiento", "entrada")
-          .gte("created_at", inicioB)
-          .lte("created_at", finB),
-      ]);
-
-      if (errA) throw errA;
-      if (errB) throw errB;
-
-      // Agrupar por producto_id y calcular costo promedio + total gastado
+      // Helper: agrupar movimientos de compra por producto
       function agrupar(movimientos) {
         const mapa = {};
         for (const m of movimientos || []) {
           if (!m.producto_id) continue;
           if (!mapa[m.producto_id]) {
             mapa[m.producto_id] = {
-              producto_id: m.producto_id,
-              nombre: m.arbol_materia_prima?.nombre ?? "Sin nombre",
-              codigo: m.arbol_materia_prima?.codigo ?? "",
-              tipo_rama: m.arbol_materia_prima?.tipo_rama ?? "",
-              unidad: m.arbol_materia_prima?.unidad_stock ?? "",
               cantidad_total: 0,
               gasto_total: 0,
               entradas: 0,
-              costos: [],
             };
           }
-          const item = mapa[m.producto_id];
-          const cant = m.cantidad_unidad_base || 0;
-          const costo = m.costo_unitario || 0;
-          item.cantidad_total += cant;
-          item.gasto_total += cant * costo;
-          item.entradas += 1;
-          item.costos.push(costo);
+          const entry = mapa[m.producto_id];
+          const cant  = parseFloat(m.cantidad_unidad_base) || 0;
+          const costo = parseFloat(m.costo_unitario)       || 0;
+          entry.cantidad_total += cant;
+          entry.gasto_total    += cant * costo;
+          entry.entradas       += 1;
         }
-        // Calcular costo promedio ponderado
-        Object.values(mapa).forEach((item) => {
-          item.costo_promedio =
-            item.cantidad_total > 0 ? item.gasto_total / item.cantidad_total : 0;
+        // Costo promedio ponderado por movimientos
+        Object.values(mapa).forEach((entry) => {
+          entry.costo_compra =
+            entry.cantidad_total > 0 ? entry.gasto_total / entry.cantidad_total : null;
         });
         return mapa;
       }
 
+      // ── 3 queries en paralelo ─────────────────────────────────────────────
+      const [
+        { data: movA,      error: errA    },
+        { data: movB,      error: errB    },
+        { data: productos, error: errProd },
+      ] = await Promise.all([
+        // Movimientos período A
+        supabase
+          .from("movimientos_inventario")
+          .select("producto_id, cantidad_unidad_base, costo_unitario")
+          .eq("tipo_movimiento", "entrada")
+          .gte("created_at", inicioA)
+          .lte("created_at", finA),
+        // Movimientos período B
+        supabase
+          .from("movimientos_inventario")
+          .select("producto_id, cantidad_unidad_base, costo_unitario")
+          .eq("tipo_movimiento", "entrada")
+          .gte("created_at", inicioB)
+          .lte("created_at", finB),
+        // TODOS los productos nivel 5 con su costo_promedio de catálogo
+        supabase
+          .from("arbol_materia_prima")
+          .select("id, nombre, codigo, tipo_rama, unidad_stock, costo_promedio, stock_actual")
+          .eq("nivel_actual", 5)
+          .eq("activo", true)
+          .order("nombre")
+          .limit(2000),
+      ]);
+
+      if (errA)    throw errA;
+      if (errB)    throw errB;
+      if (errProd) throw errProd;
+
       const mapaA = agrupar(movA);
       const mapaB = agrupar(movB);
 
-      // Unir por producto: cualquiera que aparezca en A o B
-      const todosIds = new Set([...Object.keys(mapaA), ...Object.keys(mapaB)]);
+      // ── Construir items usando catálogo como base ─────────────────────────
+      // Para cada producto:
+      //   · Si tuvo compras en el período → usar precio real de las compras
+      //   · Si no → usar costo_promedio del catálogo (precio vigente)
+      const items = (productos || []).map((prod) => {
+        const compA = mapaA[prod.id] ?? null;
+        const compB = mapaB[prod.id] ?? null;
 
-      const items = Array.from(todosIds).map((id) => {
-        const a = mapaA[id] || null;
-        const b = mapaB[id] || null;
-        const base = a || b;
+        // Costo: compra real > catálogo
+        const costoA = compA?.costo_compra ?? prod.costo_promedio ?? null;
+        const costoB = compB?.costo_compra ?? prod.costo_promedio ?? null;
+        const gastoA = compA?.gasto_total ?? 0;
+        const gastoB = compB?.gasto_total ?? 0;
 
-        const costoA = a?.costo_promedio ?? null;
-        const costoB = b?.costo_promedio ?? null;
-        const gastoA = a?.gasto_total ?? 0;
-        const gastoB = b?.gasto_total ?? 0;
-        const variacionPct = pct(costoA ?? 0, costoB);
-        const variacionAbs = costoA != null && costoB != null ? costoA - costoB : null;
+        // Variación solo tiene sentido si al menos uno de los dos tiene compra real
+        // (dos valores de catálogo iguales → variación = 0)
+        const variacionPct =
+          costoA != null && costoB != null ? pct(costoA, costoB) : null;
+        const variacionAbs =
+          costoA != null && costoB != null ? costoA - costoB : null;
 
         return {
-          id,
-          nombre: base.nombre,
-          codigo: base.codigo,
-          tipo_rama: base.tipo_rama,
-          unidad: base.unidad,
+          id:       String(prod.id),
+          nombre:   prod.nombre,
+          codigo:   prod.codigo,
+          tipo_rama:prod.tipo_rama,
+          unidad:   prod.unidad_stock,
           // Período A
-          costo_a: costoA,
-          cantidad_a: a?.cantidad_total ?? 0,
-          gasto_a: gastoA,
-          entradas_a: a?.entradas ?? 0,
+          costo_a:     costoA,
+          cantidad_a:  compA?.cantidad_total ?? 0,
+          gasto_a:     gastoA,
+          entradas_a:  compA?.entradas ?? 0,
+          origen_a:    compA ? "compra" : "catalogo",   // ← indicador de fuente
           // Período B
-          costo_b: costoB,
-          cantidad_b: b?.cantidad_total ?? 0,
-          gasto_b: gastoB,
-          entradas_b: b?.entradas ?? 0,
+          costo_b:     costoB,
+          cantidad_b:  compB?.cantidad_total ?? 0,
+          gasto_b:     gastoB,
+          entradas_b:  compB?.entradas ?? 0,
+          origen_b:    compB ? "compra" : "catalogo",
           // Variaciones
           variacion_pct: variacionPct,
           variacion_abs: variacionAbs,
         };
       });
 
-      // Resúmenes globales
+      // Resúmenes: gasto total solo de compras reales
       const resumenA = {
         gasto_total: items.reduce((s, i) => s + i.gasto_a, 0),
-        productos: Object.keys(mapaA).length,
-        entradas: (movA || []).length,
+        productos:   Object.keys(mapaA).length,
+        entradas:    (movA || []).length,
       };
       const resumenB = {
         gasto_total: items.reduce((s, i) => s + i.gasto_b, 0),
-        productos: Object.keys(mapaB).length,
-        entradas: (movB || []).length,
+        productos:   Object.keys(mapaB).length,
+        entradas:    (movB || []).length,
       };
 
       setDatos({ resumenA, resumenB, items });
-      notify.success(`Comparativo cargado: ${items.length} ingredientes`);
+      notify.success(
+        `Comparativo cargado: ${items.length} productos (${Object.keys(mapaA).length} con compras en ${MESES[mesA]}, ${Object.keys(mapaB).length} en ${MESES[mesB]})`
+      );
     } catch (err) {
       console.error(err);
       notify.error("Error al cargar el comparativo de costos");
@@ -229,7 +234,8 @@ export default function AnalisisCostos() {
         const t = busqueda.toLowerCase();
         if (!i.nombre.toLowerCase().includes(t) && !i.codigo.toLowerCase().includes(t)) return false;
       }
-      if (soloVariaciones && (i.variacion_pct == null || Math.abs(i.variacion_pct) < 1)) return false;
+      // "Solo con variación": muestra productos con compras reales en alguno de los períodos
+      if (soloVariaciones && i.origen_a === "catalogo" && i.origen_b === "catalogo") return false;
       return true;
     })
     .sort((a, b) => {
@@ -536,7 +542,7 @@ export default function AnalisisCostos() {
                       onChange={(e) => setBusqueda(e.target.value)}
                       className="form-input text-sm !py-1.5 w-48"
                     />
-                    {/* Solo variaciones */}
+                    {/* Solo con compras reales */}
                     <label className="flex items-center gap-2 text-sm text-secondary cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -544,7 +550,7 @@ export default function AnalisisCostos() {
                         onChange={(e) => setSoloVariaciones(e.target.checked)}
                         className="rounded"
                       />
-                      Solo con variación
+                      Solo con compras reales
                     </label>
                   </div>
                 </div>
@@ -635,30 +641,46 @@ export default function AnalisisCostos() {
                               )}
                             </td>
                             {/* Período A */}
-                            <td className="table-cell text-right font-semibold">
+                            <td className="table-cell text-right">
                               {item.costo_a != null ? (
-                                <span>{formatCOP(item.costo_a)}<span className="text-xs text-muted">/{item.unidad}</span></span>
+                                <div>
+                                  <span className="font-semibold">{formatCOP(item.costo_a)}</span>
+                                  <span className="text-xs text-muted">/{item.unidad}</span>
+                                  {item.origen_a === "catalogo" && (
+                                    <span className="ml-1 text-xs text-muted opacity-60" title="Costo de catálogo">(cat.)</span>
+                                  )}
+                                </div>
                               ) : <span className="text-muted">—</span>}
                             </td>
                             <td className="table-cell text-right">
                               {item.gasto_a > 0 ? (
                                 <span className="text-success font-semibold">{formatCOP(item.gasto_a)}</span>
-                              ) : <span className="text-muted">—</span>}
+                              ) : <span className="text-muted text-xs">sin compras</span>}
                             </td>
                             <td className="table-cell text-right text-muted text-xs">
-                              {item.cantidad_a > 0 ? `${item.cantidad_a.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${item.unidad}` : "—"}
+                              {item.cantidad_a > 0
+                                ? `${item.cantidad_a.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${item.unidad}`
+                                : "—"}
                             </td>
                             {/* Período B */}
                             <td className="table-cell text-right text-muted">
                               {item.costo_b != null ? (
-                                <span>{formatCOP(item.costo_b)}<span className="text-xs">/{item.unidad}</span></span>
+                                <div>
+                                  <span>{formatCOP(item.costo_b)}</span>
+                                  <span className="text-xs">/{item.unidad}</span>
+                                  {item.origen_b === "catalogo" && (
+                                    <span className="ml-1 text-xs opacity-60" title="Costo de catálogo">(cat.)</span>
+                                  )}
+                                </div>
                               ) : <span>—</span>}
                             </td>
                             <td className="table-cell text-right text-muted">
-                              {item.gasto_b > 0 ? formatCOP(item.gasto_b) : "—"}
+                              {item.gasto_b > 0 ? formatCOP(item.gasto_b) : <span className="text-xs">sin compras</span>}
                             </td>
                             <td className="table-cell text-right text-muted text-xs">
-                              {item.cantidad_b > 0 ? `${item.cantidad_b.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${item.unidad}` : "—"}
+                              {item.cantidad_b > 0
+                                ? `${item.cantidad_b.toLocaleString("es-CO", { maximumFractionDigits: 1 })} ${item.unidad}`
+                                : "—"}
                             </td>
                             {/* Variaciones */}
                             <td className="table-cell text-right">

@@ -6,6 +6,7 @@ import {
   subirDesprendible,
   getEmpleadosConEstadoDesprendible,
   getEstadisticasPeriodo,
+  getHistorialPeriodos,
 } from "../services/desprendiblesService";
 import notify from "@/shared/lib/notifier";
 
@@ -49,6 +50,15 @@ export function useEstadisticasPeriodo(periodo) {
     queryFn: () => getEstadisticasPeriodo(periodo),
     enabled: !!periodo,
     staleTime: 1000 * 60 * 1,
+  });
+}
+
+/** Hook para historial de cobertura de los últimos N meses */
+export function useHistorialPeriodos(meses = 13) {
+  return useQuery({
+    queryKey: ["nomina-historial", meses],
+    queryFn: () => getHistorialPeriodos(meses),
+    staleTime: 1000 * 60 * 5,
   });
 }
 

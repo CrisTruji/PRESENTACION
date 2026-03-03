@@ -4,8 +4,6 @@
 // ========================================
 
 import React, { useState, useMemo } from 'react';
-// import { usePresentaciones } from '@/features/inventory'; // TODO: Hook no existe
-import { useArbolRecetasStore } from '@/features/products';
 import {
   Package,
   Plus,
@@ -26,13 +24,10 @@ import notify from '@/shared/lib/notifier';
 
 const PresentacionesManager = () => {
   // ========================================
-  // ESTADO GLOBAL (Zustand)
-  // ========================================
-  const { nivel5Items, selectedNivel5, loadNivel5 } = useArbolRecetasStore();
-
-  // ========================================
   // ESTADO LOCAL
   // ========================================
+  // Lista de stocks (nivel 5) para el filtro — cargada desde arbol_materia_prima
+  const [nivel5Items, setNivel5Items] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [filtroStock, setFiltroStock] = useState(null); // null = todos
   const [ordenPor, setOrdenPor] = useState('nombre'); // 'nombre' | 'precio' | 'codigo'
@@ -64,6 +59,26 @@ const PresentacionesManager = () => {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
 
+  // Cargar stocks nivel 5 de arbol_materia_prima al montar
+  React.useEffect(() => {
+    cargarNivel5();
+  }, []);
+
+  const cargarNivel5 = async () => {
+    try {
+      const { data } = await supabase
+        .from('arbol_materia_prima')
+        .select('id, codigo, nombre')
+        .eq('nivel_actual', 5)
+        .eq('activo', true)
+        .order('nombre')
+        .limit(2000);
+      setNivel5Items(data || []);
+    } catch (err) {
+      console.error('[PresentacionesManager] Error cargando nivel5:', err);
+    }
+  };
+
   // Cargar presentaciones cuando cambia el filtro de stock
   React.useEffect(() => {
     cargarPresentaciones();
@@ -83,18 +98,20 @@ const PresentacionesManager = () => {
             codigo,
             nombre,
             stock_actual,
-            unidad_medida
+            unidad_medida,
+            unidad_stock
           )
         `)
         .eq('nivel_actual', 6)
         .eq('activo', true);
 
-      // Filtrar por stock seleccionado
+      // Filtrar por stock seleccionado (parent_id es integer)
       if (filtroStock) {
-        query = query.eq('parent_id', filtroStock);
+        query = query.eq('parent_id', parseInt(filtroStock, 10));
       }
 
-      const { data, error: queryError } = await query.order('nombre');
+      // Supabase limita a 1000 por defecto — subir a 5000 para cubrir todos
+      const { data, error: queryError } = await query.order('nombre').limit(5000);
 
       if (queryError) throw queryError;
 
@@ -106,11 +123,6 @@ const PresentacionesManager = () => {
       setCargando(false);
     }
   };
-
-  // Cargar stocks (nivel 5) al montar
-  React.useEffect(() => {
-    loadNivel5();
-  }, []);
 
   // ========================================
   // FILTRADO Y ORDENAMIENTO
@@ -164,7 +176,8 @@ const PresentacionesManager = () => {
   // ========================================
   const estadisticas = useMemo(() => {
     const total = presentaciones.length;
-    const conPrecio = presentaciones.filter((p) => p.precio_unitario > 0).length;
+    // precio_unitario es NULL en BD para items sin precio asignado
+    const conPrecio = presentaciones.filter((p) => p.precio_unitario != null && p.precio_unitario > 0).length;
     const sinPrecio = total - conPrecio;
     const precioPromedio =
       conPrecio > 0
@@ -549,22 +562,33 @@ const PresentacionesManager = () => {
                       <div className="text-sm text-primary">
                         {presentacion.parent?.nombre || '-'}
                       </div>
-                      {presentacion.parent?.stock_actual !== undefined && (
+                      {presentacion.parent?.stock_actual != null && (
                         <div className="text-xs text-muted">
-                          Stock: {presentacion.parent.stock_actual}{' '}
-                          {presentacion.parent.unidad_medida}
+                          Stock: {parseFloat(presentacion.parent.stock_actual)}{' '}
+                          {presentacion.parent.unidad_stock || presentacion.parent.unidad_medida || ''}
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-primary">
-                        {presentacion.presentacion || '-'}
-                      </span>
+                      {presentacion.contenido_unidad && presentacion.unidad_contenido ? (
+                        <span className="inline-flex items-center gap-1 text-sm text-primary">
+                          <span className="font-semibold">{parseFloat(presentacion.contenido_unidad)}</span>
+                          <span className="text-muted">{presentacion.unidad_contenido}</span>
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted italic">
+                          {presentacion.presentacion || 'Sin definir'}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-green-600">
-                        ${(presentacion.precio_unitario || 0).toFixed(2)}
-                      </span>
+                      {presentacion.precio_unitario != null && presentacion.precio_unitario > 0 ? (
+                        <span className="text-sm font-semibold text-green-600">
+                          ${presentacion.precio_unitario.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted italic">Sin precio</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-muted">
