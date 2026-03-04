@@ -120,6 +120,8 @@ export default function Navbar() {
     const tabs = {
       administrador: [
         { label: "Dashboard", name: "admin_dashboard", icon: icons.dashboard },
+        { label: "Resumen Gerencial", name: "gerencia", icon: icons.consolidado },
+        { label: "Informes", name: "informes", icon: icons.invoices },
         { label: "Solicitudes de Acceso", name: "admin_requests", icon: icons.requests },
         { label: "Presupuesto", name: "presupuesto", icon: icons.management },
         { label: "Inventario", name: "inventario", icon: icons.products },

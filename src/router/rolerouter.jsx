@@ -51,6 +51,12 @@ import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-order
 // PRESUPUESTO (Admin / Jefe de Planta)
 import { DashboardPresupuesto } from "@/features/presupuesto";
 
+// GERENCIA (Admin)
+import { DashboardGerencia } from "@/features/gerencia";
+
+// INFORMES (Admin)
+import { GeneradorInformes } from "@/features/informes";
+
 // PORTAL EMPLEADO (rol: usuario)
 import { PortalEmpleadoDashboard } from "@/features/portal-empleado";
 
@@ -205,6 +211,14 @@ case "consolidado_supervisor":
 // PRESUPUESTO (Admin / Jefe de Planta)
 case "presupuesto":
   return <DashboardPresupuesto />;
+
+// GERENCIA (Admin)
+case "gerencia":
+  return <DashboardGerencia />;
+
+// INFORMES (Admin)
+case "informes":
+  return <GeneradorInformes />;
 
 // PORTAL EMPLEADO (rol: usuario)
 case "portal_empleado":
