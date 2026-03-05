@@ -9,7 +9,7 @@ docs/
 ├── README.md               ← Este archivo (índice general)
 └── sprints/
     ├── sprint-A-correcciones-tecnicas.md   ✅ Completado (2026-03-05)
-    ├── sprint-B-proyeccion-semanal.md      🔲 Pendiente
+    ├── sprint-B-proyeccion-semanal.md      ✅ Completado (2026-03-05)
     ├── sprint-C-modulo-economico.md        🔲 Pendiente
     ├── sprint-D-notificaciones.md          🔲 Pendiente
     └── sprint-E-semaforo-operativo.md      🔲 Pendiente
@@ -20,7 +20,7 @@ docs/
 | Sprint | Nombre | Estado | Descripción |
 |--------|--------|--------|-------------|
 | A | Correcciones Técnicas Críticas | ✅ Completado | Casing router, imports dinámicos, code splitting |
-| B | ProyeccionSemanal con Datos Reales | 🔲 Pendiente | columna `capacidad_promedio` + editor admin |
+| B | ProyeccionSemanal con Datos Reales | ✅ Completado | columna `capacidad_promedio` + editor admin |
 | C | Módulo Económico Completo | 🔲 Pendiente | CostosPorUnidad, CierreCostos, varianza presupuesto |
 | D | Notificaciones Automáticas | 🔲 Pendiente | triggers stock, presupuesto crítico, pedidos del día |
 | E | Semáforo Operativo | 🔲 Pendiente | Widget de estado del día en AdminDashboard |

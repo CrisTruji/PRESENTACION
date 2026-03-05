@@ -18,22 +18,10 @@ import { supabase } from '@/shared/api';
 import { crearSolicitud, agregarItemsSolicitud } from '@/features/purchases';
 import { getProveedores } from '@/features/purchases';
 import { useAuth } from '@/features/auth';
+import { useRouter } from '@/router';
 import notify from '@/shared/lib/notifier';
 import { RecommendationWidget } from '@/features/recommendations';
-
-// ── Promedios base (hardcodeados como punto de partida) ──
-const PROMEDIOS_BASE = {
-  'COORDINADORA': 170,
-  'CARVAL': 65,
-  'PRESENTES': 18,
-  'IDIME': 120,
-  'RED HUMANA': 35,
-  'VIRREY SOLIS': 40,
-  'ALCALA': 20,
-  'EIREN': 80,
-  'BRUNE': 25,
-  'VENTAS': 70,
-};
+import { getCapacidadesPorOperacionAgrupadas } from '../services/capacidadesService';
 
 const HOY = new Date().toISOString().split('T')[0];
 const SERVICIOS = [
@@ -456,28 +444,35 @@ function TabConsolidadoDietas({ fecha, servicio }) {
 //   5. Cruza con stock actual → muestra deficit
 // ========================================
 function TabProyeccionSemanal() {
+  const { navigate } = useRouter();
   const [diasHabiles, setDiasHabiles] = useState(5);
   const [operaciones, setOperaciones] = useState([]);
   const [opSeleccionada, setOpSeleccionada] = useState('');
-  // promedio diario acumulado por operacion (todos los servicios sumados)
+  // promedio diario acumulado por operacion (todos los servicios sumados) — del historial de pedidos
   const [promediosPorOp, setPromediosPorOp] = useState({});
+  // capacidades configuradas en BD (fallback cuando no hay historial suficiente)
+  const [capacidadesDB, setCapacidadesDB] = useState({});
   const [mpRequerida, setMpRequerida] = useState([]);
   const [cicloInfo, setCicloInfo] = useState(null); // { nombre, totalDias }
   const [cargando, setCargando] = useState(false);
   const [cargandoMP, setCargandoMP] = useState(false);
   const [soloDeficit, setSoloDeficit] = useState(false);
 
-  // ── 1. Carga inicial: operaciones + promedios históricos (todos los servicios) ──
+  // ── 1. Carga inicial: operaciones + promedios históricos + capacidades DB ──
   useEffect(() => {
     async function init() {
       setCargando(true);
       try {
-        const { data: ops } = await supabase
-          .from('operaciones')
-          .select('id, nombre, codigo')
-          .eq('activo', true)
-          .order('nombre');
+        const [{ data: ops }, capDB] = await Promise.all([
+          supabase
+            .from('operaciones')
+            .select('id, nombre, codigo')
+            .eq('activo', true)
+            .order('nombre'),
+          getCapacidadesPorOperacionAgrupadas(),
+        ]);
         setOperaciones(ops || []);
+        setCapacidadesDB(capDB);
         if (ops?.length > 0) setOpSeleccionada(String(ops[0].id));
 
         // Últimos 60 días — SIN filtrar por servicio para capturar desayuno+almuerzo+cena
@@ -592,8 +587,8 @@ function TabProyeccionSemanal() {
 
         // Promedio diario (todos los servicios) de la operación seleccionada
         const promInfo = promediosPorOp[opSeleccionada];
-        const nombreOp = operaciones.find((o) => String(o.id) === opSeleccionada)?.nombre?.toUpperCase() || '';
-        const promBase = PROMEDIOS_BASE[nombreOp] || 50;
+        // Fallback desde BD: suma de capacidad_promedio configurada para esta operación
+        const promBase = capacidadesDB[opSeleccionada] || 50;
         const promDiario = promInfo?.calculado ? promInfo.valor : promBase;
 
         // Calcular MP requerida
@@ -651,8 +646,8 @@ function TabProyeccionSemanal() {
 
   // ── Derivados para la UI ──
   const promInfo = promediosPorOp[opSeleccionada];
-  const nombreOp = operaciones.find((o) => String(o.id) === opSeleccionada)?.nombre?.toUpperCase() || '';
-  const promBase = PROMEDIOS_BASE[nombreOp] || 50;
+  // Fallback desde BD: suma de capacidad_promedio configurada para esta operación
+  const promBase = capacidadesDB[opSeleccionada] || 50;
   const promDiario = promInfo?.calculado ? promInfo.valor : promBase;
 
   const mpFiltrada = useMemo(() =>
@@ -714,7 +709,17 @@ function TabProyeccionSemanal() {
           <p className="text-xs">
             {promInfo?.calculado
               ? <span className="text-success">Calculado ({promInfo.dias} días reales)</span>
-              : <span className="text-warning">Estimado (base histórica)</span>
+              : (
+                <span className="text-warning">
+                  Estimado (base configurada:{' '}
+                  <button
+                    onClick={() => navigate('configuracion_capacidades')}
+                    className="underline hover:text-primary"
+                  >
+                    editar →
+                  </button>
+                </span>
+              )
             }
           </p>
         </div>

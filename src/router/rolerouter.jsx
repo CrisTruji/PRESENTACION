@@ -14,7 +14,7 @@ import { AdminDashboard, AdminRequests, AnalisisCostos, Nomina } from "@/feature
 import { EmpleadosSST, EmpleadosTH } from "@/features/employees";
 
 // PLANTA (jefe de planta)
-import { ProyeccionSemanal, CostosServicio, Productos } from "@/features/planta";
+import { ProyeccionSemanal, CostosServicio, Productos, ConfiguracionCapacidades } from "@/features/planta";
 
 // PURCHASES (planta, compras, proveedores)
 import {
@@ -139,6 +139,8 @@ export default function RoleRouter() {
         return <ProyeccionSemanal />;
       case "costos_servicio":
         return <CostosServicio />;
+      case "configuracion_capacidades":
+        return <ConfiguracionCapacidades />;
 
       // AUXILIAR DE COMPRAS
       case "gestion_aux":

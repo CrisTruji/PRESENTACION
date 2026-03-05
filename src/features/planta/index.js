@@ -5,3 +5,7 @@
 export { default as ProyeccionSemanal } from './components/ProyeccionSemanal';
 export { default as CostosServicio } from './components/CostosServicio';
 export { default as Productos } from './components/Productos';
+export { default as ConfiguracionCapacidades } from './components/ConfiguracionCapacidades';
+
+// Servicios
+export * from './services/capacidadesService';
