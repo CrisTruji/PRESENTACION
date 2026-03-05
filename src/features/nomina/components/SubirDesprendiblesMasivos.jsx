@@ -2,7 +2,6 @@
 // Sube un PDF masivo al servidor (Edge Function) que lo procesa server-side.
 // Flujo: seleccionar período → soltar PDF → confirmar → procesar → resultados.
 import { useState, useRef, useCallback } from "react";
-import { PDFDocument } from "pdf-lib";     // solo para contar páginas
 import { supabase } from "@/shared/api";
 import { useAuth } from "@/features/auth";
 
@@ -58,6 +57,8 @@ export default function SubirDesprendiblesMasivos() {
   const leerPDF = useCallback(async (file) => {
     try {
       const buf = await file.arrayBuffer();
+      // Import dinámico: pdf-lib solo se carga cuando el rol nómina sube un PDF
+      const { PDFDocument } = await import('pdf-lib');
       const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
       const paginas = doc.getPageCount();
       setPdfInfo({ file, paginas });

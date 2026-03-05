@@ -38,6 +38,9 @@ export default defineConfig({
           'vendor-router':   ['react-router'],
           'vendor-xlsx':     ['xlsx'],
           'vendor-misc':     ['zustand', 'react-window'],
+          // Librerías de gráficas y PDF (pesadas, solo para roles específicos)
+          'vendor-charts':   ['recharts'],
+          'vendor-pdf-lib':  ['pdf-lib'],
         },
       },
     },

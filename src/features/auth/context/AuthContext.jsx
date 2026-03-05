@@ -106,13 +106,13 @@ export function AuthProvider({ children }) {
     setFakeRole(role);
 
     // Resetear stores Zustand al cambiar de rol para evitar datos contaminados entre sesiones
-    import('@features/menu-cycles').then((m) => {
+    import('@/features/menu-cycles').then((m) => {
       m.useCicloEditorStore?.getState?.()?.reset?.();
-    }).catch(() => {});
-    import('@features/food-orders').then((m) => {
+    }).catch((e) => console.warn('[AuthContext] store reset failed (menu-cycles):', e));
+    import('@/features/food-orders').then((m) => {
       m.usePedidoStore?.getState?.()?.reset?.();
       m.useConsolidadoStore?.getState?.()?.reset?.();
-    }).catch(() => {});
+    }).catch((e) => console.warn('[AuthContext] store reset failed (food-orders):', e));
   }
 
   const effectiveRole = fakeRole ?? roleName;

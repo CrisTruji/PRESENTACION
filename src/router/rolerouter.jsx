@@ -169,9 +169,9 @@ case "vincular_presentaciones":
   return <VincularPresentaciones />;
 case "inventario":
   return <Inventario />;
-  case "Empleados_SST":
+  case "empleados_sst":
   return <EmpleadosSST />;
-  case "Empleados_TH":
+  case "empleados_th":
   return <EmpleadosTH />;
   case "analisis_costos":
   return <AnalisisCostos />;
