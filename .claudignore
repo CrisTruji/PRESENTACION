@@ -1,0 +1,30 @@
+# Dependencias y entorno
+node_modules/
+.env
+package-lock.json
+
+# Carpetas de datos y PDFs (Suelen ser muy pesadas)
+PDF_Descargados/
+sql/
+sql_migrations/
+
+# Documentación y auditoría (Solo actívalos si vas a editarlos)
+AUDITORIA_CHECKLIST.md
+RECOMENDACIONES_ESTRATEGICAS.md
+docs/
+
+# Archivos de sistema y logs
+.claude/
+.git/
+*.log
+session.json
+
+# Multimedia y Assets
+public/
+logo.png
+*.svg
+*.ico
+
+# Archivos temporales o de backup
+vite.config.NUEVA.js
+*.tmp
