@@ -8,7 +8,7 @@ import { useRouter } from "@/router";
 // ================================
 
 // ADMIN
-import { AdminDashboard, AdminRequests, AnalisisCostos, Nomina } from "@/features/admin";
+import { AdminDashboard, AdminRequests, AnalisisCostos, Nomina, CostosPorUnidad } from "@/features/admin";
 
 // EMPLOYEES
 import { EmpleadosSST, EmpleadosTH } from "@/features/employees";
@@ -49,7 +49,7 @@ import { ChefDashboard } from "@/features/menu-cycles";
 import { PedidoServicioForm, ConsolidadoSupervisor } from "@/features/food-orders";
 
 // PRESUPUESTO (Admin / Jefe de Planta)
-import { DashboardPresupuesto } from "@/features/presupuesto";
+import { DashboardPresupuesto, CierreCostosMensual } from "@/features/presupuesto";
 
 // GERENCIA (Admin)
 import { DashboardGerencia } from "@/features/gerencia";
@@ -213,6 +213,12 @@ case "consolidado_supervisor":
 // PRESUPUESTO (Admin / Jefe de Planta)
 case "presupuesto":
   return <DashboardPresupuesto />;
+case "cierre_costos":
+  return <CierreCostosMensual />;
+
+// COSTOS POR UNIDAD (Admin)
+case "costos_unidad":
+  return <CostosPorUnidad />;
 
 // GERENCIA (Admin)
 case "gerencia":

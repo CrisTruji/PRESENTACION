@@ -3,9 +3,11 @@
 // ========================================
 
 import React, { useState } from 'react';
-import { DollarSign, TrendingUp, AlertTriangle, CheckCircle, Edit, Plus, Calendar } from 'lucide-react';
+import { DollarSign, TrendingUp, AlertTriangle, CheckCircle, Edit, Plus, Calendar, Sparkles } from 'lucide-react';
 import { usePresupuestoMes, useGastoReal } from '../hooks/usePresupuesto';
+import { presupuestoService } from '../services/presupuestoService';
 import FormPresupuesto from './FormPresupuesto';
+import notify from '@/shared/lib/notifier';
 
 function getMesActual() {
   const d = new Date();
@@ -32,10 +34,20 @@ function BarraProgreso({ porcentaje }) {
   );
 }
 
+function getMesAnterior(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  const d = new Date(y, m - 1, 1);
+  d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function DashboardPresupuesto() {
   const [mes, setMes] = useState(getMesActual());
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [autoEstimando, setAutoEstimando] = useState(false);
+  // Presupuesto "sintético" pre-llenado desde historial anterior
+  const [presupuestoAuto, setPresupuestoAuto] = useState(null);
 
   const { data: presupuesto, isLoading, refetch } = usePresupuestoMes(mes);
   const { data: gastoReal = [] } = useGastoReal(mes);
@@ -45,10 +57,57 @@ export default function DashboardPresupuesto() {
   const disponible = totalPresupuestado - totalGasto;
   const porcentaje = totalPresupuestado > 0 ? Math.round((totalGasto / totalPresupuestado) * 100) : 0;
 
+  // Varianza por categoría: cruza presupuesto_items con gastoReal
+  const itemsPresupuesto = presupuesto?.presupuesto_items || [];
+  const varianzaRows = (() => {
+    const gastoMap = {};
+    for (const g of gastoReal) gastoMap[g.categoria] = Number(g.gasto_total || 0);
+
+    const cats = new Set([
+      ...itemsPresupuesto.map((i) => i.categoria),
+      ...gastoReal.map((g) => g.categoria),
+    ]);
+    return [...cats].sort().map((cat) => {
+      const presup = Number(itemsPresupuesto.find((i) => i.categoria === cat)?.monto_presupuestado || 0);
+      const real   = gastoMap[cat] || 0;
+      const diff   = presup - real;
+      const pct    = presup > 0 ? Math.round((real / presup) * 100) : null;
+      return { cat, presup, real, diff, pct };
+    });
+  })();
+
   const handleSaved = () => {
     refetch();
     setEditMode(false);
+    setPresupuestoAuto(null);
   };
+
+  // Auto-estimar desde el gasto del mes anterior
+  async function autoEstimar() {
+    setAutoEstimando(true);
+    try {
+      const mesAnt = getMesAnterior(mes);
+      const { data, error } = await presupuestoService.getGastoReal(mesAnt);
+      if (error) throw error;
+      const items = (data || []).map((g) => ({
+        categoria: g.categoria,
+        monto_presupuestado: Number(g.gasto_total || 0),
+      }));
+      const total = items.reduce((s, i) => s + i.monto_presupuestado, 0);
+      if (total === 0) {
+        notify.warning('No hay gasto registrado en el mes anterior para estimar.');
+        return;
+      }
+      setPresupuestoAuto({ presupuesto_items: items, presupuestado: total });
+      setEditMode(false);
+      setShowForm(true);
+      notify.success(`Valores estimados desde ${mesAnt}. Revisa y ajusta antes de guardar.`);
+    } catch (err) {
+      notify.error('Error al obtener historial: ' + err.message);
+    } finally {
+      setAutoEstimando(false);
+    }
+  }
 
   return (
     <div className="min-h-content bg-app">
@@ -73,20 +132,31 @@ export default function DashboardPresupuesto() {
               </div>
               {presupuesto ? (
                 <button
-                  onClick={() => { setEditMode(true); setShowForm(true); }}
+                  onClick={() => { setEditMode(true); setPresupuestoAuto(null); setShowForm(true); }}
                   className="btn btn-outline flex items-center gap-2 text-sm !py-1.5"
                 >
                   <Edit className="w-4 h-4" />
                   Editar
                 </button>
               ) : (
-                <button
-                  onClick={() => { setEditMode(false); setShowForm(true); }}
-                  className="btn btn-primary flex items-center gap-2 text-sm !py-1.5"
-                >
-                  <Plus className="w-4 h-4" />
-                  Crear presupuesto
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={autoEstimar}
+                    disabled={autoEstimando}
+                    className="btn btn-outline flex items-center gap-2 text-sm !py-1.5"
+                    title="Pre-llenar con el gasto real del mes anterior"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {autoEstimando ? 'Estimando…' : 'Auto-estimar'}
+                  </button>
+                  <button
+                    onClick={() => { setEditMode(false); setPresupuestoAuto(null); setShowForm(true); }}
+                    className="btn btn-primary flex items-center gap-2 text-sm !py-1.5"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Crear presupuesto
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -172,32 +242,58 @@ export default function DashboardPresupuesto() {
               </div>
             </div>
 
-            {/* Tabla por categorías */}
-            {gastoReal.length > 0 && (
+            {/* Tabla de varianza por categoría */}
+            {(gastoReal.length > 0 || itemsPresupuesto.length > 0) ? (
               <div className="card">
                 <div className="card-header">
-                  <h3 className="font-semibold text-primary">Gasto por categoría</h3>
+                  <h3 className="font-semibold text-primary">Varianza por categoría</h3>
+                  <p className="text-xs text-muted mt-0.5">
+                    Presupuestado vs. gasto real · {gastoReal.reduce((s,r)=>s+Number(r.cantidad_facturas||0),0)} facturas registradas
+                  </p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="table">
                     <thead className="table-header">
                       <tr>
                         <th className="table-header-cell">Categoría</th>
-                        <th className="table-header-cell text-right">Facturas</th>
-                        <th className="table-header-cell text-right">Gasto real</th>
-                        <th className="table-header-cell text-right">% del gasto</th>
+                        <th className="table-header-cell text-right">Presupuestado</th>
+                        <th className="table-header-cell text-right">Real</th>
+                        <th className="table-header-cell text-right">Diferencia</th>
+                        <th className="table-header-cell">Avance</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {gastoReal.map((row) => {
-                        const pct = totalGasto > 0 ? Math.round((Number(row.gasto_total) / totalGasto) * 100) : 0;
+                      {varianzaRows.map(({ cat, presup, real, diff, pct }) => {
+                        const colorDiff = diff < 0 ? 'text-error' : diff === 0 ? 'text-muted' : 'text-success';
+                        const colorBar  = pct !== null && pct >= 90 ? 'bg-error'
+                                        : pct !== null && pct >= 70 ? 'bg-warning' : 'bg-success';
                         return (
-                          <tr key={row.categoria} className="table-row">
-                            <td className="table-cell font-medium text-primary">{row.categoria}</td>
-                            <td className="table-cell text-right text-secondary">{row.cantidad_facturas}</td>
-                            <td className="table-cell text-right font-bold text-primary">{fmtMoney(row.gasto_total)}</td>
-                            <td className="table-cell text-right">
-                              <span className="text-secondary">{pct}%</span>
+                          <tr key={cat} className="table-row">
+                            <td className="table-cell font-medium text-primary">{cat}</td>
+                            <td className="table-cell text-right text-secondary">
+                              {presup > 0 ? fmtMoney(presup) : <span className="text-muted">—</span>}
+                            </td>
+                            <td className="table-cell text-right font-bold text-primary">
+                              {real > 0 ? fmtMoney(real) : <span className="text-muted text-sm font-normal">Sin datos</span>}
+                            </td>
+                            <td className={`table-cell text-right font-semibold ${colorDiff}`}>
+                              {presup > 0 ? (diff > 0 ? '-' : diff < 0 ? '+' : '') : '—'}
+                              {presup > 0 ? fmtMoney(Math.abs(diff)) : ''}
+                            </td>
+                            <td className="table-cell min-w-[120px]">
+                              {pct !== null ? (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-app rounded-full h-2 overflow-hidden">
+                                    <div
+                                      className={`h-2 rounded-full transition-all ${colorBar}`}
+                                      style={{ width: `${Math.min(pct, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted w-8 text-right">{pct}%</span>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted">Sin presupuesto</span>
+                              )}
                             </td>
                           </tr>
                         );
@@ -206,24 +302,30 @@ export default function DashboardPresupuesto() {
                     <tfoot>
                       <tr className="border-t" style={{ borderColor: 'var(--color-border)' }}>
                         <td className="table-cell font-bold text-primary">Total</td>
-                        <td className="table-cell text-right font-bold">
-                          {gastoReal.reduce((s, r) => s + Number(r.cantidad_facturas || 0), 0)}
+                        <td className="table-cell text-right font-bold text-secondary">
+                          {fmtMoney(totalPresupuestado)}
                         </td>
                         <td className="table-cell text-right font-bold text-primary">
                           {fmtMoney(totalGasto)}
                         </td>
-                        <td className="table-cell text-right font-bold">{porcentaje}%</td>
+                        <td className={`table-cell text-right font-bold ${disponible < 0 ? 'text-error' : 'text-success'}`}>
+                          {disponible < 0 ? '+' : '-'}{fmtMoney(Math.abs(disponible))}
+                        </td>
+                        <td className="table-cell">
+                          <div className="flex items-center gap-2">
+                            <BarraProgreso porcentaje={porcentaje} />
+                            <span className="text-xs text-muted w-8 text-right">{porcentaje}%</span>
+                          </div>
+                        </td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               </div>
-            )}
-
-            {gastoReal.length === 0 && (
+            ) : (
               <div className="card">
                 <div className="card-body py-10 text-center">
-                  <p className="text-muted">No hay facturas registradas para este mes aún.</p>
+                  <p className="text-muted">No hay facturas ni ítems de presupuesto para este mes aún.</p>
                 </div>
               </div>
             )}
@@ -231,12 +333,12 @@ export default function DashboardPresupuesto() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal — usa presupuesto real (editar) o sintético (auto-estimar) */}
       {showForm && (
         <FormPresupuesto
           mes={mes}
-          presupuesto={editMode ? presupuesto : null}
-          onClose={() => setShowForm(false)}
+          presupuesto={editMode ? presupuesto : (presupuestoAuto || null)}
+          onClose={() => { setShowForm(false); setPresupuestoAuto(null); }}
           onSaved={handleSaved}
         />
       )}
