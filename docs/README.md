@@ -11,7 +11,7 @@ docs/
     ├── sprint-A-correcciones-tecnicas.md   ✅ Completado (2026-03-05)
     ├── sprint-B-proyeccion-semanal.md      ✅ Completado (2026-03-05)
     ├── sprint-C-modulo-economico.md        ✅ Completado (2026-03-05)
-    ├── sprint-D-notificaciones.md          🔲 Pendiente
+    ├── sprint-D-notificaciones-automaticas.md ✅ Completado (2026-03-05)
     └── sprint-E-semaforo-operativo.md      🔲 Pendiente
 ```
 
@@ -22,7 +22,7 @@ docs/
 | A | Correcciones Técnicas Críticas | ✅ Completado | Casing router, imports dinámicos, code splitting |
 | B | ProyeccionSemanal con Datos Reales | ✅ Completado | columna `capacidad_promedio` + editor admin |
 | C | Módulo Económico Completo | ✅ Completado | CostosPorUnidad, CierreCostos, varianza presupuesto |
-| D | Notificaciones Automáticas | 🔲 Pendiente | triggers stock, presupuesto crítico, pedidos del día |
+| D | Notificaciones Automáticas | ✅ Completado | pipeline completo, fn_presupuesto_critico, verificar_pedidos_del_dia |
 | E | Semáforo Operativo | 🔲 Pendiente | Widget de estado del día en AdminDashboard |
 
 ## Convenciones

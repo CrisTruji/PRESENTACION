@@ -2,12 +2,13 @@
 // DashboardPresupuesto - Pantalla de control presupuestario
 // ========================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DollarSign, TrendingUp, AlertTriangle, CheckCircle, Edit, Plus, Calendar, Sparkles } from 'lucide-react';
 import { usePresupuestoMes, useGastoReal } from '../hooks/usePresupuesto';
 import { presupuestoService } from '../services/presupuestoService';
 import FormPresupuesto from './FormPresupuesto';
 import notify from '@/shared/lib/notifier';
+import { supabase } from '@/shared/api';
 
 function getMesActual() {
   const d = new Date();
@@ -75,6 +76,14 @@ export default function DashboardPresupuesto() {
       return { cat, presup, real, diff, pct };
     });
   })();
+
+  // Verificar automáticamente si el presupuesto supera el 80% al cargar
+  useEffect(() => {
+    if (presupuesto && gastoReal.length > 0) {
+      // Fire-and-forget: la BD crea el evento y el trigger distribuye a los admins
+      supabase.rpc('fn_notif_presupuesto_critico', { p_mes: mes });
+    }
+  }, [presupuesto?.id, gastoReal.length, mes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaved = () => {
     refetch();

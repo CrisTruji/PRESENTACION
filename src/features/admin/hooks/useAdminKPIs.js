@@ -93,10 +93,19 @@ export function useAdminKPIs() {
         },
         staleTime: 10 * 60 * 1000,
       },
+      // 7. Operaciones sin pedido hoy
+      {
+        queryKey: ['kpi-sin-pedido-hoy'],
+        queryFn: async () => {
+          const { data } = await supabase.rpc('verificar_pedidos_del_dia');
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000,
+      },
     ],
   });
 
-  const [pedidosHoy, ciclosActivos, solicitudesPendientes, facturasSemanales, stockCritico, valorInventario] = results;
+  const [pedidosHoy, ciclosActivos, solicitudesPendientes, facturasSemanales, stockCritico, valorInventario, sinPedido] = results;
 
   return {
     pedidosHoy: pedidosHoy.data ?? 0,
@@ -105,6 +114,8 @@ export function useAdminKPIs() {
     facturasSemanales: facturasSemanales.data ?? 0,
     stockCritico: stockCritico.data ?? 0,
     valorInventario: valorInventario.data ?? 0,
+    sinPedidoHoy: sinPedido.data?.length ?? 0,
+    operacionesSinPedido: sinPedido.data ?? [],
     isLoading: results.some((r) => r.isLoading),
   };
 }

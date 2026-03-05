@@ -756,7 +756,8 @@ export default function AdminDashboard() {
 function TabResumen() {
   const {
     pedidosHoy, ciclosActivos, solicitudesPendientes,
-    facturasSemanales, stockCritico, valorInventario, isLoading
+    facturasSemanales, stockCritico, valorInventario,
+    sinPedidoHoy, operacionesSinPedido, isLoading
   } = useAdminKPIs();
 
   const fmtMoney = (n) => '$' + Number(n || 0).toLocaleString('es-CO', { maximumFractionDigits: 0 });
@@ -766,8 +767,8 @@ function TabResumen() {
       label: 'Pedidos Hoy',
       value: pedidosHoy,
       icon: <FileText className="w-6 h-6" />,
-      bg: 'bg-primary/10 text-primary',
-      alert: false,
+      bg: sinPedidoHoy > 0 ? 'bg-warning/10 text-warning' : 'bg-primary/10 text-primary',
+      alert: sinPedidoHoy > 0,
     },
     {
       label: 'Productos Críticos',
@@ -818,6 +819,29 @@ function TabResumen() {
 
   return (
     <div className="space-y-6">
+      {/* Banner: operaciones sin pedido hoy */}
+      {sinPedidoHoy > 0 && (
+        <div className="p-4 rounded-xl flex items-start gap-3 bg-yellow-50 border border-yellow-200 text-yellow-800">
+          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0 text-yellow-600" />
+          <div className="text-sm">
+            <span className="font-semibold">
+              {sinPedidoHoy} {sinPedidoHoy === 1 ? 'operación' : 'operaciones'} sin pedido hoy:
+            </span>{' '}
+            {operacionesSinPedido.map((op, i) => (
+              <span key={op.operacion_id}>
+                {op.nombre}
+                {op.falta_en?.length > 0 && (
+                  <span className="text-yellow-600 text-xs ml-1">
+                    ({op.falta_en.join(', ')})
+                  </span>
+                )}
+                {i < operacionesSinPedido.length - 1 ? ', ' : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {kpis.map((kpi) => (
           <div key={kpi.label} className={`stats-card ${kpi.alert ? 'ring-1 ring-error/30' : ''}`}>
