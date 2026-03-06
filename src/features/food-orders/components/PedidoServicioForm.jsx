@@ -26,6 +26,7 @@ import PedidoCartaMenu from './PedidoCartaMenu';
 import SolicitudCambioModal from './SolicitudCambioModal';
 import notify from '@/shared/lib/notifier';
 import { useAuth } from '@/features/auth';
+import { supabase } from '@/shared/api';
 
 export default function PedidoServicioForm() {
   const { user } = useAuth();
@@ -86,9 +87,39 @@ export default function PedidoServicioForm() {
   }, [pedidoExistente]);
   useEffect(() => { if (menuDelDia) setMenuStore(menuDelDia); }, [menuDelDia]);
 
-  const ahora = new Date();
-  const horaActual = ahora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  const enHora = !horaLimite || horaActual <= horaLimite;
+  // F1: Countdown en vivo — actualiza cada 60 s (patrón SemaforoOperativo)
+  const [ahora, setAhora] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setAhora(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  function calcMinutosRestantes(limit) {
+    if (!limit) return null;
+    const [hh, mm] = limit.split(':').map(Number);
+    const d = new Date(ahora);
+    d.setHours(hh, mm, 0, 0);
+    return Math.floor((d - ahora) / 60_000);
+  }
+  const mins = calcMinutosRestantes(horaLimite);
+  const enHora = mins === null || mins > 0;
+
+  // F2: Alerta proactiva en campana cuando quedan ≤ 20 min y el pedido no fue enviado
+  useEffect(() => {
+    if (
+      operacionActual?.id &&
+      servicioPedido &&
+      mins !== null &&
+      mins <= 20 &&
+      mins > 0 &&
+      !pedidoActual?.hora_envio
+    ) {
+      supabase.rpc('fn_alerta_pedido_limite', {
+        p_operacion_id: operacionActual.id,
+        p_servicio: servicioPedido,
+      });
+    }
+  }, [mins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCrearPedido = () => {
     if (!operacionActual || !fechaPedido || !servicioPedido) {
@@ -247,15 +278,25 @@ export default function PedidoServicioForm() {
           </div>
         </div>
 
-        {/* Alerta hora limite */}
+        {/* Alerta hora límite — countdown en vivo */}
         {operacionActual && servicioPedido && (
-          <div className={`alert mb-6 ${enHora ? 'alert-success' : 'alert-error'}`}>
-            {enHora ? <CheckCircle className="w-5 h-5 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+          <div className={`alert mb-6 ${
+            mins === null || mins > 30
+              ? 'alert-success'
+              : mins > 10
+                ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+                : 'alert-error'
+          }`}>
+            {(mins === null || mins > 10)
+              ? <CheckCircle className="w-5 h-5 flex-shrink-0" />
+              : <AlertCircle className={`w-5 h-5 flex-shrink-0 ${mins <= 0 ? 'animate-pulse' : ''}`} />}
             <div>
               <p className="text-sm font-medium">
-                {enHora
-                  ? `Hora actual: ${horaActual}${horaLimite ? ` — Hora limite: ${horaLimite}` : ''}`
-                  : `Hora limite pasada${horaLimite ? ` (${horaLimite})` : ''}. El pedido se marcara como tardio.`}
+                {mins === null
+                  ? 'Sin hora límite configurada para este servicio'
+                  : mins > 0
+                    ? `Hora límite: ${horaLimite} — Faltan ${mins > 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins} min`}`
+                    : `Hora límite vencida (${horaLimite}). El pedido se marcará como tardío.`}
               </p>
             </div>
           </div>

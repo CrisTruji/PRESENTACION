@@ -11,9 +11,9 @@ import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import { useAuth } from '@/features/auth';
 import notify from '@/shared/lib/notifier';
 
-export default function ModalSustituirReceta({ item, consolidadoId, onClose, onSuccess }) {
+export default function ModalSustituirReceta({ item, consolidadoId, onClose, onSuccess, recetaPreseleccionada, motivoInicial }) {
   const [termino, setTermino]       = useState('');
-  const [motivo, setMotivo]         = useState('');
+  const [motivo, setMotivo]         = useState(motivoInicial || '');
   const [expandidos, setExpandidos] = useState({});
   const { user }                    = useAuth();
   const sustituir                   = useSustituirReceta();
@@ -88,6 +88,27 @@ export default function ModalSustituirReceta({ item, consolidadoId, onClose, onS
           </button>
         </div>
 
+        {/* ── Receta preseleccionada (cuando viene de aprobación de solicitud) ── */}
+        {recetaPreseleccionada && (
+          <div className="mx-5 mb-3 px-4 py-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <ArrowLeftRight className="w-3.5 h-3.5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-text-muted mb-0.5">Receta solicitada por coordinador</p>
+              <p className="text-sm font-semibold text-primary truncate">{recetaPreseleccionada.nombre}</p>
+            </div>
+            <button
+              onClick={() => handleSustituir(recetaPreseleccionada)}
+              disabled={!motivo.trim() || sustituir.isPending}
+              title={!motivo.trim() ? 'Escribe el motivo primero' : 'Aplicar la receta solicitada'}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-40 flex-shrink-0 transition-colors"
+            >
+              {sustituir.isPending ? <div className="spinner spinner-sm" /> : 'Aplicar esta'}
+            </button>
+          </div>
+        )}
+
         {/* ── Motivo ── */}
         <div className="px-5 pb-3">
           <input
@@ -96,7 +117,7 @@ export default function ModalSustituirReceta({ item, consolidadoId, onClose, onS
             onChange={(e) => setMotivo(e.target.value)}
             placeholder="Motivo del cambio *  (ej: stock insuficiente)"
             className="form-input w-full text-sm"
-            autoFocus
+            autoFocus={!recetaPreseleccionada}
           />
         </div>
 

@@ -385,3 +385,177 @@ export const consolidadoService = {
     return { data, error };
   },
 };
+
+// ========================================
+// HOJA DE PRODUCCIÓN (PDF)
+// Importación dinámica de jsPDF — mismo patrón que CierreCostosMensual.jsx
+// ========================================
+
+export async function generarHojaProduccion(consolidadoId, fecha, servicio) {
+  const [recetasRes, ingredientesRes] = await Promise.all([
+    consolidadoService.getVistaRecetas(consolidadoId),
+    consolidadoService.getIngredientesTotales(consolidadoId),
+  ]);
+
+  const recetas      = recetasRes.data      || [];
+  const ingredientes = ingredientesRes.data || [];
+
+  const { jsPDF }             = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+
+  const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW  = doc.internal.pageSize.getWidth();
+  const pageH  = doc.internal.pageSize.getHeight();
+
+  // Paleta coherente con el design system
+  const PRIMARY  = [13, 148, 136];   // teal-600
+  const DARK     = [30, 41, 59];     // slate-800
+  const GRAY     = [100, 116, 139];  // slate-500
+  const LIGHT    = [248, 250, 252];  // slate-50
+  const ALT      = [226, 232, 240];  // slate-200
+  const RED      = [220, 38, 38];    // red-600
+
+  // Capitalizar servicio (desayuno → Desayuno, cena_ligera → Cena Ligera)
+  const servicioLabel = servicio
+    .split('_')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  const titulo = `HOJA DE PRODUCCIÓN — ${servicioLabel}`;
+
+  // ── Encabezado ────────────────────────────────────────────────
+  doc.setFillColor(...PRIMARY);
+  doc.rect(0, 0, pageW, 22, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(titulo, 14, 12);
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Fecha: ${fecha}  ·  Generado: ${new Date().toLocaleString('es-CO')}`, 14, 19);
+
+  let y = 28;
+
+  // ── Sección 1: Recetas a producir ────────────────────────────
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...DARK);
+  doc.text('1. RECETAS A PRODUCIR', 14, y);
+  y += 4;
+
+  const recetasBody = recetas.map((item) => [
+    item.componentes_plato?.nombre || '—',
+    item.arbol_recetas?.nombre     || '—',
+    item.arbol_recetas?.codigo     || '—',
+    String(item.cantidad_total     || 0),
+  ]);
+
+  const totalPorciones = recetas.reduce((s, r) => s + (r.cantidad_total || 0), 0);
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Componente', 'Receta', 'Código', 'Cantidad']],
+    body: recetasBody.length ? recetasBody : [['Sin recetas registradas', '', '', '']],
+    foot: [['', 'TOTAL PORCIONES', '', String(totalPorciones)]],
+    styles:            { fontSize: 8, cellPadding: 2, font: 'helvetica' },
+    headStyles:        { fillColor: DARK, textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles:{ fillColor: ALT },
+    bodyStyles:        { fillColor: LIGHT, textColor: DARK },
+    footStyles:        { fillColor: [241, 245, 249], fontStyle: 'bold', textColor: DARK },
+    columnStyles: {
+      0: { cellWidth: 38 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 26 },
+      3: { cellWidth: 22, halign: 'right' },
+    },
+    margin: { left: 14, right: 14 },
+    didDrawPage: (data) => {
+      // Pie de página
+      const pNum = doc.internal.getCurrentPageInfo().pageNumber;
+      const pTot = doc.internal.getNumberOfPages();
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY);
+      doc.text(
+        `${titulo}  ·  Fecha ${fecha}  ·  Página ${pNum}/${pTot}`,
+        pageW / 2,
+        pageH - 6,
+        { align: 'center' }
+      );
+    },
+  });
+
+  // ── Sección 2: Ingredientes requeridos ───────────────────────
+  y = doc.lastAutoTable.finalY + 8;
+  if (y > 240) { doc.addPage(); y = 14; }
+
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...DARK);
+  doc.text('2. INGREDIENTES REQUERIDOS', 14, y);
+  y += 4;
+
+  const ingredientesBody = ingredientes.map((ing) => [
+    ing.nombre           || '—',
+    ing.codigo           || '—',
+    String(ing.total_requerido || 0),
+    ing.unidad_medida    || '—',
+    String(ing.stock_actual    || 0),
+    ing.estado_stock     || '—',
+  ]);
+
+  const insuficientes = ingredientes.filter((i) => i.estado_stock === 'INSUFICIENTE').length;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Ingrediente', 'Código', 'Requerido', 'Unidad', 'Stock', 'Estado']],
+    body: ingredientesBody.length ? ingredientesBody : [['Sin ingredientes', '', '', '', '', '']],
+    foot: insuficientes > 0
+      ? [['⚠ ' + insuficientes + ' ingrediente(s) con stock insuficiente', '', '', '', '', '']]
+      : [['✓ Stock suficiente para todos los ingredientes', '', '', '', '', '']],
+    styles:            { fontSize: 8, cellPadding: 2, font: 'helvetica' },
+    headStyles:        { fillColor: GRAY, textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles:{ fillColor: ALT },
+    bodyStyles:        { fillColor: LIGHT, textColor: DARK },
+    footStyles: {
+      fillColor: insuficientes > 0 ? [254, 242, 242] : [240, 253, 250],
+      fontStyle: 'bold',
+      textColor: insuficientes > 0 ? RED : PRIMARY,
+    },
+    columnStyles: {
+      0: { cellWidth: 'auto' },
+      1: { cellWidth: 22 },
+      2: { cellWidth: 22, halign: 'right' },
+      3: { cellWidth: 18 },
+      4: { cellWidth: 22, halign: 'right' },
+      5: { cellWidth: 24, halign: 'center' },
+    },
+    didParseCell: (data) => {
+      // Colorear celda de estado
+      if (data.section === 'body' && data.column.index === 5) {
+        if (data.cell.raw === 'INSUFICIENTE') {
+          data.cell.styles.textColor  = RED;
+          data.cell.styles.fontStyle  = 'bold';
+        } else {
+          data.cell.styles.textColor  = PRIMARY;
+        }
+      }
+    },
+    didDrawPage: (data) => {
+      const pNum = doc.internal.getCurrentPageInfo().pageNumber;
+      const pTot = doc.internal.getNumberOfPages();
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY);
+      doc.text(
+        `${titulo}  ·  Fecha ${fecha}  ·  Página ${pNum}/${pTot}`,
+        pageW / 2,
+        pageH - 6,
+        { align: 'center' }
+      );
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  doc.save(`hoja-produccion-${fecha}-${servicio}.pdf`);
+}

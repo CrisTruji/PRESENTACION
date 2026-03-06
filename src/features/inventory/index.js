@@ -9,6 +9,7 @@ export {
   useCostoPromedio,
   useActualizarStock,
   useActualizarStockBatch,
-  useValidarStock
+  useValidarStock,
+  useHistorialMovimientos,
 } from './hooks/useStock';
 export { stockService } from './services/stockService';

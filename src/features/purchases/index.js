@@ -10,6 +10,7 @@ export { default as GestionCompras } from './components/GestionCompras';
 export { default as GestionAux } from './components/GestionAux';
 export { default as VerDetallesSolicitud } from './components/VerDetallesSolicitud';
 export { default as Proveedores } from './components/Proveedores';
+export { default as ProyeccionCompras } from './components/ProyeccionCompras';
 
 // Lib - Estados (re-export everything)
 export * from './lib/estados';

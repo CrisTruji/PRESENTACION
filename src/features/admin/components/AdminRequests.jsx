@@ -1,6 +1,6 @@
 // src/screens/admin/admin_requests.jsx
 import React, { useEffect, useState } from "react";
-import { getPendingUsers, assignRole } from "@/features/auth";
+import { getPendingUsers, assignRole, getAllRoles } from "@/features/auth";
 import notify from "@/shared/lib/notifier";
 import { 
   RefreshCw, 
@@ -20,6 +20,8 @@ import {
 
 export default function AdminRequests() {
   const [requests, setRequests] = useState([]);
+  const [allRoles, setAllRoles] = useState([]);
+  const [selectedRole, setSelectedRole] = useState({});
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
@@ -30,46 +32,73 @@ export default function AdminRequests() {
 
   async function loadRequests() {
     setLoading(true);
-    const { data, error } = await getPendingUsers();
-    if (error) {
-      console.error("Error cargando pendientes:", error);
-      notify.error("Error cargando solicitudes pendientes");
-    } else {
+    try {
+      const data = await getPendingUsers();
       setRequests(data || []);
-      // Calcular estadísticas
       const today = new Date().toISOString().split('T')[0];
-      const todayRequests = (data || []).filter(u => 
+      const todayRequests = (data || []).filter(u =>
         u.created_at && u.created_at.startsWith(today)
       );
-      
       setStats({
         total: data?.length || 0,
         today: todayRequests.length,
         pending: data?.length || 0
       });
-      
-      if (data?.length > 0) {
-        notify.success(`Cargadas ${data.length} solicitudes pendientes`);
-      }
+    } catch (error) {
+      console.error("Error cargando pendientes:", error);
+      notify.error("Error cargando solicitudes pendientes");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  useEffect(() => { 
-    loadRequests(); 
+  useEffect(() => {
+    async function init() {
+      await loadRequests();
+      try {
+        const roles = await getAllRoles();
+        setAllRoles(roles || []);
+      } catch {
+        // no-op
+      }
+    }
+    init();
   }, []);
 
+  // Preseleccionar el rol solicitado cuando lleguen los datos
+  useEffect(() => {
+    if (!allRoles.length || !requests.length) return;
+    setSelectedRole(prev => {
+      const next = { ...prev };
+      requests.forEach(user => {
+        if (!next[user.id] && user.rol_solicitado) {
+          const match = allRoles.find(r => r.nombre === user.rol_solicitado);
+          if (match) next[user.id] = match.id;
+        }
+      });
+      return next;
+    });
+  }, [allRoles, requests]);
+
   async function approveUser(id) {
-    const roleId = 3; // Rol predeterminado
-    const { data, error } = await assignRole(id, roleId);
-    if (error) {
-      console.error(error);
-      notify.error("Error al aprobar usuario");
+    const chosenRoleId = selectedRole[id];
+    if (!chosenRoleId) {
+      notify.error("Selecciona un rol antes de aprobar");
       return;
     }
-    
-    notify.success("Usuario aprobado correctamente");
-    loadRequests();
+    const role = allRoles.find(r => r.id === chosenRoleId);
+    if (!role) {
+      notify.error("Rol no encontrado");
+      return;
+    }
+    try {
+      await assignRole(id, chosenRoleId, role.nombre);
+      notify.success("Usuario aprobado correctamente");
+      loadRequests();
+    } catch (error) {
+      console.error(error);
+      notify.error("Error al aprobar usuario");
+    }
   }
 
   async function rejectUser(id) {
@@ -234,7 +263,7 @@ export default function AdminRequests() {
                     <th className="table-header-cell">Usuario</th>
                     <th className="table-header-cell">Correo</th>
                     <th className="table-header-cell">Fecha</th>
-                    <th className="table-header-cell">Rol solicitado</th>
+                    <th className="table-header-cell">Asignar Rol</th>
                     <th className="table-header-cell">Acciones</th>
                   </tr>
                 </thead>
@@ -271,9 +300,25 @@ export default function AdminRequests() {
                         </div>
                       </td>
                       <td className="table-cell">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-muted" />
-                          <span>{user.role_requested || "No especificado"}</span>
+                        <div className="flex flex-col gap-1">
+                          {user.rol_solicitado && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-muted">Solicita:</span>
+                              <span className="badge badge-warning text-xs">
+                                {user.rol_solicitado.replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                          )}
+                          <select
+                            value={selectedRole[user.id] || ''}
+                            onChange={(e) => setSelectedRole(prev => ({ ...prev, [user.id]: e.target.value }))}
+                            className="form-input text-xs !py-1 !px-2"
+                          >
+                            <option value="">Seleccionar rol...</option>
+                            {allRoles.map(role => (
+                              <option key={role.id} value={role.id}>{role.nombre}</option>
+                            ))}
+                          </select>
                         </div>
                       </td>
                       <td className="table-cell">
@@ -291,7 +336,8 @@ export default function AdminRequests() {
                           </button>
                           <button
                             onClick={() => approveUser(user.id)}
-                            className="btn btn-primary !py-1.5 text-sm flex items-center gap-2"
+                            disabled={!selectedRole[user.id]}
+                            className="btn btn-primary !py-1.5 text-sm flex items-center gap-2 disabled:opacity-50"
                           >
                             <Check className="w-4 h-4" />
                             Aprobar

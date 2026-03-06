@@ -146,6 +146,7 @@ export default function Navbar() {
         { label: "Crear Solicitud", name: "crear_solicitud", icon: icons.create },
         { label: "Solicitudes", name: "solicitudes_planta", icon: icons.requests },
         { label: "Proyección MP", name: "proyeccion_semanal", icon: icons.management },
+        { label: "Proyección Compras", name: "proyeccion_compras", icon: icons.consolidado },
         { label: "Capacidades", name: "configuracion_capacidades", icon: icons.management },
         { label: "Costos Servicio", name: "costos_servicio", icon: icons.management },
         { label: "Presupuesto", name: "presupuesto", icon: icons.management },
@@ -155,9 +156,10 @@ export default function Navbar() {
         { label: "Proveedores", name: "proveedores", icon: icons.suppliers },
       ],
       jefe_de_compras: [
-        { label: "Gestión de Compras", name: "gestion_compras", icon: icons.management },
-        { label: "Solicitudes", name: "solicitudes_planta", icon: icons.requests },
-        { label: "Facturas", name: "facturas", icon: icons.invoices },
+        { label: "Gestión de Compras",    name: "gestion_compras",    icon: icons.management },
+        { label: "Proyección de Compras", name: "proyeccion_compras", icon: icons.consolidado },
+        { label: "Solicitudes",           name: "solicitudes_planta", icon: icons.requests },
+        { label: "Facturas",              name: "facturas",           icon: icons.invoices },
       ],
       auxiliar_de_compras: [
         { label: "Solicitudes", name: "gestion_aux", icon: icons.requests },

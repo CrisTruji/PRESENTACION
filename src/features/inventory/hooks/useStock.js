@@ -64,13 +64,12 @@ export function useActualizarStock() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ stockId, cantidad, operacion }) =>
-      stockService.actualizarStock(stockId, cantidad, operacion),
+    mutationFn: ({ stockId, cantidad, operacion, motivo, notas }) =>
+      stockService.actualizarStock(stockId, cantidad, operacion, motivo, notas),
     onSuccess: (response) => {
-      // Invalidar queries relacionadas con stock
       queryClient.invalidateQueries({ queryKey: ['stock'] });
+      queryClient.invalidateQueries({ queryKey: ['historial-movimientos'] });
 
-      // Si hay alerta, mostrarla
       if (response.data?.mensaje) {
         console.log('[Stock]', response.data.mensaje);
       }
@@ -78,6 +77,20 @@ export function useActualizarStock() {
     onError: (error) => {
       console.error('[Stock] Error actualizando:', error);
     },
+  });
+}
+
+/**
+ * Hook para ver el historial de movimientos de un ingrediente
+ * Combina ajustes manuales + entradas de facturas
+ */
+export function useHistorialMovimientos(materiaPrimaId, fechaDesde, fechaHasta) {
+  return useQuery({
+    queryKey: ['historial-movimientos', materiaPrimaId, fechaDesde, fechaHasta],
+    queryFn:  () => stockService.getHistorialMovimientos(materiaPrimaId, fechaDesde, fechaHasta),
+    select:   (response) => response.data,
+    enabled:  !!materiaPrimaId,
+    staleTime: 30_000,
   });
 }
 

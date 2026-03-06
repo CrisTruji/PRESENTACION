@@ -38,24 +38,35 @@ export const getAllRoles = async () => {
 };
 
 /**
- * Asigna un rol a un usuario y actualiza su estado a 'activo'
+ * Asigna un rol a un usuario.
+ * Llama a la Edge Function assign-role que actualiza tanto app_metadata
+ * (para que el JWT cambie de inmediato al refrescar sesión) como la tabla profiles.
+ *
+ * @param {string} userId  - UUID del usuario en auth.users / profiles
+ * @param {string} roleId  - UUID del rol en la tabla roles
+ * @param {string} roleName - Nombre del rol (ej: "chef", "almacenista")
  */
-export const assignRole = async (userId, newRole) => {
-  const data = await supabaseRequest(
-    supabase
-      .from("profiles")
-      .update({
-        rol: newRole,
-        estado: "activo",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", userId)
-      .select()
-      .single()
+export const assignRole = async (userId, roleId, roleName) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("No hay sesión activa");
+
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-role`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ userId, roleId, roleName }),
+    }
   );
 
-  console.log("✅ Rol actualizado y usuario activado:", data);
-  return data;
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Error asignando rol");
+
+  console.log("✅ Rol asignado y app_metadata actualizado:", json);
+  return json;
 };
 
 /**

@@ -433,3 +433,38 @@ export async function getStockProducto(productoId) {
   if (error) throw error;
   return data;
 }
+
+/* ============================================================
+   MARCAR ESTADO DE PAGO DE UNA FACTURA
+   ============================================================ */
+export async function marcarEstadoPago(facturaId, estadoPago, notasPago = null) {
+  return supabaseRequest(
+    supabase
+      .from('facturas')
+      .update({
+        estado_pago: estadoPago,
+        fecha_pago: estadoPago === 'pagada' ? new Date().toISOString() : null,
+        notas_pago: notasPago || null,
+      })
+      .eq('id', facturaId)
+      .select('id, estado_pago, fecha_pago, notas_pago')
+      .single()
+  );
+}
+
+/* ============================================================
+   RESUMEN DE PAGOS PENDIENTES
+   ============================================================ */
+export async function getResumenPagosPendientes() {
+  const { data, error } = await supabase
+    .from('facturas')
+    .select('valor_total')
+    .in('estado_pago', ['pendiente', 'en_disputa']);
+
+  if (error) throw error;
+  const rows = data || [];
+  return {
+    count: rows.length,
+    total: rows.reduce((s, f) => s + (f.valor_total || 0), 0),
+  };
+}

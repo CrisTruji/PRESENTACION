@@ -18,6 +18,7 @@ import {
   Download,
 } from 'lucide-react';
 import { exportToExcel } from '@/shared/lib/exportService';
+import { generarHojaProduccion } from '../services/consolidadoService';
 import { useConsolidadoStore } from '../store/useConsolidadoStore';
 import {
   useConsolidadoPorFecha,
@@ -148,6 +149,9 @@ export default function ConsolidadoSupervisor() {
   // Confirmación de aprobación
   const [confirmarAprobar, setConfirmarAprobar] = React.useState(false);
 
+  // Generación de PDF
+  const [generandoPDF, setGenerandoPDF] = React.useState(false);
+
   // Ciclo seleccionado para modal de ciclo completo
   const [cicloModal, setCicloModal] = React.useState(null);
 
@@ -231,6 +235,19 @@ export default function ConsolidadoSupervisor() {
     exportToExcel(rows, `consolidado_${filtroFecha}_${filtroServicio}`, 'Pedidos');
   };
 
+  const handleExportarHojaProduccion = async () => {
+    if (!consolidadoActual) return;
+    setGenerandoPDF(true);
+    try {
+      await generarHojaProduccion(consolidadoActual.id, filtroFecha, filtroServicio);
+    } catch (err) {
+      console.error('Error generando hoja de producción:', err);
+      notify.error('Error al generar el PDF');
+    } finally {
+      setGenerandoPDF(false);
+    }
+  };
+
   const handleCambiarReceta = (item) => {
     iniciarSustitucion(item.receta_id, consolidadoActual?.id);
     setItemSustituyendo(item);
@@ -257,6 +274,19 @@ export default function ConsolidadoSupervisor() {
               >
                 <Download className="w-4 h-4" />
                 <span>Excel</span>
+              </button>
+              <button
+                onClick={handleExportarHojaProduccion}
+                disabled={!consolidadoActual || generandoPDF}
+                className="btn btn-outline flex items-center gap-2 text-sm !py-1.5"
+                title="Descargar hoja de producción para cocina (PDF)"
+              >
+                {generandoPDF ? (
+                  <div className="spinner spinner-sm" />
+                ) : (
+                  <FileText className="w-4 h-4" />
+                )}
+                <span>Hoja PDF</span>
               </button>
               <button
                 onClick={() => refetch()}

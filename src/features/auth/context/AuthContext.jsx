@@ -24,12 +24,13 @@ export function AuthProvider({ children }) {
   // 🟢 AUTH → SOLO EVENTOS + JWT (SIN DB)
   // =====================================================
 
-  // Decodifica el JWT y extrae el rol de app_metadata
+  // Decodifica el JWT y extrae el rol.
+  // Primero lee app_metadata.role (usuarios legacy/admin), luego user_role (custom claims hook)
   function extractRoleFromToken(accessToken) {
     try {
       const payload = JSON.parse(atob(accessToken.split(".")[1]));
       debug("🟣 JWT PAYLOAD:", payload);
-      return payload.app_metadata?.role ?? null;
+      return payload.app_metadata?.role ?? payload.user_role ?? null;
     } catch (e) {
       console.error("❌ Error decodificando JWT:", e);
       return null;
@@ -82,10 +83,16 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   }
 
-  async function signUp(email, password) {
+  async function signUp(email, password, nombre, rolSolicitado) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          nombre: nombre || '',
+          rol_solicitado: rolSolicitado || '',
+        },
+      },
     });
     if (error) throw error;
     return data;

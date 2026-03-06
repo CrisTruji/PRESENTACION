@@ -25,6 +25,7 @@ import {
   GestionAux,
   VerDetallesSolicitud,
   Proveedores,
+  ProyeccionCompras,
 } from "@/features/purchases";
 
 // WAREHOUSE (almacén, facturas)
@@ -151,6 +152,8 @@ export default function RoleRouter() {
       // JEFE DE COMPRAS
       case "gestion_compras":
         return <GestionCompras />;
+      case "proyeccion_compras":
+        return <ProyeccionCompras />;
 
       // ALMACEN
       case "recepcion_factura":

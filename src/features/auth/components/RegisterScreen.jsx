@@ -28,6 +28,7 @@ export default function RegisterScreen({ goToLogin }) {
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [roles, setRoles] = useState([]);
+  const [rolSolicitado, setRolSolicitado] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({
@@ -93,7 +94,7 @@ export default function RegisterScreen({ goToLogin }) {
 
     try {
       setIsLoading(true);
-      await signUp(email, password, nombre);
+      await signUp(email, password, nombre, rolSolicitado);
       
       notify.success("Cuenta creada exitosamente. Revisa tu correo para confirmar.");
       
@@ -223,32 +224,30 @@ export default function RegisterScreen({ goToLogin }) {
               )}
             </div>
 
-            {/* Roles disponibles (solo información) */}
+            {/* Rol solicitado */}
             <div className="form-group">
               <label className="form-label flex items-center gap-2">
-                <Users size={14} />
-                Roles disponibles en el sistema
+                <Shield size={14} />
+                Rol que deseas desempeñar
               </label>
-              <div className="p-3 bg-hover rounded-base border border-base">
-                <div className="flex flex-wrap gap-2">
-                  {roles.slice(0, 4).map((role) => (
-                    <span
-                      key={role.id}
-                      className="badge badge-primary text-xs"
-                    >
-                      {role.nombre}
-                    </span>
-                  ))}
-                  {roles.length > 4 && (
-                    <span className="badge text-xs">
-                      +{roles.length - 4} más
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted mt-2">
-                  * Los roles serán asignados por el administrador después de la verificación
-                </p>
-              </div>
+              <select
+                value={rolSolicitado}
+                onChange={(e) => setRolSolicitado(e.target.value)}
+                className="form-input"
+                disabled={isLoading}
+              >
+                <option value="">— Selecciona un rol (opcional) —</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.nombre}>
+                    {role.nombre.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                    {role.descripcion ? ` — ${role.descripcion}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted mt-1 flex items-center gap-1">
+                <Info size={11} />
+                El administrador revisará tu solicitud y asignará el rol definitivo.
+              </p>
             </div>
 
             {/* Términos y condiciones */}

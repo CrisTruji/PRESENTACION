@@ -12,7 +12,12 @@ docs/
     ├── sprint-B-proyeccion-semanal.md      ✅ Completado (2026-03-05)
     ├── sprint-C-modulo-economico.md        ✅ Completado (2026-03-05)
     ├── sprint-D-notificaciones-automaticas.md ✅ Completado (2026-03-05)
-    └── sprint-E-semaforo-operativo.md      ✅ Completado (2026-03-05)
+    ├── sprint-E-semaforo-operativo.md      ✅ Completado (2026-03-05)
+    ├── sprint-F-alerta-hoja-produccion.md  ✅ Completado (2026-03-06)
+    ├── sprint-G-ajuste-inventario.md       ✅ Completado (2026-03-06)
+    ├── sprint-H-estado-pago-facturas.md    ✅ Completado (2026-03-06)
+    ├── sprint-I-flujo-cambio-receta.md     ✅ Completado (2026-03-06)
+    └── sprint-J-proyeccion-compras.md      ✅ Completado (2026-03-06)
 ```
 
 ## Sprints
@@ -24,6 +29,11 @@ docs/
 | C | Módulo Económico Completo | ✅ Completado | CostosPorUnidad, CierreCostos, varianza presupuesto |
 | D | Notificaciones Automáticas | ✅ Completado | pipeline completo, fn_presupuesto_critico, verificar_pedidos_del_dia |
 | E | Semáforo Operativo | ✅ Completado | Widget de estado del día en AdminDashboard |
+| F | Alerta Hora Límite + Hoja de Producción | ✅ Completado | Countdown vivo, fn_alerta_pedido_limite, PDF hoja cocina |
+| G | Ajustes con Motivo + Historial Movimientos | ✅ Completado | ajustes_stock_manual, motivo obligatorio, drawer historial |
+| H | Estado de Pago de Facturas | ✅ Completado | estado_pago, fecha_pago, badge inline, filtro, banner pendientes |
+| I | Flujo Completo Cambio de Receta | ✅ Completado | aprobarYSustituir, modal preseleccionado, fn_notif_cambio_receta |
+| J | Proyección Automática de Compras | ✅ Completado | calcular_necesidades_compra(), ProyeccionCompras.jsx, CSV export |
 
 ## Convenciones
 

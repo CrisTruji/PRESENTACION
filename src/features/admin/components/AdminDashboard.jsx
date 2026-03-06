@@ -99,7 +99,7 @@ export default function AdminDashboard() {
       const role = allRoles.find(r => r.id === roleId);
       const roleName = role ? role.nombre : roleId;
 
-      await assignRole(userId, roleId);
+      await assignRole(userId, roleId, roleName);
       
       setPendingUsers(prev => prev.filter(user => user.id !== userId));
       
@@ -512,32 +512,40 @@ export default function AdminDashboard() {
                         </td>
                         <td className="table-cell">
                           <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2">
-                              <Shield className="w-4 h-4 text-muted" />
-                              <span>{user.roles?.nombre || 'Sin rol'}</span>
-                            </div>
-                            {activeTab === 'pending' && (
-                              <select
-                                value={selectedRole[user.id] || ''}
-                                onChange={(e) => {
-                                  const roleId = e.target.value;
-                                  if (roleId) {
-                                    setSelectedRole(prev => ({
-                                      ...prev,
-                                      [user.id]: roleId
-                                    }));
-                                    handleAssignRole(user.id, roleId);
-                                  }
-                                }}
-                                className="form-input text-xs !py-1 !px-2 mt-1"
-                              >
-                                <option value="">Asignar rol...</option>
-                                {allRoles.map(role => (
-                                  <option key={role.id} value={role.id}>
-                                    {role.nombre}
-                                  </option>
-                                ))}
-                              </select>
+                            {activeTab === 'pending' ? (
+                              <>
+                                {user.rol_solicitado && (
+                                  <div className="flex items-center gap-1 mb-1">
+                                    <span className="text-xs text-muted">Solicita:</span>
+                                    <span className="badge badge-warning text-xs">
+                                      {user.rol_solicitado.replace(/_/g, ' ')}
+                                    </span>
+                                  </div>
+                                )}
+                                <select
+                                  value={selectedRole[user.id] || ''}
+                                  onChange={(e) => {
+                                    const roleId = e.target.value;
+                                    if (roleId) {
+                                      setSelectedRole(prev => ({ ...prev, [user.id]: roleId }));
+                                      handleAssignRole(user.id, roleId);
+                                    }
+                                  }}
+                                  className="form-input text-xs !py-1 !px-2"
+                                >
+                                  <option value="">Asignar rol...</option>
+                                  {allRoles.map(role => (
+                                    <option key={role.id} value={role.id}>
+                                      {role.nombre}
+                                    </option>
+                                  ))}
+                                </select>
+                              </>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-muted" />
+                                <span>{user.roles?.nombre || 'Sin rol'}</span>
+                              </div>
                             )}
                           </div>
                         </td>

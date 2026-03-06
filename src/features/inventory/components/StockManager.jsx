@@ -25,7 +25,9 @@ import {
   Plus,
   X,
   Activity,
+  ClipboardList,
 } from 'lucide-react';
+import HistorialMovimientos from './HistorialMovimientos';
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -86,10 +88,20 @@ function BarraStock({ actual, minimo, maximo, unidad, estado }) {
   );
 }
 
+// Opciones de motivo para ajustes de stock
+const MOTIVOS_AJUSTE = [
+  { value: 'merma',               label: 'Merma' },
+  { value: 'perdida',             label: 'Pérdida' },
+  { value: 'vencimiento',         label: 'Vencimiento' },
+  { value: 'ajuste_fisico',       label: 'Ajuste físico' },
+  { value: 'consumo_produccion',  label: 'Consumo producción' },
+  { value: 'otro',                label: 'Otro' },
+];
+
 // ─────────────────────────────────────────────────────────────
 // FilaStock — fila de tabla con destacado visual
 // ─────────────────────────────────────────────────────────────
-function FilaStock({ item, onActualizar }) {
+function FilaStock({ item, onActualizar, onHistorial }) {
   const meta = estadoMeta(item.estado_stock);
 
   return (
@@ -136,14 +148,23 @@ function FilaStock({ item, onActualizar }) {
         ${(item.valor_inventario ?? 0).toLocaleString('es-ES', { maximumFractionDigits: 0 })}
       </td>
 
-      {/* Actualizar */}
+      {/* Acciones */}
       <td className="px-4 py-3 text-center">
-        <button
-          onClick={() => onActualizar(item)}
-          className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm transition-colors"
-        >
-          Actualizar
-        </button>
+        <div className="flex items-center justify-center gap-1.5">
+          <button
+            onClick={() => onActualizar(item)}
+            className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded text-sm transition-colors"
+          >
+            Actualizar
+          </button>
+          <button
+            onClick={() => onHistorial(item)}
+            title="Ver historial de movimientos"
+            className="p-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded transition-colors"
+          >
+            <ClipboardList size={14} />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -167,13 +188,24 @@ const StockManager = () => {
   const [itemSeleccionado, setItemSeleccionado] = useState(null);
   const [cantidad, setCantidad]               = useState('');
   const [operacion, setOperacion]             = useState('incrementar');
+  const [motivo, setMotivo]                   = useState('');
+  const [notas, setNotas]                     = useState('');
+
+  // Drawer de historial
+  const [historialItem, setHistorialItem]     = useState(null);
 
   // ── Handlers ──
   const handleAbrirModal = (item) => {
     setItemSeleccionado(item);
     setCantidad('');
     setOperacion('incrementar');
+    setMotivo('');
+    setNotas('');
     setModalAbierto(true);
+  };
+
+  const handleAbrirHistorial = (item) => {
+    setHistorialItem(item);
   };
 
   const handleActualizarStock = async () => {
@@ -181,11 +213,18 @@ const StockManager = () => {
       notify.error('Ingresa una cantidad válida mayor a 0');
       return;
     }
+    // Motivo obligatorio para decrementar o establecer
+    if ((operacion === 'decrementar' || operacion === 'establecer') && !motivo) {
+      notify.error('Selecciona un motivo para este ajuste');
+      return;
+    }
     try {
       const result = await actualizarStockMutation.mutateAsync({
-        stockId: itemSeleccionado.id,
+        stockId:  itemSeleccionado.id,
         cantidad: parseFloat(cantidad),
         operacion,
+        motivo:   motivo || null,
+        notas:    notas  || null,
       });
       const rpcData = Array.isArray(result?.data) ? result.data[0] : result?.data;
       if (rpcData && !rpcData.success) {
@@ -425,7 +464,12 @@ const StockManager = () => {
             </thead>
             <tbody className="divide-y dark:divide-gray-700">
               {itemsVista.map(item => (
-                <FilaStock key={item.id} item={item} onActualizar={handleAbrirModal} />
+                <FilaStock
+                  key={item.id}
+                  item={item}
+                  onActualizar={handleAbrirModal}
+                  onHistorial={handleAbrirHistorial}
+                />
               ))}
             </tbody>
           </table>
@@ -512,6 +556,39 @@ const StockManager = () => {
                 />
               </div>
 
+              {/* Motivo (obligatorio al decrementar/establecer) */}
+              {(operacion === 'decrementar' || operacion === 'establecer') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Motivo <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={motivo}
+                    onChange={e => setMotivo(e.target.value)}
+                    className="w-full px-4 py-2.5 border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm"
+                  >
+                    <option value="">— Seleccionar motivo —</option>
+                    {MOTIVOS_AJUSTE.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Notas (siempre opcional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Notas <span className="text-xs font-normal text-gray-400">(opcional)</span>
+                </label>
+                <textarea
+                  value={notas}
+                  onChange={e => setNotas(e.target.value)}
+                  placeholder="Observaciones adicionales..."
+                  rows={2}
+                  className="w-full px-4 py-2 border dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-sm resize-none"
+                />
+              </div>
+
               {/* Preview del nuevo stock */}
               {previewStock !== null && (
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
@@ -551,6 +628,13 @@ const StockManager = () => {
             </div>
           </div>
         </div>
+      )}
+      {/* ── Drawer de historial de movimientos ── */}
+      {historialItem && (
+        <HistorialMovimientos
+          item={historialItem}
+          onClose={() => setHistorialItem(null)}
+        />
       )}
     </div>
   );

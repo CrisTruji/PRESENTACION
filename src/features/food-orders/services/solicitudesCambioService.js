@@ -13,7 +13,7 @@ export const solicitudesCambioService = {
       .select(`
         *,
         pedidos_servicio (operacion_id, fecha, servicio, operaciones(nombre)),
-        menu_componentes (componentes_plato(nombre), arbol_recetas(nombre)),
+        menu_componentes (componente_id, componentes_plato(nombre), arbol_recetas(nombre)),
         arbol_recetas!solicitudes_cambio_menu_receta_solicitada_id_fkey (nombre)
       `)
       .eq('estado', 'pendiente')

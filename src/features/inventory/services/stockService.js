@@ -23,14 +23,88 @@ export const stockService = {
    * @param {string} operacion - 'incrementar', 'decrementar', o 'establecer'
    * @returns {Promise<{data, error}>}
    */
-  async actualizarStock(stockId, cantidad, operacion = 'incrementar') {
+  async actualizarStock(stockId, cantidad, operacion = 'incrementar', motivo = null, notas = null) {
     const { data, error } = await supabase.rpc('actualizar_stock', {
-      p_stock_id: stockId,
-      p_cantidad: cantidad,
-      p_operacion: operacion
+      p_stock_id:  stockId,
+      p_cantidad:  cantidad,
+      p_operacion: operacion,
+      p_motivo:    motivo   || null,
+      p_notas:     notas    || null,
     });
 
     return { data, error };
+  },
+
+  /**
+   * Obtener historial de movimientos de un ingrediente
+   * Combina ajustes manuales (ajustes_stock_manual) con entradas de facturas (movimientos_inventario)
+   * @param {string} materiaPrimaId - UUID del ingrediente (nivel 5)
+   * @param {string} fechaDesde - 'YYYY-MM-DD'
+   * @param {string} fechaHasta - 'YYYY-MM-DD'
+   */
+  async getHistorialMovimientos(materiaPrimaId, fechaDesde, fechaHasta) {
+    const desde = fechaDesde + 'T00:00:00';
+    const hasta = fechaHasta + 'T23:59:59';
+
+    const [ajustesRes, facturasRes] = await Promise.all([
+      // Ajustes manuales (UUID-based) — siempre disponibles
+      supabase
+        .from('ajustes_stock_manual')
+        .select('*')
+        .eq('producto_id', materiaPrimaId)
+        .gte('created_at', desde)
+        .lte('created_at', hasta)
+        .order('created_at', { ascending: false })
+        .limit(80),
+
+      // Movimientos de facturas (intento — puede devolver vacío por tipo bigint vs UUID)
+      supabase
+        .from('movimientos_inventario')
+        .select('id, tipo_movimiento, cantidad_unidad_base, unidad, stock_anterior, stock_posterior, motivo, observaciones, created_at, facturas(numero_factura)')
+        .eq('producto_id', materiaPrimaId)
+        .gte('created_at', desde)
+        .lte('created_at', hasta)
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ]);
+
+    const ajustes = (ajustesRes.data || []).map((a) => ({
+      id:             a.id,
+      fecha:          a.created_at,
+      tipo:           a.tipo_operacion === 'incrementar' ? 'entrada'
+                      : a.tipo_operacion === 'decrementar' ? 'salida'
+                      : 'ajuste',
+      tipo_operacion: a.tipo_operacion,
+      motivo:         a.motivo || '—',
+      notas:          a.notas  || null,
+      cantidad:       a.cantidad,
+      stock_anterior: a.stock_anterior,
+      stock_posterior:a.stock_posterior,
+      origen:         'Ajuste manual',
+      fuente:         'manual',
+    }));
+
+    const facturas = (facturasRes.data || []).map((m) => ({
+      id:             m.id,
+      fecha:          m.created_at,
+      tipo:           m.tipo_movimiento,
+      tipo_operacion: m.tipo_movimiento,
+      motivo:         m.motivo || m.observaciones || '—',
+      notas:          null,
+      cantidad:       m.cantidad_unidad_base,
+      stock_anterior: m.stock_anterior,
+      stock_posterior:m.stock_posterior,
+      origen:         m.facturas?.numero_factura
+                      ? `Factura #${m.facturas.numero_factura}`
+                      : 'Factura',
+      fuente:         'factura',
+    }));
+
+    const resultado = [...ajustes, ...facturas]
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+      .slice(0, 100);
+
+    return { data: resultado, error: null };
   },
 
   /**

@@ -26,7 +26,31 @@ import {
   XCircle,
   FileDigit,
   Hash,
+  Clock,
+  CreditCard,
 } from "lucide-react";
+
+// ─── Constantes de estado de pago ────────────────────────────────
+const PAGO_META = {
+  pendiente:  {
+    label: 'Pendiente',
+    color: 'text-amber-700 dark:text-amber-400',
+    bg:    'bg-amber-50  dark:bg-amber-900/30  border-amber-300 dark:border-amber-700',
+    Icon:  Clock,
+  },
+  pagada: {
+    label: 'Pagada',
+    color: 'text-green-700 dark:text-green-400',
+    bg:    'bg-green-50  dark:bg-green-900/30  border-green-300 dark:border-green-700',
+    Icon:  CheckCircle,
+  },
+  en_disputa: {
+    label: 'En disputa',
+    color: 'text-red-700 dark:text-red-400',
+    bg:    'bg-red-50  dark:bg-red-900/30  border-red-300 dark:border-red-700',
+    Icon:  AlertCircle,
+  },
+};
 
 export default function Facturas() {
   const { roleName } = useAuth();
@@ -59,12 +83,24 @@ export default function Facturas() {
   const [valorRomaneo, setValorRomaneo] = useState("");
   const [loadingRomaneo, setLoadingRomaneo] = useState(false);
 
+  // Estados para estado de pago
+  const [selectedEstadoPago, setSelectedEstadoPago] = useState("todos");
+  const [editandoPago, setEditandoPago] = useState(null); // facturaId
+  const [nuevoEstadoPago, setNuevoEstadoPago] = useState("pagada");
+  const [notasPago, setNotasPago] = useState("");
+  const [loadingPago, setLoadingPago] = useState(false);
+  const [resumenPendiente, setResumenPendiente] = useState({ count: 0, total: 0 });
+
   // Ref para el input de búsqueda
   const searchInputRef = useRef(null);
 
   // Permisos por rol
   const puedeEditarRomaneo =
     roleName === "almacenista" || roleName === "administrador";
+  const puedeEditarPago =
+    roleName === "administrador" ||
+    roleName === "jefe_de_compras" ||
+    roleName === "auxiliar_de_compras";
 
   // Debounce para búsqueda (400ms)
   useEffect(() => {
@@ -83,9 +119,15 @@ export default function Facturas() {
     currentPage,
     debouncedSearchTerm,
     selectedProveedor,
+    selectedEstadoPago,
     sortField,
     sortDirection,
   ]);
+
+  // Cargar resumen de pagos pendientes al montar
+  useEffect(() => {
+    cargarResumenPendiente();
+  }, []);
 
   async function cargarDatos() {
     try {
@@ -104,6 +146,9 @@ export default function Facturas() {
           numero_romaneo,
           estado_recepcion,
           estado_procesamiento,
+          estado_pago,
+          fecha_pago,
+          notas_pago,
           proveedor_id,
           proveedores (
             id,
@@ -144,6 +189,11 @@ export default function Facturas() {
       // Filtro proveedor directo en facturas.proveedor_id (columna propia)
       if (selectedProveedor !== "todos") {
         query = query.eq("proveedor_id", parseInt(selectedProveedor));
+      }
+
+      // Filtro estado de pago
+      if (selectedEstadoPago !== "todos") {
+        query = query.eq("estado_pago", selectedEstadoPago);
       }
 
       // Aplicar ordenamiento
@@ -254,6 +304,61 @@ export default function Facturas() {
   function cancelarEdicionRomaneo() {
     setEditandoRomaneo(null);
     setValorRomaneo("");
+  }
+
+  // Funciones de estado de pago
+  async function cargarResumenPendiente() {
+    try {
+      const { data } = await supabase
+        .from("facturas")
+        .select("valor_total")
+        .in("estado_pago", ["pendiente", "en_disputa"]);
+      const rows = data || [];
+      setResumenPendiente({
+        count: rows.length,
+        total: rows.reduce((s, f) => s + (f.valor_total || 0), 0),
+      });
+    } catch (_) {
+      // silencioso — no bloquea la UI
+    }
+  }
+
+  function iniciarEdicionPago(factura) {
+    setEditandoPago(factura.id);
+    setNuevoEstadoPago(factura.estado_pago || "pendiente");
+    setNotasPago(factura.notas_pago || "");
+  }
+
+  async function aplicarCambioPago(facturaId) {
+    try {
+      setLoadingPago(true);
+      const { error } = await supabase
+        .from("facturas")
+        .update({
+          estado_pago: nuevoEstadoPago,
+          fecha_pago:  nuevoEstadoPago === "pagada" ? new Date().toISOString() : null,
+          notas_pago:  notasPago.trim() || null,
+        })
+        .eq("id", facturaId);
+
+      if (error) throw error;
+
+      setFacturas((prev) =>
+        prev.map((f) =>
+          f.id === facturaId
+            ? { ...f, estado_pago: nuevoEstadoPago, notas_pago: notasPago.trim() || null }
+            : f,
+        ),
+      );
+      notify.success("Estado de pago actualizado");
+      setEditandoPago(null);
+      setNotasPago("");
+      cargarResumenPendiente();
+    } catch (err) {
+      notify.error("Error al actualizar el estado de pago");
+    } finally {
+      setLoadingPago(false);
+    }
   }
 
   // Funciones utilitarias
@@ -377,9 +482,32 @@ export default function Facturas() {
             </div>
           </div>
         </div>
+        {/* Banner pagos pendientes */}
+        {resumenPendiente.count > 0 && (
+          <div className="card p-4 mb-4 flex items-center gap-3 border-l-4 border-amber-400 bg-amber-50/50 dark:bg-amber-900/10">
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-800 dark:text-white">
+                {resumenPendiente.count} {resumenPendiente.count === 1 ? "factura pendiente" : "facturas pendientes"} de pago
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Total: {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0 }).format(resumenPendiente.total)}
+              </p>
+            </div>
+            <button
+              onClick={() => { setSelectedEstadoPago("pendiente"); setCurrentPage(1); }}
+              className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium"
+            >
+              Ver pendientes →
+            </button>
+          </div>
+        )}
+
         {/* Filtros */}
         <div className="card p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="relative">
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted"
@@ -454,6 +582,30 @@ export default function Facturas() {
               </select>
             </div>
 
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted">
+                <CreditCard size={20} />
+              </div>
+              <select
+                className="form-select pl-10 !py-2.5 appearance-none"
+                value={selectedEstadoPago}
+                onChange={(e) => {
+                  setSelectedEstadoPago(e.target.value);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  backgroundColor: "var(--color-bg-surface)",
+                  color: "var(--color-text-primary)",
+                  borderColor: "var(--color-border)",
+                }}
+              >
+                <option value="todos">Todos los pagos</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="pagada">Pagada</option>
+                <option value="en_disputa">En disputa</option>
+              </select>
+            </div>
+
             <div className="flex items-center justify-center md:justify-end">
               <button
                 onClick={cargarDatos}
@@ -512,20 +664,26 @@ export default function Facturas() {
                     </div>
                   </th>
                   <th className="table-header-cell">N° Romaneo</th>
+                  <th className="table-header-cell">
+                    <div className="flex items-center gap-1">
+                      <CreditCard className="w-4 h-4" />
+                      Pago
+                    </div>
+                  </th>
                   <th className="table-header-cell">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center">
+                    <td colSpan="7" className="px-6 py-12 text-center">
                       <div className="spinner spinner-lg mx-auto mb-3"></div>
                       <p className="text-muted">Cargando facturas...</p>
                     </td>
                   </tr>
                 ) : facturas.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center">
+                    <td colSpan="7" className="px-6 py-12 text-center">
                       <div className="text-muted">
                         <FileText
                           size={48}
@@ -642,6 +800,87 @@ export default function Facturas() {
                           </span>
                         )}
                       </td>
+                      {/* Columna Pago */}
+                      <td className="table-cell">
+                        {editandoPago === factura.id ? (
+                          <div className="min-w-[190px] space-y-1.5">
+                            {/* Selector de estado */}
+                            <div className="flex gap-1">
+                              {["pendiente", "pagada", "en_disputa"].map((e) => {
+                                const pm = PAGO_META[e];
+                                const PmIcon = pm.Icon;
+                                return (
+                                  <button
+                                    key={e}
+                                    onClick={() => setNuevoEstadoPago(e)}
+                                    title={pm.label}
+                                    className={`flex-1 flex items-center justify-center gap-0.5 text-xs py-1 px-1 rounded border transition-all ${
+                                      nuevoEstadoPago === e
+                                        ? pm.bg + " " + pm.color + " font-bold"
+                                        : "bg-gray-50 dark:bg-gray-800 text-gray-500 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    }`}
+                                  >
+                                    <PmIcon size={10} />
+                                    <span className="truncate">{pm.label}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {/* Notas */}
+                            <input
+                              type="text"
+                              value={notasPago}
+                              onChange={(e) => setNotasPago(e.target.value)}
+                              placeholder="Notas (opcional)"
+                              className="form-input w-full text-xs !py-1 !px-2"
+                              disabled={loadingPago}
+                            />
+                            {/* Guardar / Cancelar */}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => aplicarCambioPago(factura.id)}
+                                disabled={loadingPago}
+                                className="btn btn-icon !p-1.5 bg-success hover:bg-success/90 flex-1"
+                                title="Guardar"
+                              >
+                                <Save className="w-3 h-3 text-white" />
+                              </button>
+                              <button
+                                onClick={() => { setEditandoPago(null); setNotasPago(""); }}
+                                disabled={loadingPago}
+                                className="btn btn-icon !p-1.5 bg-error hover:bg-error/90 flex-1"
+                                title="Cancelar"
+                              >
+                                <X className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => puedeEditarPago && iniciarEdicionPago(factura)}
+                            disabled={!puedeEditarPago}
+                            title={
+                              factura.notas_pago
+                                ? `Nota: ${factura.notas_pago}`
+                                : puedeEditarPago
+                                ? "Clic para cambiar estado"
+                                : PAGO_META[factura.estado_pago || "pendiente"].label
+                            }
+                            className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all ${
+                              PAGO_META[factura.estado_pago || "pendiente"].bg
+                            } ${
+                              PAGO_META[factura.estado_pago || "pendiente"].color
+                            } ${puedeEditarPago ? "cursor-pointer hover:opacity-80" : "cursor-default"}`}
+                          >
+                            {React.createElement(
+                              PAGO_META[factura.estado_pago || "pendiente"].Icon,
+                              { size: 11 },
+                            )}
+                            {PAGO_META[factura.estado_pago || "pendiente"].label}
+                          </button>
+                        )}
+                      </td>
+
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
                           <button
