@@ -12,7 +12,7 @@ docs/
     ├── sprint-B-proyeccion-semanal.md      ✅ Completado (2026-03-05)
     ├── sprint-C-modulo-economico.md        ✅ Completado (2026-03-05)
     ├── sprint-D-notificaciones-automaticas.md ✅ Completado (2026-03-05)
-    └── sprint-E-semaforo-operativo.md      🔲 Pendiente
+    └── sprint-E-semaforo-operativo.md      ✅ Completado (2026-03-05)
 ```
 
 ## Sprints
@@ -23,7 +23,7 @@ docs/
 | B | ProyeccionSemanal con Datos Reales | ✅ Completado | columna `capacidad_promedio` + editor admin |
 | C | Módulo Económico Completo | ✅ Completado | CostosPorUnidad, CierreCostos, varianza presupuesto |
 | D | Notificaciones Automáticas | ✅ Completado | pipeline completo, fn_presupuesto_critico, verificar_pedidos_del_dia |
-| E | Semáforo Operativo | 🔲 Pendiente | Widget de estado del día en AdminDashboard |
+| E | Semáforo Operativo | ✅ Completado | Widget de estado del día en AdminDashboard |
 
 ## Convenciones
 

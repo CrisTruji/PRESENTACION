@@ -13,6 +13,7 @@ import {
 import notify from "@/shared/lib/notifier";
 import { useAdminKPIs } from '../hooks/useAdminKPIs';
 import { RecommendationWidget } from '@/features/recommendations';
+import SemaforoOperativo from './SemaforoOperativo';
 import {
   Users,
   Clock,
@@ -857,6 +858,8 @@ function TabResumen() {
           </div>
         ))}
       </div>
+
+      <SemaforoOperativo />
 
       <RecommendationWidget diasProyeccion={7} />
     </div>
