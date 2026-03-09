@@ -9,5 +9,5 @@ git reset --hard origin/main
 npm install
 pkill -f node || true
 sleep 2
-nohup npm run build -- --host > /home/ubuntu/app.log 2>&1 &
+npm run build > /home/ubuntu/app.log 2>&1
 echo "Deploy completado: $(date)"
