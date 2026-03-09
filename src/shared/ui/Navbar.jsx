@@ -138,7 +138,6 @@ export default function Navbar() {
         { label: "Costos Servicio", name: "costos_servicio", icon: icons.management },
         { label: "Costos por Unidad", name: "costos_unidad", icon: icons.management },
         { label: "Cierre de Costos", name: "cierre_costos", icon: icons.invoices },
-        { label: "Nomina", name: "nomina", icon: icons.management },
         { label: "Ciclos de Menu", name: "chef_dashboard", icon: icons.menu },
         { label: "Consolidado", name: "consolidado_supervisor", icon: icons.consolidado },
       ],

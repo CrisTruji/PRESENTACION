@@ -8,7 +8,7 @@ import { useRouter } from "@/router";
 // ================================
 
 // ADMIN
-import { AdminDashboard, AdminRequests, AnalisisCostos, Nomina, CostosPorUnidad } from "@/features/admin";
+import { AdminDashboard, AdminRequests, AnalisisCostos, CostosPorUnidad } from "@/features/admin";
 
 // EMPLOYEES
 import { EmpleadosSST, EmpleadosTH } from "@/features/employees";
@@ -180,8 +180,6 @@ case "inventario":
   return <EmpleadosTH />;
   case "analisis_costos":
   return <AnalisisCostos />;
-    case "nomina":
-  return <Nomina />;
 
 // CHEF / ARBOLES (ADMIN)
 case "selector_arboles":
