@@ -4,10 +4,11 @@
 // Restricción: una sola receta local por unidad por receta estándar (upsert)
 // ========================================
 
-import React, { useState } from 'react';
-import { X, Save, AlertCircle, Plus, Trash2, Search } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Save, AlertCircle, Plus, Trash2, Search, RefreshCw } from 'lucide-react';
 import { useRecetaConIngredientes, useCrearRecetaLocal, useActualizarReceta } from '../hooks/useMenuComponentes';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
+import { menuComponentesService } from '../services/menuComponentesService';
 import { supabase } from '@/shared/api';
 import notify from '@/shared/lib/notifier';
 
@@ -88,25 +89,67 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
   const { data: recetaData, isLoading } = useRecetaConIngredientes(recetaId);
   const crearLocal = useCrearRecetaLocal();
   const actualizarReceta = useActualizarReceta();
-  const { cerrarModalRecetaLocal, cicloSeleccionado } = useCicloEditorStore();
+  const { cerrarModalRecetaLocal, operacionSeleccionada } = useCicloEditorStore();
 
   const [ingredientes, setIngredientes] = useState([]);
   const [inicializado, setInicializado] = useState(false);
   const [mostrarBuscador, setMostrarBuscador] = useState(false);
+  // Receta local preexistente encontrada para este (recetaBase, unidad)
+  const [recetaLocalPrevia, setRecetaLocalPrevia] = useState(null);
+  const [checkingLocal, setCheckingLocal] = useState(false);
 
-  // Inicializar ingredientes cuando llegan los datos
-  if (recetaData?.ingredientes && !inicializado) {
-    setIngredientes(
-      recetaData.ingredientes.map((ing) => ({
-        ...ing,
-        cantidad_nueva: ing.cantidad_requerida,
-        modificado: false,
-        eliminado: false,
-        es_nuevo: false,
-      }))
-    );
-    setInicializado(true);
-  }
+  // Código y nombre de la operación activa (para nomenclatura y restricción 1-local-por-unidad)
+  const codigoUnidad = operacionSeleccionada?.codigo || null;
+  const operacionNombre = operacionSeleccionada?.nombre || null;
+
+  // Función para mapear ingredientes al formato del estado
+  const mapIngredientes = (ings) =>
+    ings.map((ing) => ({
+      ...ing,
+      cantidad_nueva: ing.cantidad_requerida,
+      modificado: false,
+      eliminado: false,
+      es_nuevo: false,
+    }));
+
+  // Cuando llegan datos de la receta: verificar si es estándar y si existe una local previa
+  useEffect(() => {
+    if (!recetaData || inicializado) return;
+
+    if (recetaData.es_local) {
+      // Ya es una receta local → cargar sus ingredientes directamente
+      setIngredientes(mapIngredientes(recetaData.ingredientes || []));
+      setInicializado(true);
+      return;
+    }
+
+    // Es receta estándar → buscar si existe una local para esta unidad
+    if (!codigoUnidad) {
+      setIngredientes(mapIngredientes(recetaData.ingredientes || []));
+      setInicializado(true);
+      return;
+    }
+
+    setCheckingLocal(true);
+    menuComponentesService.getRecetaLocalExistente(recetaData.id, codigoUnidad)
+      .then(({ data }) => {
+        if (data?.ingredientes) {
+          // Existe local previa → cargar esos ingredientes
+          setRecetaLocalPrevia(data);
+          setIngredientes(mapIngredientes(data.ingredientes));
+        } else {
+          // No existe → cargar ingredientes de la receta estándar
+          setIngredientes(mapIngredientes(recetaData.ingredientes || []));
+        }
+        setInicializado(true);
+      })
+      .catch(() => {
+        // Fallback: cargar estándar
+        setIngredientes(mapIngredientes(recetaData.ingredientes || []));
+        setInicializado(true);
+      })
+      .finally(() => setCheckingLocal(false));
+  }, [recetaData?.id]);
 
   const actualizarIngrediente = (index, campo, valor) => {
     const nuevos = [...ingredientes];
@@ -170,9 +213,6 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
   const ingredientesEliminados = ingredientes.filter((ing) => ing.eliminado && !ing.es_nuevo);
   const tieneModificaciones = ingredientes.some((ing) => ing.modificado || ing.eliminado);
 
-  // Código de unidad del ciclo activo (para la restricción 1-local-por-unidad)
-  const codigoUnidad = cicloSeleccionado?.operacion?.codigo || null;
-
   const handleGuardar = () => {
     const nuevosInvalidos = ingredientes.filter(
       (i) => i.es_nuevo && !i.eliminado && (!i.cantidad_nueva || i.cantidad_nueva <= 0)
@@ -197,7 +237,7 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
       }));
 
     crearLocal.mutate(
-      { recetaEstandarId: recetaId, codigoUnidad, ingredientesModificados },
+      { recetaEstandarId: recetaId, codigoUnidad, operacionNombre, ingredientesModificados },
       {
         onSuccess: async (response) => {
           if (response.error) {
@@ -237,7 +277,10 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
     );
   };
 
-  const esEdicion = recetaData?.es_local === true;
+  const esEdicion = recetaData?.es_local === true || !!recetaLocalPrevia;
+  const nombreBase = recetaLocalPrevia
+    ? `${recetaData?.nombre || ''} (editando local: ${recetaLocalPrevia.codigo})`
+    : recetaData?.nombre || 'Cargando...';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -250,8 +293,11 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
             </h3>
             <p className="text-sm text-text-muted mt-0.5">
               Basada en: {recetaData?.nombre || 'Cargando...'}
-              {codigoUnidad && (
-                <span className="ml-2 badge badge-primary text-xs">{codigoUnidad.toUpperCase()}</span>
+              {(operacionNombre || codigoUnidad) && (
+                <span className="ml-2 badge badge-primary text-xs">{operacionNombre || codigoUnidad}</span>
+              )}
+              {recetaLocalPrevia && (
+                <span className="ml-2 badge badge-warning text-xs">Local previa cargada</span>
               )}
             </p>
           </div>
@@ -268,19 +314,23 @@ export default function ModalRecetaLocal({ recetaId, menuComponenteId, onClose, 
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <p className="text-sm">
-              {esEdicion
-                ? 'Editando variante local existente. Los cambios reemplazarán la versión anterior.'
-                : 'Se creará una Receta Local solo para esta unidad y menú. Si ya existe una variante local para esta unidad, se actualizará automáticamente.'}
+              {recetaLocalPrevia
+                ? `Encontrada variante local existente (${recetaLocalPrevia.codigo}). Los ingredientes mostrados corresponden a esa versión local. Al guardar se actualizará.`
+                : esEdicion
+                  ? 'Editando variante local existente. Los cambios reemplazarán la versión anterior.'
+                  : 'Se creará una Receta Local solo para esta unidad y menú. Si ya existe una variante local para esta unidad, se actualizará automáticamente.'}
             </p>
           </div>
         </div>
 
         {/* Tabla ingredientes */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {isLoading ? (
+          {isLoading || checkingLocal ? (
             <div className="p-8 text-center">
               <div className="spinner spinner-sm mx-auto"></div>
-              <p className="mt-3 text-sm text-text-muted">Cargando ingredientes...</p>
+              <p className="mt-3 text-sm text-text-muted">
+                {checkingLocal ? 'Verificando receta local existente...' : 'Cargando ingredientes...'}
+              </p>
             </div>
           ) : (
             <>

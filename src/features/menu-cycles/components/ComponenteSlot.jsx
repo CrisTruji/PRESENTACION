@@ -14,6 +14,7 @@ export default function ComponenteSlot({
   onCambiarReceta,
   onEliminar,
   seleccionado = false,
+  opcionNumero = null,
 }) {
   return (
     <div
@@ -24,10 +25,15 @@ export default function ComponenteSlot({
       }`}
     >
       <div className="flex items-center min-w-0 gap-3">
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex items-center gap-1">
           <span className="badge badge-primary text-xs">
             {componente?.nombre || 'Sin componente'}
           </span>
+          {opcionNumero && (
+            <span className="badge badge-outline text-xs">
+              Opc. {opcionNumero}
+            </span>
+          )}
         </div>
         <div className="min-w-0">
           {receta ? (

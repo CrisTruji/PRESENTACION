@@ -39,17 +39,52 @@ class ArbolRecetasService extends BaseArbolService {
   }
 
   /**
-   * Obtener recetas estándar (nivel 2)
+   * Obtener recetas estándar (nivel 2, no locales)
+   * Limit 2000 para evitar el límite por defecto de 1000 filas de PostgREST
    */
   async getRecetasNivel2() {
     const { data, error } = await supabase
       .from(this.tableName)
       .select('*')
       .eq('nivel_actual', 2)
+      .eq('es_local', false)
       .eq('activo', true)
-      .order('codigo');
+      .order('codigo')
+      .limit(2000);
 
     return { data, error };
+  }
+
+  /**
+   * Buscar recetas estándar server-side (evita límite de 1000 filas del árbol en memoria)
+   */
+  async buscarEstandar(termino, limite = 50) {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select('*')
+      .or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`)
+      .eq('nivel_actual', 2)
+      .eq('es_local', false)
+      .eq('activo', true)
+      .order('codigo')
+      .limit(limite);
+
+    return { data, error };
+  }
+
+  /**
+   * Obtener variantes locales de una receta estándar
+   */
+  async getLocalesDeReceta(recetaId) {
+    const { data, error } = await supabase
+      .from(this.tableName)
+      .select('id, codigo, nombre, costo_porcion, codigo_unidad, es_local')
+      .eq('parent_id', recetaId)
+      .eq('es_local', true)
+      .eq('activo', true)
+      .order('nombre');
+
+    return { data: data || [], error };
   }
 
   /**

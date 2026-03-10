@@ -10,10 +10,11 @@ import { useComponentesDia, useEliminarComponente } from '../hooks/useMenuCompon
 import PanelCalendario from './PanelCalendario';
 import PanelGramajes from './PanelGramajes';
 import PanelIngredientes from './PanelIngredientes';
+import { PanelEntregablesContent } from './PanelEntregables';
 import ModalRecetaLocal from './ModalRecetaLocal';
 import ComponenteSlot from './ComponenteSlot';
 import SelectorReceta from './SelectorReceta';
-import { useAsignarComponente } from '../hooks/useMenuComponentes';
+import { useAsignarComponente, useActualizarReceta } from '../hooks/useMenuComponentes';
 import { useDiaServicios } from '../hooks/useCiclos';
 import { useComponentesPlato } from '../hooks/useComponentesPlato';
 import { SERVICIOS } from '@/shared/types/menu';
@@ -22,6 +23,7 @@ import notify from '@/shared/lib/notifier';
 export default function CicloEditor({ onVolver }) {
   const {
     cicloSeleccionado,
+    operacionSeleccionada,
     diaSeleccionado,
     servicioSeleccionado,
     componenteSeleccionado,
@@ -54,6 +56,7 @@ export default function CicloEditor({ onVolver }) {
 
   const { data: componentesMenu, isLoading: loadingComponentes } = useComponentesDia(cicloDiaServicio?.id);
   const asignarComponente = useAsignarComponente();
+  const actualizarReceta = useActualizarReceta();
   const eliminarComponente = useEliminarComponente();
 
   const [showSelectorReceta, setShowSelectorReceta] = React.useState(false);
@@ -83,12 +86,10 @@ export default function CicloEditor({ onVolver }) {
         recetaId: receta.id,
       });
     }
-    // Caso 2: cambiar receta de un componente ya asignado
+    // Caso 2: cambiar receta de un componente ya asignado (usar row ID para no crear fila nueva)
     if (compParaCambiarReceta) {
-      if (!cicloDiaServicio?.id) return;
-      asignarComponente.mutate({
-        cicloDiaServicioId: cicloDiaServicio.id,
-        componenteId: compParaCambiarReceta.componente_id,
+      actualizarReceta.mutate({
+        menuComponenteId: compParaCambiarReceta.id,
         recetaId: receta.id,
       });
     }
@@ -225,6 +226,7 @@ export default function CicloEditor({ onVolver }) {
                     { key: 'calendario', label: '📋 Menú del Día' },
                     { key: 'gramajes', label: '⚖️ Gramajes' },
                     { key: 'ingredientes', label: '🧪 Ingredientes' },
+                    { key: 'entregables', label: '📦 Entregables' },
                   ].map((tab) => (
                     <button
                       key={tab.key}
@@ -282,25 +284,35 @@ export default function CicloEditor({ onVolver }) {
                       </div>
                     ) : componentesMenu && componentesMenu.length > 0 ? (
                       <div className="space-y-3 mb-4">
-                        {componentesMenu.map((comp) => (
-                          <ComponenteSlot
-                            key={comp.id}
-                            componente={comp.componentes_plato}
-                            receta={comp.arbol_recetas}
-                            esLocal={comp.arbol_recetas?.es_local}
-                            seleccionado={componenteSeleccionado?.id === comp.id}
-                            onCambiarReceta={() => handleCambiarReceta(comp)}
-                            onClickGramajes={() => {
-                              seleccionarComponente(comp);
-                              cambiarPanel('gramajes');
-                            }}
-                            onClickIngredientes={() => {
-                              seleccionarComponente(comp);
-                              cambiarPanel('ingredientes');
-                            }}
-                            onEliminar={() => eliminarComponente.mutate(comp.id)}
-                          />
-                        ))}
+                        {(() => {
+                          // Calcular índice de opción por tipo de componente
+                          const conteoPorTipo = {};
+                          const con_opcion = componentesMenu.map(comp => {
+                            const cid = comp.componente_id;
+                            conteoPorTipo[cid] = (conteoPorTipo[cid] || 0) + 1;
+                            return { ...comp, _opcionNum: conteoPorTipo[cid] };
+                          });
+                          return con_opcion.map((comp) => (
+                            <ComponenteSlot
+                              key={comp.id}
+                              componente={comp.componentes_plato}
+                              receta={comp.arbol_recetas}
+                              esLocal={comp.arbol_recetas?.es_local}
+                              seleccionado={componenteSeleccionado?.id === comp.id}
+                              opcionNumero={conteoPorTipo[comp.componente_id] > 1 ? comp._opcionNum : null}
+                              onCambiarReceta={() => handleCambiarReceta(comp)}
+                              onClickGramajes={() => {
+                                seleccionarComponente(comp);
+                                cambiarPanel('gramajes');
+                              }}
+                              onClickIngredientes={() => {
+                                seleccionarComponente(comp);
+                                cambiarPanel('ingredientes');
+                              }}
+                              onEliminar={() => eliminarComponente.mutate(comp.id)}
+                            />
+                          ));
+                        })()}
                       </div>
                     ) : (
                       <div className="text-center py-8">
@@ -318,22 +330,23 @@ export default function CicloEditor({ onVolver }) {
                         <p className="text-xs font-medium text-text-secondary mb-3">Agregar componente:</p>
                         <div className="flex flex-wrap gap-2">
                           {componentesPlato.map((cp) => {
-                            const yaAsignado = componentesMenu?.some(
-                              (cm) => cm.componente_id === cp.id
-                            );
+                            const MAX_OPCIONES = 2;
+                            const conteo = componentesMenu?.filter(cm => cm.componente_id === cp.id).length ?? 0;
+                            const disabled = conteo >= MAX_OPCIONES || !cicloDiaServicio?.id;
+                            const label = conteo === 1 ? `${cp.nombre} (Opc. 2)` : cp.nombre;
                             return (
                               <button
                                 key={cp.id}
                                 onClick={() => handleAgregarPlato(cp.id)}
-                                disabled={yaAsignado || !cicloDiaServicio?.id}
+                                disabled={disabled}
                                 className={`btn text-xs py-1 ${
-                                  yaAsignado
+                                  disabled
                                     ? 'btn-outline opacity-50 cursor-not-allowed'
                                     : 'btn-outline hover:border-primary hover:text-primary'
                                 }`}
                               >
                                 <Plus className="w-3 h-3 mr-1" />
-                                {cp.nombre}
+                                {label}
                               </button>
                             );
                           })}
@@ -348,6 +361,15 @@ export default function CicloEditor({ onVolver }) {
 
                 {/* Vista: Ingredientes */}
                 {panelActivo === 'ingredientes' && <PanelIngredientes />}
+
+                {/* Vista: Entregables */}
+                {panelActivo === 'entregables' && (
+                  <PanelEntregablesContent
+                    cicloDiaServicioId={cicloDiaServicio?.id}
+                    diaSeleccionado={diaSeleccionado}
+                    servicioSeleccionado={servicioSeleccionado}
+                  />
+                )}
               </div>
             </div>
           </div>

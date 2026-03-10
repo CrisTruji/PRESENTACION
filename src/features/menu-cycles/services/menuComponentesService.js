@@ -27,49 +27,27 @@ export const menuComponentesService = {
   },
 
   async asignarComponente(cicloDiaServicioId, componenteId, recetaId, orden = 0) {
-    // Verificar si ya existe
-    const { data: existente } = await supabase
+    // Siempre insertar nueva fila (permite múltiples opciones por tipo de componente)
+    const { data, error } = await supabase
       .from('menu_componentes')
-      .select('id')
-      .eq('ciclo_dia_servicio_id', cicloDiaServicioId)
-      .eq('componente_id', componenteId)
-      .eq('activo', true)
-      .maybeSingle();
-
-    let result;
-    if (existente) {
-      // Actualizar receta del componente existente
-      const { data, error } = await supabase
-        .from('menu_componentes')
-        .update({ receta_id: recetaId, updated_at: new Date().toISOString() })
-        .eq('id', existente.id)
-        .select()
-        .single();
-      result = { data, error };
-    } else {
-      // Crear nuevo
-      const { data, error } = await supabase
-        .from('menu_componentes')
-        .insert({
-          ciclo_dia_servicio_id: cicloDiaServicioId,
-          componente_id: componenteId,
-          receta_id: recetaId,
-          orden,
-        })
-        .select()
-        .single();
-      result = { data, error };
-    }
+      .insert({
+        ciclo_dia_servicio_id: cicloDiaServicioId,
+        componente_id: componenteId,
+        receta_id: recetaId,
+        orden,
+      })
+      .select()
+      .single();
 
     // Al tener al menos 1 componente activo → marcar el servicio como completo
-    if (!result.error) {
+    if (!error) {
       await supabase
         .from('ciclo_dia_servicios')
         .update({ completo: true })
         .eq('id', cicloDiaServicioId);
     }
 
-    return result;
+    return { data, error };
   },
 
   async actualizarReceta(menuComponenteId, recetaId) {
@@ -158,7 +136,7 @@ export const menuComponentesService = {
   // RECETAS LOCALES (usando arbol_recetas)
   // ========================================
 
-  async crearRecetaLocal(recetaEstandarId, codigoUnidad, ingredientesModificados) {
+  async crearRecetaLocal(recetaEstandarId, codigoUnidad, ingredientesModificados, operacionNombre = null) {
     // 1. Obtener receta estandar
     const { data: recetaBase, error: recetaError } = await supabase
       .from('arbol_recetas')
@@ -208,7 +186,8 @@ export const menuComponentesService = {
     } else {
       // No existe → crear nueva receta local
       const codigoLocal = `${recetaBase.codigo}-LOCAL-${codigoUnidad || 'MOD'}`;
-      const nombreLocal = `${recetaBase.nombre} (Local - ${codigoUnidad || 'MOD'})`;
+      const etiquetaUnidad = operacionNombre || codigoUnidad || 'MOD';
+      const nombreLocal = `${recetaBase.nombre} [${etiquetaUnidad}]`;
 
       const { data: nueva, error: localError } = await supabase
         .from('arbol_recetas')
@@ -300,10 +279,24 @@ export const menuComponentesService = {
       .select('id, codigo, nombre, costo_porcion, rendimiento, es_local, tipo_local')
       .or(`nombre.ilike.%${termino}%,codigo.ilike.%${termino}%`)
       .eq('activo', true)
+      .eq('es_local', false)
+      .like('codigo', '3%')
       .limit(limite)
       .order('nombre');
 
     return { data, error };
+  },
+
+  async getVariantesLocalesReceta(recetaBaseId) {
+    const { data, error } = await supabase
+      .from('arbol_recetas')
+      .select('id, codigo, nombre, costo_porcion, codigo_unidad, es_local')
+      .eq('parent_id', recetaBaseId)
+      .eq('es_local', true)
+      .eq('activo', true)
+      .order('nombre');
+
+    return { data: data || [], error };
   },
 
   async getRecetaConIngredientes(recetaId) {
@@ -407,6 +400,176 @@ export const menuComponentesService = {
         onConflict: 'operacion_id,componente_id',
       })
       .select();
+
+    return { data, error };
+  },
+
+  // ========================================
+  // RECETA LOCAL EXISTENTE
+  // Busca si ya existe una variante local para (recetaBase, codigoUnidad)
+  // ========================================
+
+  async getRecetaLocalExistente(recetaEstandarId, codigoUnidad) {
+    let query = supabase
+      .from('arbol_recetas')
+      .select('id, codigo, nombre')
+      .eq('parent_id', recetaEstandarId)
+      .eq('es_local', true)
+      .eq('activo', true);
+
+    if (codigoUnidad) {
+      query = query.eq('codigo_unidad', codigoUnidad);
+    } else {
+      query = query.is('codigo_unidad', null);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error || !data) return { data: null, error };
+
+    // Cargar con ingredientes de la receta local
+    return menuComponentesService.getRecetaConIngredientes(data.id);
+  },
+
+  // ========================================
+  // RECETAS LOCALES DE UNA OPERACIÓN
+  // Devuelve todas las recetas locales activas para la unidad dada
+  // ========================================
+
+  async getRecetasLocalesOperacion(codigoUnidad) {
+    if (!codigoUnidad) return { data: [], error: null };
+
+    const { data, error } = await supabase
+      .from('arbol_recetas')
+      .select('id, codigo, nombre, costo_porcion, es_local, tipo_local, codigo_unidad')
+      .eq('es_local', true)
+      .eq('codigo_unidad', codigoUnidad)
+      .eq('activo', true)
+      .order('nombre');
+
+    return { data: data || [], error };
+  },
+
+  // ========================================
+  // ENTREGABLES (menu_entregables)
+  // ========================================
+
+  async getEntregables(cicloDiaServicioId) {
+    const { data, error } = await supabase
+      .from('menu_entregables')
+      .select('*, arbol_materia_prima(id, codigo, nombre, unidad_medida, stock_actual, costo_promedio)')
+      .eq('ciclo_dia_servicio_id', cicloDiaServicioId)
+      .eq('activo', true)
+      .order('created_at');
+
+    return { data, error };
+  },
+
+  async upsertEntregable(cicloDiaServicioId, materiaPrimaId, cantidadPorServicio, unidadMedida) {
+    // Obtener costo_promedio y unidad de la materia prima
+    const { data: mp } = await supabase
+      .from('arbol_materia_prima')
+      .select('costo_promedio, unidad_medida')
+      .eq('id', materiaPrimaId)
+      .single();
+
+    const costoUnitario = mp?.costo_promedio || 0;
+    const costoTotal = costoUnitario * cantidadPorServicio;
+    const uMedida = unidadMedida || mp?.unidad_medida || 'und';
+
+    // Buscar registro existente (activo o no) — evita usar ON CONFLICT
+    // que no funciona con índices UNIQUE parciales (WHERE activo=true)
+    const { data: existente } = await supabase
+      .from('menu_entregables')
+      .select('id')
+      .eq('ciclo_dia_servicio_id', cicloDiaServicioId)
+      .eq('materia_prima_id', materiaPrimaId)
+      .maybeSingle();
+
+    let result;
+    if (existente) {
+      // Actualizar registro existente (reactiva si estaba inactivo)
+      result = await supabase
+        .from('menu_entregables')
+        .update({
+          cantidad_por_servicio: cantidadPorServicio,
+          unidad_medida: uMedida,
+          costo_unitario: costoUnitario,
+          costo_total: costoTotal,
+          activo: true,
+          stock_descontado: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existente.id)
+        .select('*, arbol_materia_prima(id, codigo, nombre, unidad_medida, stock_actual, costo_promedio)')
+        .single();
+    } else {
+      // Insertar nuevo
+      result = await supabase
+        .from('menu_entregables')
+        .insert({
+          ciclo_dia_servicio_id: cicloDiaServicioId,
+          materia_prima_id: materiaPrimaId,
+          cantidad_por_servicio: cantidadPorServicio,
+          unidad_medida: uMedida,
+          costo_unitario: costoUnitario,
+          costo_total: costoTotal,
+          activo: true,
+        })
+        .select('*, arbol_materia_prima(id, codigo, nombre, unidad_medida, stock_actual, costo_promedio)')
+        .single();
+    }
+
+    return { data: result.data, error: result.error };
+  },
+
+  async descontarStockEntregable(entregableId) {
+    // Obtener datos del entregable
+    const { data: entregable, error: fetchError } = await supabase
+      .from('menu_entregables')
+      .select('materia_prima_id, cantidad_por_servicio, stock_descontado')
+      .eq('id', entregableId)
+      .single();
+
+    if (fetchError) return { data: null, error: fetchError };
+    if (!entregable) return { data: null, error: { message: 'Entregable no encontrado' } };
+    if (entregable.stock_descontado) return { data: null, error: { message: 'El stock ya fue descontado anteriormente' } };
+
+    // Obtener stock actual de la materia prima
+    const { data: mp } = await supabase
+      .from('arbol_materia_prima')
+      .select('stock_actual')
+      .eq('id', entregable.materia_prima_id)
+      .single();
+
+    const stockActual = mp?.stock_actual || 0;
+    const nuevoStock = stockActual - entregable.cantidad_por_servicio;
+
+    // Actualizar stock en arbol_materia_prima
+    const { error: stockError } = await supabase
+      .from('arbol_materia_prima')
+      .update({ stock_actual: nuevoStock, updated_at: new Date().toISOString() })
+      .eq('id', entregable.materia_prima_id);
+
+    if (stockError) return { data: null, error: stockError };
+
+    // Marcar entregable como descontado
+    const { data, error } = await supabase
+      .from('menu_entregables')
+      .update({ stock_descontado: true, updated_at: new Date().toISOString() })
+      .eq('id', entregableId)
+      .select()
+      .single();
+
+    return { data, error, stockPrevio: stockActual, stockNuevo: nuevoStock };
+  },
+
+  async eliminarEntregable(entregableId) {
+    const { data, error } = await supabase
+      .from('menu_entregables')
+      .update({ activo: false, updated_at: new Date().toISOString() })
+      .eq('id', entregableId)
+      .select()
+      .single();
 
     return { data, error };
   },

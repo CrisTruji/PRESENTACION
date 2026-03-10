@@ -53,6 +53,12 @@ export const useCicloEditorStore = create((set, get) => ({
     panelActivo: 'gramajes',
   }),
 
+  actualizarRecetaDeComponente: (recetaId) => set(state => ({
+    componenteSeleccionado: state.componenteSeleccionado
+      ? { ...state.componenteSeleccionado, receta_id: recetaId }
+      : null,
+  })),
+
   // ========================================
   // ACTIONS - Paneles
   // ========================================

@@ -94,11 +94,30 @@ export function useGuardarGramajes() {
 export function useCrearRecetaLocal() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ recetaEstandarId, codigoUnidad, ingredientesModificados }) =>
-      menuComponentesService.crearRecetaLocal(recetaEstandarId, codigoUnidad, ingredientesModificados),
-    onSuccess: () => {
+    mutationFn: ({ recetaEstandarId, codigoUnidad, operacionNombre, ingredientesModificados }) =>
+      menuComponentesService.crearRecetaLocal(recetaEstandarId, codigoUnidad, ingredientesModificados, operacionNombre),
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['menu-componentes'] });
+      queryClient.invalidateQueries({ queryKey: ['recetas-locales-operacion', variables.codigoUnidad] });
     },
+  });
+}
+
+export function useVariantesLocalesReceta(recetaBaseId) {
+  return useQuery({
+    queryKey: ['variantes-locales-receta', recetaBaseId],
+    queryFn: () => menuComponentesService.getVariantesLocalesReceta(recetaBaseId),
+    select: (response) => response.data,
+    enabled: !!recetaBaseId,
+  });
+}
+
+export function useRecetasLocalesOperacion(codigoUnidad) {
+  return useQuery({
+    queryKey: ['recetas-locales-operacion', codigoUnidad],
+    queryFn: () => menuComponentesService.getRecetasLocalesOperacion(codigoUnidad),
+    select: (response) => response.data,
+    enabled: !!codigoUnidad,
   });
 }
 
@@ -118,6 +137,49 @@ export function useRecetaConIngredientes(recetaId) {
     queryFn: () => menuComponentesService.getRecetaConIngredientes(recetaId),
     select: (response) => response.data,
     enabled: !!recetaId,
+  });
+}
+
+// Entregables
+export function useEntregables(cicloDiaServicioId) {
+  return useQuery({
+    queryKey: ['entregables', cicloDiaServicioId],
+    queryFn: () => menuComponentesService.getEntregables(cicloDiaServicioId),
+    select: (response) => response.data,
+    enabled: !!cicloDiaServicioId,
+  });
+}
+
+export function useUpsertEntregable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cicloDiaServicioId, materiaPrimaId, cantidad, unidadMedida }) =>
+      menuComponentesService.upsertEntregable(cicloDiaServicioId, materiaPrimaId, cantidad, unidadMedida),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['entregables', variables.cicloDiaServicioId] });
+    },
+  });
+}
+
+export function useDescontarStockEntregable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entregableId) =>
+      menuComponentesService.descontarStockEntregable(entregableId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entregables'] });
+    },
+  });
+}
+
+export function useEliminarEntregable() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entregableId) =>
+      menuComponentesService.eliminarEntregable(entregableId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entregables'] });
+    },
   });
 }
 

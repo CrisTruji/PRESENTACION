@@ -1,20 +1,46 @@
 // ========================================
 // PanelIngredientes - Lista ingredientes de receta
+// Incluye selector de variantes locales
 // ========================================
 
 import React from 'react';
-import { Edit2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Edit2, AlertCircle, RefreshCw, Star, ChevronRight } from 'lucide-react';
 import { useCicloEditorStore } from '../store/useCicloEditorStore';
-import { useRecetaConIngredientes } from '../hooks/useMenuComponentes';
+import { useRecetaConIngredientes, useActualizarReceta, useVariantesLocalesReceta } from '../hooks/useMenuComponentes';
+import notify from '@/shared/lib/notifier';
 
 export default function PanelIngredientes() {
-  const { componenteSeleccionado, abrirModalRecetaLocal } = useCicloEditorStore();
-  const recetaId = componenteSeleccionado?.receta_id;
+  const {
+    componenteSeleccionado,
+    abrirModalRecetaLocal,
+    actualizarRecetaDeComponente,
+  } = useCicloEditorStore();
 
-  // getRecetaConIngredientes retorna { ...receta, ingredientes } (estructura plana)
-  // data?.receta siempre sería undefined — leer campos directamente desde data
+  const recetaId = componenteSeleccionado?.receta_id;
+  const menuComponenteId = componenteSeleccionado?.id;
+
   const { data, isLoading, isError, refetch } = useRecetaConIngredientes(recetaId);
+  const actualizarReceta = useActualizarReceta();
   const ingredientes = data?.ingredientes || [];
+
+  // Receta base = si es local → su parent, si es estándar → ella misma
+  const recetaBaseId = data?.es_local ? data.parent_id : data?.id;
+  const { data: variantes } = useVariantesLocalesReceta(recetaBaseId);
+  const tieneVariantes = variantes && variantes.length > 0;
+
+  const cambiarAVariante = (nuevaRecetaId) => {
+    if (!menuComponenteId || nuevaRecetaId === recetaId) return;
+    actualizarReceta.mutate(
+      { menuComponenteId, recetaId: nuevaRecetaId },
+      {
+        onSuccess: () => {
+          actualizarRecetaDeComponente(nuevaRecetaId);
+          notify.success('Variante aplicada');
+        },
+        onError: () => notify.error('No se pudo cambiar la variante'),
+      }
+    );
+  };
 
   if (!componenteSeleccionado) {
     return (
@@ -48,21 +74,22 @@ export default function PanelIngredientes() {
 
   return (
     <div>
-      <div className="mb-6 pb-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
+      {/* Header */}
+      <div className="mb-4 pb-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
         <div>
           <h3 className="text-base font-semibold text-primary mb-1">
-            🧪 Ingredientes - {data?.nombre || (isLoading ? 'Cargando...' : 'Sin nombre')}
+            🧪 Ingredientes — {data?.nombre || (isLoading ? 'Cargando...' : 'Sin nombre')}
           </h3>
           <p className="text-sm text-text-muted">
             {data?.es_local ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="inline-block w-2 h-2 rounded-full bg-accent"></span>
+              <span className="inline-flex items-center gap-1.5">
+                <Star className="w-3.5 h-3.5 text-accent" />
                 Receta Local
               </span>
             ) : (
               'Receta Estándar'
             )}
-            {data?.rendimiento && ` • Rendimiento: ${data.rendimiento} porciones`}
+            {data?.rendimiento && ` · Rendimiento: ${data.rendimiento} porciones`}
           </p>
         </div>
         <button
@@ -74,6 +101,55 @@ export default function PanelIngredientes() {
         </button>
       </div>
 
+      {/* Selector de variante local */}
+      {(tieneVariantes || data?.es_local) && !isLoading && (
+        <div className="mb-4 p-3 rounded-lg border" style={{ borderColor: 'var(--color-border)', background: 'var(--color-bg-surface)' }}>
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2 flex items-center gap-1.5">
+            <Star className="w-3.5 h-3.5 text-accent" />
+            Variantes locales disponibles
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {/* Opción receta estándar */}
+            <button
+              onClick={() => cambiarAVariante(recetaBaseId)}
+              disabled={actualizarReceta.isPending || !data?.es_local}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all ${
+                !data?.es_local
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-bg-app text-text-muted border-border hover:border-primary hover:text-primary'
+              }`}
+            >
+              Estándar
+            </button>
+
+            {/* Opciones de variantes locales */}
+            {variantes?.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => cambiarAVariante(v.id)}
+                disabled={actualizarReceta.isPending || v.id === recetaId}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-all flex items-center gap-1 ${
+                  v.id === recetaId
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-bg-app text-text-muted border-border hover:border-accent hover:text-accent'
+                }`}
+              >
+                <Star className="w-3 h-3" />
+                {v.codigo_unidad || v.nombre}
+              </button>
+            ))}
+
+            {actualizarReceta.isPending && (
+              <span className="px-2 py-1 text-xs text-text-muted flex items-center gap-1">
+                <div className="spinner spinner-sm" />
+                Cambiando...
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tabla ingredientes */}
       {isLoading ? (
         <div className="py-8 text-center">
           <div className="spinner spinner-sm mx-auto"></div>
@@ -100,7 +176,7 @@ export default function PanelIngredientes() {
                     <div className="font-medium text-primary text-sm">
                       {ing.arbol_materia_prima?.nombre || 'Ingrediente desconocido'}
                     </div>
-                    <div className="text-xs text-text-muted">
+                    <div className="text-xs text-text-muted font-mono">
                       {ing.arbol_materia_prima?.codigo}
                     </div>
                   </td>
