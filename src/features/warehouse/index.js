@@ -16,4 +16,6 @@ export {
   getMovimientosPorFactura,
   getResumenInventario,
   getStockProducto,
+  marcarEstadoPago,
+  getResumenPagosPendientes,
 } from './services/facturasService';

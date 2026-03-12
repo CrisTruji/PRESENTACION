@@ -11,11 +11,12 @@ export const consolidadoService = {
   // CONSOLIDAR
   // ========================================
 
-  async consolidar(fecha, servicio) {
+  async consolidar(fecha, servicio, forzar = false) {
     const { data, error } = await supabase
       .rpc('consolidar_pedidos_servicio', {
         p_fecha: fecha,
         p_servicio: servicio,
+        p_forzar: forzar,
       });
 
     return { data, error };
@@ -221,7 +222,14 @@ export const consolidadoService = {
 
   async marcarPreparado(consolidadoId) {
     // Descontar stock de materias primas antes de marcar como preparado
-    await supabase.rpc('descontar_stock_consolidado', { p_consolidado_id: consolidadoId });
+    const { error: rpcError } = await supabase
+      .rpc('descontar_stock_consolidado', { p_consolidado_id: consolidadoId });
+
+    // Si el descuento de stock falla, no marcar como completado
+    if (rpcError) {
+      console.error('Error al descontar stock:', rpcError);
+      return { data: null, error: rpcError };
+    }
 
     const { data, error } = await supabase
       .from('consolidados_produccion')

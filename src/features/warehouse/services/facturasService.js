@@ -160,6 +160,8 @@ export async function registrarRecepcionFactura(datos) {
   // 3. Actualizar stock usando el RPC procesar_factura_stock
   const itemsConPresentacion = items.filter(i => i.presentacion_id);
   let stockResult = null;
+  let stockFallido = false;
+  let stockErrorMsg = '';
 
   if (itemsConPresentacion.length > 0) {
     try {
@@ -170,7 +172,9 @@ export async function registrarRecepcionFactura(datos) {
 
       if (stockError) {
         console.error('Error actualizando stock:', stockError);
-        // Marcar factura como pendiente de procesamiento
+        stockFallido = true;
+        stockErrorMsg = stockError.message || 'Error desconocido al procesar stock';
+        // Marcar factura con error para que el usuario pueda reintentar
         await supabase
           .from("facturas")
           .update({
@@ -180,10 +184,20 @@ export async function registrarRecepcionFactura(datos) {
           .eq("id", factura.id);
       } else {
         stockResult = stockData;
-        console.log('Stock actualizado:', stockData);
+        // Marcar factura como procesada correctamente
+        await supabase
+          .from("facturas")
+          .update({ estado_procesamiento: 'completado' })
+          .eq("id", factura.id);
       }
     } catch (err) {
       console.error('Error en RPC de stock:', err);
+      stockFallido = true;
+      stockErrorMsg = err.message || 'Error inesperado al procesar stock';
+      await supabase
+        .from("facturas")
+        .update({ estado_procesamiento: 'error', intentos_procesamiento: 1 })
+        .eq("id", factura.id);
     }
   }
 
@@ -204,17 +218,23 @@ export async function registrarRecepcionFactura(datos) {
     success: true,
     factura_id: factura.id,
     stock_actualizado: stockResult,
+    stock_error: stockFallido,
+    stock_error_msg: stockErrorMsg,
     items_con_presentacion: itemsConPresentacion.length,
-    mensaje: itemsConPresentacion.length > 0
-      ? `Recepción registrada. Stock actualizado para ${itemsConPresentacion.length} productos.`
-      : "Recepción registrada correctamente"
+    mensaje: stockFallido
+      ? `Recepción registrada. El stock NO se actualizó (${stockErrorMsg}). Puede reintentar desde la sección Facturas.`
+      : (itemsConPresentacion.length > 0
+          ? `Recepción registrada. Stock actualizado para ${itemsConPresentacion.length} producto(s).`
+          : "Recepción registrada correctamente")
   };
 }
 
 /* ============================================================
    OBTENER PRESENTACIONES VINCULADAS A UN PROVEEDOR
+   (Optimizado: 2 consultas en lugar de N+1)
    ============================================================ */
 export async function getPresentacionesPorProveedor(proveedorId) {
+  // Consulta 1: Obtener presentaciones del proveedor
   const { data, error } = await supabase
     .from('proveedor_presentaciones')
     .select(`
@@ -235,26 +255,35 @@ export async function getPresentacionesPorProveedor(proveedorId) {
 
   if (error) throw error;
 
-  // Obtener información del producto padre para cada presentación
-  const presentacionesConProducto = await Promise.all(
-    (data || []).map(async (item) => {
-      if (item.presentacion?.parent_id) {
-        const { data: producto } = await supabase
-          .from('arbol_materia_prima')
-          .select('id, codigo, nombre, unidad_stock, costo_promedio, stock_actual')
-          .eq('id', item.presentacion.parent_id)
-          .single();
+  const items = data || [];
 
-        return {
-          ...item,
-          producto
-        };
-      }
-      return item;
-    })
-  );
+  // Recolectar todos los parent_ids únicos en un Set
+  const parentIds = [
+    ...new Set(
+      items
+        .filter(item => item.presentacion?.parent_id)
+        .map(item => item.presentacion.parent_id)
+    )
+  ];
 
-  return presentacionesConProducto;
+  // Consulta 2: Obtener todos los productos padre en una sola llamada (IN)
+  let productosMap = {};
+  if (parentIds.length > 0) {
+    const { data: productos } = await supabase
+      .from('arbol_materia_prima')
+      .select('id, codigo, nombre, unidad_stock, costo_promedio, stock_actual')
+      .in('id', parentIds);
+
+    (productos || []).forEach(p => { productosMap[p.id] = p; });
+  }
+
+  // Combinar resultados en memoria
+  return items.map(item => ({
+    ...item,
+    producto: item.presentacion?.parent_id
+      ? (productosMap[item.presentacion.parent_id] || null)
+      : null
+  }));
 }
 
 /* ============================================================

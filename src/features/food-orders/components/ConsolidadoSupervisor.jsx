@@ -149,6 +149,9 @@ export default function ConsolidadoSupervisor() {
   // Confirmación de aprobación
   const [confirmarAprobar, setConfirmarAprobar] = React.useState(false);
 
+  // Confirmación de re-generación
+  const [confirmarRegenerar, setConfirmarRegenerar] = React.useState(false);
+
   // Generación de PDF
   const [generandoPDF, setGenerandoPDF] = React.useState(false);
 
@@ -169,16 +172,25 @@ export default function ConsolidadoSupervisor() {
     ? operaciones?.find((o) => o.id === filtroUnidad)
     : null;
 
-  const handleConsolidar = () => {
+  const handleConsolidar = (forzar = false) => {
+    // Si ya está aprobado, pedir confirmación antes de regenerar
+    if (forzar && consolidadoActual?.estado === 'aprobado') {
+      setConfirmarRegenerar(true);
+      return;
+    }
+    ejecutarConsolidar(forzar);
+  };
+
+  const ejecutarConsolidar = (forzar = false) => {
     consolidar.mutate(
-      { fecha: filtroFecha, servicio: filtroServicio },
+      { fecha: filtroFecha, servicio: filtroServicio, forzar },
       {
         onSuccess: (res) => {
           if (res.error) {
             notify.error('Error al consolidar: ' + res.error.message);
             return;
           }
-          notify.success('Consolidado generado exitosamente');
+          notify.success(forzar ? 'Consolidado regenerado exitosamente' : 'Consolidado generado exitosamente');
           refetch();
         },
       }
@@ -424,24 +436,44 @@ export default function ConsolidadoSupervisor() {
                   </p>
                 )}
               </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleConsolidar}
-                  disabled={consolidar.isPending}
-                  className="btn btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  {consolidar.isPending ? (
-                    <>
-                      <div className="spinner spinner-sm"></div>
-                      <span>Generando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Package className="w-4 h-4" />
-                      <span>Generar Consolidado</span>
-                    </>
-                  )}
-                </button>
+              <div className="flex items-end gap-2">
+                {/* Botón principal: Generar o Re-generar */}
+                {!consolidadoActual ? (
+                  <button
+                    onClick={() => handleConsolidar(false)}
+                    disabled={consolidar.isPending}
+                    className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+                  >
+                    {consolidar.isPending ? (
+                      <><div className="spinner spinner-sm" /><span>Generando...</span></>
+                    ) : (
+                      <><Package className="w-4 h-4" /><span>Generar Consolidado</span></>
+                    )}
+                  </button>
+                ) : consolidadoActual.estado === 'completado' ? (
+                  <div className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/30 text-success text-sm font-semibold">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Completado</span>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex gap-2">
+                    {/* Re-generar (pedidos tardíos) */}
+                    {consolidadoActual.estado !== 'aprobado' && (
+                      <button
+                        onClick={() => handleConsolidar(true)}
+                        disabled={consolidar.isPending}
+                        className="btn btn-outline flex-1 flex items-center justify-center gap-2 text-sm"
+                        title="Re-generar incluyendo pedidos tardíos"
+                      >
+                        {consolidar.isPending ? (
+                          <><div className="spinner spinner-sm" /><span>Re-generando...</span></>
+                        ) : (
+                          <><RefreshCw className="w-4 h-4" /><span>Re-generar</span></>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -496,24 +528,33 @@ export default function ConsolidadoSupervisor() {
           <div className="card">
             <div className="card-body py-12 text-center">
               <div className="spinner spinner-lg mx-auto"></div>
-              <p className="mt-4 text-muted text-sm">Cargando consolidado...</p>
+              <p className="mt-4 text-text-muted text-sm">Cargando consolidado...</p>
             </div>
           </div>
         ) : !consolidadoActual ? (
           <div className="card">
             <div className="card-body py-12 text-center">
-              <Package className="h-12 w-12 mx-auto text-muted mb-3" />
+              <Package className="h-12 w-12 mx-auto text-text-muted mb-3" />
               <h3 className="text-base font-semibold text-primary mb-2">Sin consolidado</h3>
-              <p className="text-sm text-muted mb-4">
-                No hay consolidado para {filtroFecha} — {filtroServicio}. Genera uno cuando los pedidos estén listos.
+              <p className="text-sm text-text-muted mb-1">
+                No hay consolidado para <strong>{filtroFecha}</strong> — <strong className="capitalize">{filtroServicio}</strong>
+              </p>
+              <p className="text-xs text-text-muted mb-4">
+                {pedidosEnviados === 0
+                  ? 'Aún no hay pedidos enviados para esta fecha y servicio.'
+                  : `${pedidosEnviados} pedido${pedidosEnviados > 1 ? 's' : ''} enviado${pedidosEnviados > 1 ? 's' : ''} listo${pedidosEnviados > 1 ? 's' : ''} para consolidar.`}
               </p>
               <button
-                onClick={handleConsolidar}
-                disabled={consolidar.isPending}
+                onClick={() => handleConsolidar(false)}
+                disabled={consolidar.isPending || pedidosEnviados === 0}
                 className="btn btn-primary inline-flex items-center gap-2"
+                title={pedidosEnviados === 0 ? 'No hay pedidos enviados aún' : undefined}
               >
-                <Package className="w-4 h-4" />
-                <span>Generar Consolidado</span>
+                {consolidar.isPending ? (
+                  <><div className="spinner spinner-sm" /><span>Generando...</span></>
+                ) : (
+                  <><Package className="w-4 h-4" /><span>Generar Consolidado</span></>
+                )}
               </button>
             </div>
           </div>
@@ -568,7 +609,7 @@ export default function ConsolidadoSupervisor() {
 
             {/* Footer acciones */}
             <div className="card-footer flex items-center justify-between">
-              <div className="text-xs text-muted">
+              <div className="text-xs text-text-muted">
                 {consolidadoActual.fecha_aprobacion && (
                   <span>Aprobado el {new Date(consolidadoActual.fecha_aprobacion).toLocaleString('es-CO')}</span>
                 )}
@@ -617,6 +658,46 @@ export default function ConsolidadoSupervisor() {
           </div>
         )}
       </div>
+
+      {/* Modal confirmación re-generación */}
+      {confirmarRegenerar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+             style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
+          <div className="bg-bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6"
+               style={{ border: '1px solid var(--color-border)' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-primary">Re-generar consolidado</h3>
+                <p className="text-xs text-text-muted">El consolidado ya fue aprobado</p>
+              </div>
+            </div>
+            <p className="text-sm text-text-secondary mb-4">
+              Esto reiniciará el estado del consolidado a <strong>pendiente</strong> e incluirá los pedidos tardíos. ¿Deseas continuar?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmarRegenerar(false)}
+                className="btn btn-outline flex-1"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setConfirmarRegenerar(false); ejecutarConsolidar(true); }}
+                disabled={consolidar.isPending}
+                className="btn btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {consolidar.isPending
+                  ? <><div className="spinner spinner-sm" /><span>Re-generando...</span></>
+                  : <><RefreshCw className="w-4 h-4" /><span>Re-generar</span></>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal confirmación aprobación */}
       {confirmarAprobar && (

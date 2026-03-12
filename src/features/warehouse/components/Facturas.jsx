@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/features/auth";
 import { supabase } from '@/shared/api';
 import notify from "@/shared/lib/notifier";
+import { reintentarProcesamientoStock, marcarEstadoPago } from "@/features/warehouse";
 import {
   Search,
   Filter,
@@ -52,6 +53,14 @@ const PAGO_META = {
   },
 };
 
+// ─── Constantes de estado de procesamiento de stock ──────────
+const PROC_META = {
+  pendiente:   { label: 'Stock pendiente', color: 'text-amber-700 dark:text-amber-400',  bg: 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700',  Icon: Clock },
+  completado:  { label: 'Stock OK',        color: 'text-green-700 dark:text-green-400',  bg: 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700',  Icon: CheckCircle },
+  error:       { label: 'Error de stock',  color: 'text-red-700 dark:text-red-400',      bg: 'bg-red-50 dark:bg-red-900/30 border-red-300 dark:border-red-700',          Icon: AlertCircle },
+  procesando:  { label: 'Procesando...',   color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700',      Icon: RefreshCw },
+};
+
 export default function Facturas() {
   const { roleName } = useAuth();
 
@@ -90,6 +99,9 @@ export default function Facturas() {
   const [notasPago, setNotasPago] = useState("");
   const [loadingPago, setLoadingPago] = useState(false);
   const [resumenPendiente, setResumenPendiente] = useState({ count: 0, total: 0 });
+
+  // Estado para reintentar stock
+  const [loadingRetry, setLoadingRetry] = useState(null); // facturaId en proceso de reintento
 
   // Ref para el input de búsqueda
   const searchInputRef = useRef(null);
@@ -332,16 +344,8 @@ export default function Facturas() {
   async function aplicarCambioPago(facturaId) {
     try {
       setLoadingPago(true);
-      const { error } = await supabase
-        .from("facturas")
-        .update({
-          estado_pago: nuevoEstadoPago,
-          fecha_pago:  nuevoEstadoPago === "pagada" ? new Date().toISOString() : null,
-          notas_pago:  notasPago.trim() || null,
-        })
-        .eq("id", facturaId);
-
-      if (error) throw error;
+      // BUG-F03: Usar el service centralizado en lugar de llamar supabase directamente
+      await marcarEstadoPago(facturaId, nuevoEstadoPago, notasPago.trim() || null);
 
       setFacturas((prev) =>
         prev.map((f) =>
@@ -358,6 +362,25 @@ export default function Facturas() {
       notify.error("Error al actualizar el estado de pago");
     } finally {
       setLoadingPago(false);
+    }
+  }
+
+  // DISEÑO-F06: Reintentar procesamiento de stock para facturas con error
+  async function handleReintentarStock(facturaId) {
+    try {
+      setLoadingRetry(facturaId);
+      await reintentarProcesamientoStock(facturaId);
+      setFacturas((prev) =>
+        prev.map((f) =>
+          f.id === facturaId ? { ...f, estado_procesamiento: 'completado' } : f
+        )
+      );
+      notify.success("Stock procesado correctamente");
+    } catch (err) {
+      notify.error("Error al reintentar el procesamiento de stock");
+      cargarDatos(); // Recargar para reflejar el estado real
+    } finally {
+      setLoadingRetry(null);
     }
   }
 
@@ -723,6 +746,18 @@ export default function Facturas() {
                         <div className="font-medium text-primary">
                           {factura.numero_factura}
                         </div>
+                        {/* DISEÑO-F06: Badge de estado de procesamiento de stock */}
+                        {factura.estado_procesamiento && factura.estado_procesamiento !== 'completado' && (() => {
+                          const pm = PROC_META[factura.estado_procesamiento];
+                          if (!pm) return null;
+                          const PmIcon = pm.Icon;
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded border mt-1 ${pm.bg} ${pm.color}`}>
+                              <PmIcon size={10} className={factura.estado_procesamiento === 'procesando' ? 'animate-spin' : ''} />
+                              {pm.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
@@ -899,6 +934,17 @@ export default function Facturas() {
                             >
                               <Download className="w-4 h-4 text-secondary" />
                             </a>
+                          )}
+                          {/* DISEÑO-F06: Botón reintentar stock para facturas con error */}
+                          {factura.estado_procesamiento === 'error' && (
+                            <button
+                              onClick={() => handleReintentarStock(factura.id)}
+                              disabled={loadingRetry === factura.id}
+                              className="btn btn-icon btn-outline border-amber-400/60 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                              title="Reintentar actualización de stock"
+                            >
+                              <RefreshCw className={`w-4 h-4 text-amber-600 dark:text-amber-400 ${loadingRetry === factura.id ? 'animate-spin' : ''}`} />
+                            </button>
                           )}
                         </div>
                       </td>

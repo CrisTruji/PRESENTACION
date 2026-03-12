@@ -375,9 +375,12 @@ export default function RecepcionFactura() {
         codigo_unidad: solicitudSeleccionada.codigo_unidad
       });
 
-      // Mostrar resultado de stock si hay items con presentación
-      if (resultado.items_con_presentacion > 0) {
-        // Obtener movimientos de inventario generados
+      // Verificar si el stock falló al procesar
+      if (resultado.stock_error) {
+        // Factura creada correctamente pero stock NO se actualizó
+        notify.warning(resultado.mensaje);
+      } else if (resultado.items_con_presentacion > 0) {
+        // Stock actualizado exitosamente — mostrar detalle de movimientos
         try {
           const movimientos = await getMovimientosPorFactura(resultado.factura_id);
           setResultadoStock({
@@ -389,7 +392,6 @@ export default function RecepcionFactura() {
         } catch (err) {
           console.error('Error obteniendo movimientos:', err);
         }
-
         notify.success(resultado.mensaje);
       } else {
         notify.success('Recepción registrada correctamente');
@@ -1187,6 +1189,15 @@ function DetalleModal({
                   <div className="mt-3 p-2 bg-success/10 border border-success/20 rounded-base text-sm text-success">
                     <Database size={16} className="inline mr-1" />
                     El stock de {itemsConPresentacion.length} producto(s) se actualizará automáticamente.
+                  </div>
+                )}
+                {/* BUG-F02: Aviso cuando hay items sin presentación vinculada */}
+                {presentacionesProveedor.length > 0 &&
+                  itemsRecepcion.length > itemsConPresentacion.length && (
+                  <div className="mt-3 p-2 bg-warning/10 border border-warning/20 rounded-base text-sm text-warning">
+                    <AlertTriangle size={16} className="inline mr-1" />
+                    {itemsRecepcion.length - itemsConPresentacion.length} producto(s) sin presentación asignada
+                    — su stock <strong>no</strong> se actualizará. Asigna presentación en la tabla si corresponde.
                   </div>
                 )}
               </div>

@@ -53,8 +53,8 @@ export function useCambiosRealizados(consolidadoId) {
 export function useConsolidar() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ fecha, servicio }) =>
-      consolidadoService.consolidar(fecha, servicio),
+    mutationFn: ({ fecha, servicio, forzar = false }) =>
+      consolidadoService.consolidar(fecha, servicio, forzar),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consolidado'] });
       queryClient.invalidateQueries({ queryKey: ['pedidos'] });
