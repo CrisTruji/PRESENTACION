@@ -132,7 +132,6 @@ export default function Navbar() {
         { label: "Arboles", name: "selector_arboles", icon: icons.tree },
         { label: "Vincular Presentaciones", name: "vincular_presentaciones", icon: icons.products },
         { label: "Empleados SST", name: "empleados_sst", icon: icons.tree },
-        { label: "Empleados TH", name: "empleados_th", icon: icons.tree },
         { label: "Capacidades", name: "configuracion_capacidades", icon: icons.management },
         { label: "Análisis de Costos", name: "analisis_costos", icon: icons.management },
         { label: "Costos Servicio", name: "costos_servicio", icon: icons.management },
@@ -183,6 +182,7 @@ export default function Navbar() {
       nomina: [
         { label: "Panel Nómina", name: "panel_nomina", icon: icons.management },
         { label: "Subir Desprendibles", name: "subir_desprendibles", icon: icons.invoices },
+        { label: "Empleados TH", name: "empleados_th", icon: icons.tree },
       ],
     };
 
