@@ -53,6 +53,10 @@ function parsearNombreArchivo(nombre, periodoFallback) {
   const m1 = sinExt.match(/(\d{6,12})_(\d{4}-\d{2})/);
   if (m1) return { cedula: m1[1], periodo: m1[2] };
 
+  // 1b️⃣ {cedula}_{NOMBRE APELLIDOS}        — ej: 1000127175_CASTILLO HURTADO KENNIA
+  const m1b = sinExt.match(/^(\d{6,12})_[^\d]/);
+  if (m1b) return { cedula: m1b[1], periodo: periodoFallback };
+
   // 2️⃣ desprendible[-_ ]{cedula}           — ej: desprendible-1029142426
   const m2 = sinExt.match(/desprendible[-_\s](\d{6,12})/i);
   if (m2) return { cedula: m2[1], periodo: periodoFallback };
@@ -61,8 +65,8 @@ function parsearNombreArchivo(nombre, periodoFallback) {
   const m3 = sinExt.match(/^(\d{6,12})$/);
   if (m3) return { cedula: m3[1], periodo: periodoFallback };
 
-  // 4️⃣ Cualquier secuencia de 8-12 dígitos en el nombre
-  const m4 = sinExt.match(/\b(\d{8,12})\b/);
+  // 4️⃣ Cualquier secuencia de 8-12 dígitos en el nombre (lookarounds: _ no es límite con \b)
+  const m4 = sinExt.match(/(?<!\d)(\d{8,12})(?!\d)/);
   if (m4) return { cedula: m4[1], periodo: periodoFallback };
 
   return null;

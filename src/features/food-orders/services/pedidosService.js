@@ -228,7 +228,8 @@ export const pedidosService = {
         menu_componentes (
           *,
           componentes_plato (*),
-          arbol_recetas (id, codigo, nombre, costo_porcion)
+          arbol_recetas (id, codigo, nombre, costo_porcion),
+          gramajes_componente_menu (*)
         )
       `)
       .eq('ciclo_id', ciclo.id)

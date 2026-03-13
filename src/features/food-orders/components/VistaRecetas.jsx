@@ -122,9 +122,22 @@ export default function VistaRecetas({ consolidadoId, onCambiarReceta }) {
                         </button>
                       )}
                     </div>
-                    <p className="text-xs text-text-muted mt-1">
-                      Total: <span className="font-semibold text-primary">{item.cantidad_total}</span> porciones
-                    </p>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      {Object.entries(item.desglose_dietas || {})
+                        .filter(([, cnt]) => cnt > 0)
+                        .map(([cod, cnt]) => (
+                          <span
+                            key={cod}
+                            className="text-xs px-1.5 py-0.5 rounded border font-mono font-semibold"
+                            style={{ background: 'var(--color-bg-app)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
+                          >
+                            {cod}:{cnt}
+                          </span>
+                        ))
+                      }
+                      <span className="text-xs text-text-muted">·</span>
+                      <span className="text-xs font-semibold text-primary">{item.cantidad_total} p.</span>
+                    </div>
                   </div>
                 </div>
                 <button

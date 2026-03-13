@@ -15,9 +15,10 @@ import {
   useEnviarPedido,
   useGuardarItems,
   useDiaCiclo,
+  useHoraLimite,
 } from '../hooks/usePedidos';
 import { useGuardarPacientes } from '../hooks/usePedidoPacientes';
-import { useOperaciones } from '@features/menu-cycles';
+import { useOperaciones, useTiposDieta } from '@features/menu-cycles';
 import { OPERACIONES_CON_PACIENTES, SERVICIOS } from '@/shared/types/menu';
 import MenuDelDia from './MenuDelDia';
 import PedidoDietas from './PedidoDietas';
@@ -48,13 +49,16 @@ export default function PedidoServicioForm() {
   } = usePedidoStore();
 
   const [showSolicitudCambio, setShowSolicitudCambio] = useState(false);
+  const [usaDesechables, setUsaDesechables] = useState(false);
 
   const { data: operaciones } = useOperaciones();
+  const { data: tiposDieta } = useTiposDieta();
   const { data: pedidoExistente, refetch: refetchPedido, isError: errorPedido } = usePedidoDelDia(
     operacionActual?.id, fechaPedido, servicioPedido
   );
   const { data: menuDelDia } = useMenuDelDia(operacionActual?.id, fechaPedido);
   const { data: diaCiclo, isLoading: loadingDiaCiclo } = useDiaCiclo(operacionActual?.id, fechaPedido);
+  const { data: horaLimiteFetched } = useHoraLimite(operacionActual?.id, servicioPedido);
 
   const crearPedido = useCrearPedido();
   const enviarPedido = useEnviarPedido();
@@ -73,6 +77,7 @@ export default function PedidoServicioForm() {
   useEffect(() => {
     if (pedidoExistente) {
       setPedido(pedidoExistente);
+      setUsaDesechables(pedidoExistente.usa_desechables || false);
       // Cargar items existentes al store para que los inputs muestren los valores guardados
       if (pedidoExistente.pedido_items_servicio?.length > 0) {
         const itemsStore = pedidoExistente.pedido_items_servicio.map((pi) => ({
@@ -80,12 +85,15 @@ export default function PedidoServicioForm() {
           cantidad: pi.cantidad || 0,
           gramaje_aplicado: pi.gramaje_aplicado || null,
           observaciones: pi.observaciones || null,
+          menu_componente_id: pi.menu_componente_id || null,
+          opcion_seleccionada: pi.opcion_seleccionada || null,
         }));
         usePedidoStore.getState().setItems(itemsStore);
       }
     }
   }, [pedidoExistente]);
   useEffect(() => { if (menuDelDia) setMenuStore(menuDelDia); }, [menuDelDia]);
+  useEffect(() => { setHoraLimite(horaLimiteFetched || null); }, [horaLimiteFetched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // F1: Countdown en vivo — actualiza cada 60 s (patrón SemaforoOperativo)
   const [ahora, setAhora] = useState(new Date());
@@ -179,6 +187,25 @@ export default function PedidoServicioForm() {
       }
     );
   };
+
+  const handleToggleDesechables = async () => {
+    if (!pedidoActual?.id) return;
+    const nuevoValor = !usaDesechables;
+    setUsaDesechables(nuevoValor);
+    const { error } = await supabase
+      .from('pedidos_servicio')
+      .update({ usa_desechables: nuevoValor })
+      .eq('id', pedidoActual.id);
+    if (error) {
+      setUsaDesechables(!nuevoValor); // revertir en caso de error
+      notify.error('Error al actualizar desechables');
+    }
+  };
+
+  // Extraer componentes del menú para el modal
+  const menuComponentesDelDia = menuDelDia?.servicios
+    ?.filter((s) => s.servicio === servicioPedido)
+    ?.flatMap((s) => s.menu_componentes || []) || [];
 
   return (
     <div className="min-h-content bg-app">
@@ -406,6 +433,47 @@ export default function PedidoServicioForm() {
                   )}
                 </div>
 
+                {/* Toggle Desechables */}
+                {pedidoActual && puedeEditar && (
+                  <div className="card mt-4">
+                    <div
+                      className="card-body flex items-center justify-between py-3 cursor-pointer"
+                      onClick={handleToggleDesechables}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && handleToggleDesechables()}
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-primary">🗑 Desechables</p>
+                        <p className="text-xs text-text-muted">
+                          Activar si esta unidad requiere bandejas / vasos / cubiertos hoy
+                        </p>
+                      </div>
+                      {/* Toggle pill */}
+                      <div className="flex-shrink-0 ml-4">
+                        <div
+                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                            usaDesechables ? 'bg-warning' : 'bg-bg-app border border-border'
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all duration-200 ${
+                              usaDesechables ? 'left-6' : 'left-1'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {usaDesechables && (
+                      <div className="px-4 pb-3">
+                        <p className="text-xs text-warning">
+                          ✓ El supervisor verá que esta unidad requiere desechables hoy
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Footer acciones */}
                 {pedidoActual && puedeEditar && (
                   <div className="card-footer">
@@ -443,11 +511,12 @@ export default function PedidoServicioForm() {
           </div>
         )}
 
-        {/* Modal */}
+        {/* Modal solicitud cambio / observación */}
         {showSolicitudCambio && pedidoActual && (
           <SolicitudCambioModal
             pedidoId={pedidoActual.id}
-            menuComponenteId={null}
+            menuComponentes={menuComponentesDelDia}
+            tiposDieta={tiposDieta || []}
             onClose={() => setShowSolicitudCambio(false)}
           />
         )}

@@ -124,6 +124,18 @@ export default function VistaUnidades() {
         const componentesCarta = Object.values(porComponenteCarta).sort((a, b) => a.orden - b.orden);
         const expandido = expandidos[pedido.id];
 
+        // ── Resumen de dietas para el header row ──
+        const dietaSummary = {};
+        for (const item of items) {
+          const cod = item.tipos_dieta?.codigo;
+          if (cod && item.cantidad > 0 && !dietaSummary[cod]) {
+            dietaSummary[cod] = item.cantidad;
+          }
+        }
+        const dietaEntries = Object.entries(dietaSummary);
+        const nombreCorto  = (pedido.operaciones?.nombre || 'UN').slice(0, 2).toUpperCase();
+        const tipoOp       = pedido.operaciones?.tipo_operacion || '';
+
         return (
           <div key={pedido.id}
                className="border rounded-xl overflow-hidden"
@@ -132,60 +144,81 @@ export default function VistaUnidades() {
             {/* ── Cabecera del pedido ── */}
             <div
               onClick={() => toggleExpandir(pedido.id)}
-              className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-bg-app transition-colors bg-bg-surface"
+              className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-bg-app transition-colors bg-bg-surface"
             >
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                {expandido
-                  ? <ChevronUp className="w-4 h-4 text-text-muted flex-shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-text-muted flex-shrink-0" />
-                }
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-primary truncate">
+              {/* Avatar 2 letras */}
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+                style={{ background: 'var(--color-bg-app)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+              >
+                {nombreCorto}
+              </div>
+
+              {/* Info unidad */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                  <p className="text-sm font-semibold text-primary">
                     {pedido.operaciones?.nombre || 'Unidad'}
                   </p>
-                  <p className="text-xs text-text-muted font-mono">
-                    {pedido.operaciones?.codigo}
-                  </p>
+                  {/* Estado badge */}
+                  <span className={`badge text-xs ${
+                    pedido.estado === 'enviado'     ? 'badge-success' :
+                    pedido.estado === 'consolidado' ? 'badge-primary' :
+                    pedido.estado === 'borrador'    ? 'badge-warning' :
+                    'badge-secondary'
+                  }`}>
+                    {ETIQUETAS_ESTADO_PEDIDO[pedido.estado] || pedido.estado}
+                  </span>
+                  {/* Tipo operacion */}
+                  <span className="text-xs text-text-muted capitalize">
+                    {tipoOp.replace(/_/g, ' ')}
+                  </span>
+                  {/* Desechables */}
+                  {pedido.usa_desechables && (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded font-medium"
+                      style={{ background: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.3)' }}
+                    >
+                      🗑 desechables
+                    </span>
+                  )}
+                </div>
+
+                {/* Diet badges compactos + hora envío */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {dietaEntries.length > 0 && dietaEntries.map(([cod, cnt]) => (
+                    <span
+                      key={cod}
+                      className="text-xs px-1.5 py-0.5 rounded border font-mono font-semibold"
+                      style={{
+                        background:  'var(--color-bg-app)',
+                        borderColor: 'var(--color-border)',
+                        color:       'var(--color-text-secondary)',
+                      }}
+                    >
+                      {cod}:{cnt}
+                    </span>
+                  ))}
+                  {pedido.hora_envio && (
+                    <span className={`text-xs ${pedido.enviado_en_hora === false ? 'text-error' : 'text-text-muted'}`}>
+                      · env. {new Date(pedido.hora_envio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                      {pedido.enviado_en_hora === false && ' ⚠'}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 flex-shrink-0">
-                {/* Total porciones */}
-                <span className="text-xs text-text-muted">
-                  <span className="font-semibold text-primary">{totalPorciones}</span> porciones
-                </span>
-
-                {/* Hora envío */}
-                {pedido.hora_envio && (
-                  <span className="text-xs font-mono text-text-muted">
-                    {new Date(pedido.hora_envio).toLocaleTimeString('es-CO', {
-                      hour: '2-digit', minute: '2-digit',
-                    })}
-                  </span>
-                )}
-
-                {/* En hora */}
-                {pedido.hora_envio ? (
-                  pedido.enviado_en_hora ? (
-                    <span className="flex items-center gap-1 text-xs text-success font-semibold">
-                      <CheckCircle className="w-3.5 h-3.5" /> A tiempo
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs text-error font-semibold">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Tardío
-                    </span>
-                  )
-                ) : null}
-
-                {/* Estado badge */}
-                <span className={`badge text-xs ${
-                  pedido.estado === 'enviado'      ? 'badge-success'   :
-                  pedido.estado === 'consolidado'  ? 'badge-primary'   :
-                  pedido.estado === 'borrador'     ? 'badge-warning'   :
-                  'badge-secondary'
-                }`}>
-                  {ETIQUETAS_ESTADO_PEDIDO[pedido.estado] || pedido.estado}
-                </span>
+              {/* Porciones + chevron */}
+              <div className="text-right flex-shrink-0 flex items-center gap-2">
+                <div>
+                  <p className={`text-xl font-bold tabular-nums ${totalPorciones > 0 ? 'text-primary' : 'text-text-muted'}`}>
+                    {totalPorciones}
+                  </p>
+                  <p className="text-xs text-text-muted">porciones</p>
+                </div>
+                {expandido
+                  ? <ChevronUp className="w-4 h-4 text-text-muted" />
+                  : <ChevronDown className="w-4 h-4 text-text-muted" />}
               </div>
             </div>
 

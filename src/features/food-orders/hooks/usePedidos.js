@@ -64,6 +64,24 @@ export function useGuardarItems() {
   });
 }
 
+// Hook para obtener la hora límite de un servicio/unidad
+export function useHoraLimite(operacionId, servicio) {
+  return useQuery({
+    queryKey: ['hora-limite', operacionId, servicio],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('servicios_unidad')
+        .select('hora_limite')
+        .eq('operacion_id', operacionId)
+        .eq('servicio', servicio)
+        .maybeSingle();
+      return data?.hora_limite || null;
+    },
+    enabled: !!operacionId && !!servicio,
+    staleTime: 5 * 60_000,
+  });
+}
+
 // Hook para obtener el día del ciclo correspondiente a una fecha
 // Muestra al coordinador en qué día del ciclo está antes de crear el pedido
 export function useDiaCiclo(operacionId, fecha) {

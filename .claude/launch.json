@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "PRESENTACION",
+      "name": "dev",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js", "run", "dev"],
-      "port": 5173
+      "runtimeArgs": ["C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js", "run", "dev", "--", "--port", "5180"],
+      "port": 5180,
+      "autoPort": false
     }
   ]
 }

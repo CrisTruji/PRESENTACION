@@ -68,12 +68,27 @@ export const usePedidoStore = create(
   setItems: (items) => set({ items }),
 
   actualizarItem: (tipoDietaId, campo, valor) => set((state) => {
-    const nuevosItems = state.items.map((item) =>
-      item.tipo_dieta_id === tipoDietaId
-        ? { ...item, [campo]: valor }
-        : item
-    );
-    return { items: nuevosItems };
+    const existe = state.items.some((i) => i.tipo_dieta_id === tipoDietaId);
+    if (existe) {
+      return {
+        items: state.items.map((item) =>
+          item.tipo_dieta_id === tipoDietaId ? { ...item, [campo]: valor } : item
+        ),
+      };
+    }
+    // No existe (pedido cargado sin esta dieta) → insertar
+    return {
+      items: [
+        ...state.items,
+        {
+          tipo_dieta_id: tipoDietaId,
+          cantidad: 0,
+          gramaje_aplicado: null,
+          observaciones: null,
+          [campo]: valor,
+        },
+      ],
+    };
   }),
 
   // Para carta-menu: actualizar la opcion (A/B) de un item especifico (dieta + componente)

@@ -14,7 +14,8 @@ export const solicitudesCambioService = {
         *,
         pedidos_servicio (operacion_id, fecha, servicio, operaciones(nombre)),
         menu_componentes (componente_id, componentes_plato(nombre), arbol_recetas(nombre)),
-        arbol_recetas!solicitudes_cambio_menu_receta_solicitada_id_fkey (nombre)
+        arbol_recetas!solicitudes_cambio_menu_receta_solicitada_id_fkey (nombre),
+        tipos_dieta (id, codigo, nombre)
       `)
       .eq('estado', 'pendiente')
       .order('created_at', { ascending: false });
@@ -36,10 +37,13 @@ export const solicitudesCambioService = {
     const { data, error } = await supabase
       .from('solicitudes_cambio_menu')
       .insert({
-        pedido_id: datos.pedido_id,
-        menu_componente_id: datos.menu_componente_id,
+        pedido_id:           datos.pedido_id,
+        menu_componente_id:  datos.menu_componente_id  || null,
         receta_solicitada_id: datos.receta_solicitada_id || null,
-        motivo: datos.motivo,
+        motivo:              datos.motivo,
+        tipo_solicitud:      datos.tipo_solicitud      || 'cambio_receta',
+        tipo_dieta_id:       datos.tipo_dieta_id       || null,
+        paciente_info:       datos.paciente_info       || null,
       })
       .select()
       .single();

@@ -372,6 +372,30 @@ export default function ConsolidadoSupervisor() {
           </div>
         </div>
 
+        {/* Banner Desechables */}
+        {pedidos?.some((p) => p.usa_desechables) && (
+          <div className="card mb-4" style={{ borderColor: 'rgba(245,158,11,0.4)' }}>
+            <div className="card-body py-3 flex items-start gap-3">
+              <span className="text-warning text-xl flex-shrink-0">🗑</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-warning">
+                  {pedidos.filter((p) => p.usa_desechables).length}{' '}
+                  unidad{pedidos.filter((p) => p.usa_desechables).length !== 1 ? 'es' : ''}{' '}
+                  requiere{pedidos.filter((p) => p.usa_desechables).length !== 1 ? 'n' : ''}{' '}
+                  desechables hoy
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {pedidos
+                    .filter((p) => p.usa_desechables)
+                    .map((p) => p.operaciones?.nombre)
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Filtros + Selector de Unidad */}
         <div className="card mb-4">
           <div className="card-header">
